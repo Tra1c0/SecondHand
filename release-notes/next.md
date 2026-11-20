@@ -33,7 +33,7 @@ Nur mit automatischen Tests geprüft: das Gefühl des Trackpads (die Schrittweit
 
 ## Leiste v2: sichtbare Symbole, echtes Ziehen
 
-- **Alle Symbole sind zu sehen.** In deinem dunklen Design waren die Textaktionen (Funken) und die Skill-Taste schwarz auf fast schwarz, daher die „Löcher“. Jetzt hat jedes Symbol in jedem Design einen Kontrast von mindestens 4,5:1 zum Hintergrund. Alle sind gleich groß, die Lücken zwischen den sichtbaren Rändern (Symbol, Kreis, Raster-Knopf) sind gleich, der Rand zum Bildschirm auch: weniger Symbole, größere Lücken.
+- **Alle Symbole sind zu sehen.** In deinem dunklen Design waren die Textaktionen (Funken) und die Skill-Taste schwarz auf fast schwarz, daher die „Löcher“. Jetzt hat jedes Symbol in jedem Design einen Kontrast von mindestens 4,5:1 zum Hintergrund. Alle werden gleich groß gezeichnet und liegen gleichmäßig verteilt: weniger Symbole, größere Abstände.
 - **Nicht verfügbare Werkzeuge** (privates Feld, Zahlenfeld) bleiben am Platz, blasser, mit einem kleinen Schloss; ein Tipp darauf sagt den Grund.
 - **Anpassen mit echtem Ziehen:** Raster-Knopf, „Anpassen“, eine Pille kurz halten und in die Leiste ziehen: Eine Kopie folgt dem Finger, die Leiste öffnet unter dem Finger eine Lücke, loslassen setzt das Werkzeug dort ein. Umordnen: Symbol der Leiste anfassen und verschieben. Herausnehmen: nach unten ins Raster ziehen. Voll (8): die Leiste wackelt und sagt es. **Rückgängig** und **Zurücksetzen** (mit Frage) im Anpassen-Bereich. Das Systemziehen von Build 41 ist weg; es schnappte zurück.
 - **Rückgängig bietet Wiederholen an:** nach einem Rückgängig trägt das Symbol einen kleinen Pfeil; Wiederholen ist der Langdruck darauf. Verschwindet beim Tippen. Eine Vermutung der Tastatur, die App entscheidet.

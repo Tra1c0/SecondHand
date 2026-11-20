@@ -1327,7 +1327,7 @@ aufgebaut aus, wie in Gboard: links der **Raster-Knopf**, dann deine **Werkzeuge
 Plätzen, ganz rechts das **Mikrofon** im Kreis (die Sprach- oder die Diktat-Taste, je nachdem, was in der Leiste liegt).
 Nichts scrollt, es gibt keinen Pfeil zum Ein- und Ausblenden. Ein Werkzeug sitzt immer am selben Platz; die Plätze hängen nur
 davon ab, **wie viele** Werkzeuge in der Leiste liegen (1 bis 5 in voller Größe, 6 bis 8 als kompakte Reihe mit kleineren
-Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster). Jedes Symbol ist in jedem Design gut zu erkennen, und die Lücken zwischen den Symbolen sind gleich groß (weniger Symbole: größere Lücken).
+Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster). Jedes Symbol ist in jedem Design gut zu erkennen, und die Symbole liegen gleichmäßig verteilt (weniger Symbole: größere Abstände).
 
 - **Was die Leiste zeigt:** Solange nichts getippt wird, die Werkzeuge. Tippst du, ersetzen die Wortvorschläge sie; ebenso
   Befehls-Chips, Auswahl-Chips, die Zwischenablage-Pille, Autofill und die Hinweise auf neue Builds (die Reihenfolge, in der

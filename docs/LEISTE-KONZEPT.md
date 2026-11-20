@@ -46,14 +46,14 @@ Sperre (`BarTools.unavailableReason`): „In diesem Feld nicht verfügbar: priva
 Feld ohne persönliches Lernen), „… gesperrtes Gerät“, „… Zahlenfeld“. TalkBack liest dieselbe Zeile
 (Live-Region) und die Beschreibung des Knopfs enthält den Grund.
 
-**Abstände (Entscheidung):** Gleich sind die Lücken zwischen den **sichtbaren Rändern** benachbarter Elemente
-(Symbolfläche 24 dp, Kompakt 20 dp; Kreis 34 dp; linker Knopf: seine Scheibe), und der Randabstand von Bildschirmrand
-zum ersten und letzten sichtbaren Rand ist gleich (12 dp). Grund: das Auge liest die sichtbaren Formen, nicht ihre
-Mitten; mit Kreis am Ende ergäbe gleicher Mittenabstand eine um 5 dp kleinere Lücke neben dem Kreis. Folge: Plätze
-hängen von der Anzahl ab und davon, ob das letzte Werkzeug der Kreis ist; nie von Werkzeug-Art oder Feld. Alle Symbole
-werden in dieselbe Fläche skaliert (FIT_CENTER in 24 dp; Kompakt ab 6 Werkzeugen 20 dp). 0 Werkzeuge: nur der
-Raster-Knopf, nichts sieht kaputt aus; 1 bis 2 Werkzeuge sind über die ganze Breite verteilt, nicht links gehäuft.
-Berührflächen bleiben mindestens 40 × 40 dp (die Zellen sind größer als die sichtbare Fläche).
+**Abstände (Entscheidung):** Gleich sind die **Mitten** der Plätze von Rand zu Rand (links Raster-Knopf, dann die Werkzeuge, links und rechts 6 dp Rand
+der Zellen), und alle Symbole werden in dieselbe Fläche skaliert (24 dp, ab 6 Werkzeugen 20 dp; im flachen Stil bleiben die eigenen, für den ganzen 34-dp-Knopf
+gezeichneten Symbole, wie in den Referenzbildern). Damit sind auch die sichtbaren Lücken zwischen gleich großen Symbolen gleich; nur der Kreis am Ende (34 dp) ist breiter als ein
+Symbol, die Lücke daneben ist darum 5 dp kleiner. **Erst anders gebaut, dann verworfen:** Ich hatte gleiche Lücken zwischen den sichtbaren Rändern gebaut (Plätze
+dann je nach Kreis am Ende verschoben). Die Referenzbilder des Owners (flacher Stil, `FlatStyleRenderTest`: Mitten bei 75,5, 338, 600, 861, 1124,5 px, der Kreis
+am Ende eingerechnet) zeigen gleiche **Mitten**; die Lösung der „Löcher“ ist die Sichtbarkeit, nicht ein anderer Abstand. Plätze hängen nur von der Anzahl ab (nie vom
+Werkzeug, nie vom Feld), das bleibt eine Zusage an die Muskelerinnerung. 0 Werkzeuge: nur der Raster-Knopf, nichts sieht kaputt aus; 1 bis 2 Werkzeuge sind über die ganze
+Breite verteilt, nicht links gehäuft. Berührflächen bleiben mindestens 40 × 40 dp (voll; kompakt 30 dp, wie bisher).
 
 ## 3. Anpassen: die vollständige Bedienung
 

@@ -155,21 +155,21 @@ class FixedBarTest {
                 val tools2 = slots(h)
                 assertEquals(bar, tools2.map { it.tag }, label)
                 val left = leftKey(h)
-                // stage 88: the gaps between the visible boxes of neighbours are equal, and so are the insets at both ends
+                // the centres of the left key and the tools are evenly spread from the left margin to the right margin
                 val rowLeft = toolbar(h).leftIn(h.root).toFloat()
                 val leftBox = FixedBar.leftBox(left, flat, count).let { android.graphics.RectF(it.left + left.leftIn(h.root) - left.left, it.top, it.right + left.leftIn(h.root) - left.left, it.bottom) }
                 val boxes = listOf(leftBox) + tools2.map { FixedBar.visualBox(it).let { b -> android.graphics.RectF(b.left + rowLeft, b.top, b.right + rowLeft, b.bottom) } }
                 assertEquals(boxes.sortedBy { it.left }, boxes, label)
-                val gaps = boxes.zipWithNext { a, b -> b.left - a.right }
-                gaps.forEach { assertTrue(abs(it - gaps.first()) <= 2.5f, "$label gaps $gaps") }
-                if (count > 0) {
-                    assertTrue(abs(boxes.first().left - (WIDTH - boxes.last().right)) <= 2.5f, "$label insets ${boxes.first().left} / ${WIDTH - boxes.last().right}")
-                    assertTrue(abs(boxes.first().left - 12f * 3.25f) <= 2.5f, "$label inset ${boxes.first().left}")
-                    assertTrue(gaps.first() > 0, "$label gap")
-                }
-                // the same count (and the same kind of last item) gives the same places whichever tools are in it
-                val centres = boxes.map { (it.left + it.right) / 2f }
-                val previous = patterns.put(count * 2 + (if (variant == 1) 1 else 0), centres)
+                val centres = (listOf(left) + tools2).map { it.centreIn(h.root) }
+                centres.zipWithNext { a, b -> if (centres.size > 2) assertTrue(abs((b - a) - (centres[1] - centres[0])) <= 1.5f, "$label pitch ${b - a}") }
+                if (count > 0) assertTrue(abs(centres.first() - (WIDTH - centres.last())) <= 2.5f, "$label symmetric ${centres.first()} / ${centres.last()}")
+                // stage 88: the glyphs are all drawn in one box, so the visible gaps between neighbouring plain glyphs are equal as well
+                val plainBoxes = tools2.zip(boxes.drop(1)).filter { !FixedBar.isCircle(it.first) }.map { it.second }
+                plainBoxes.forEach { assertTrue(abs(it.width() - plainBoxes.first().width()) <= 1.5f && abs(it.height() - plainBoxes.first().height()) <= 1.5f, "$label box ${it.width()} x ${it.height()}") }
+                val plainGaps = boxes.drop(1).zipWithNext { a, b -> b.left - a.right }.filterIndexed { i, _ -> !FixedBar.isCircle(tools2[i + 1]) }
+                plainGaps.forEach { assertTrue(abs(it - plainGaps.first()) <= 2.5f, "$label visible gaps $plainGaps") }
+                // the same count gives the same places whichever tools are in it
+                val previous = patterns.put(count, centres)
                 if (previous != null) assertTrue(previous.zip(centres).all { (a, b) -> abs(a - b) <= 1f }, "$label equal places: $previous vs $centres")
                 // no scrolling and no expand arrow in the strip
                 assertNoScrolling(h.strip)
@@ -181,7 +181,7 @@ class FixedBarTest {
                     val full = Math.round((if (flat) 34f else 40f) * 3.25f)
                     val compact = Math.round(30f * 3.25f)
                     plain.firstOrNull()?.let { assertEquals(if (BarTools.isCompact(count)) compact else full, it.width, label) }
-                    val glyph = Math.round((if (BarTools.isCompact(count)) 20f else 24f) * 3.25f)
+                    val glyph = Math.round((if (BarTools.isCompact(count)) 20f else if (flat) 34f else 24f) * 3.25f) // the flat look's own icons are drawn for the whole button
                     plain.forEach { assertTrue(abs(glyph - FixedBar.visualBox(it).width()) <= 1.5f, label) }
                 }
                 // the last microphone key is the circle, no other slot is

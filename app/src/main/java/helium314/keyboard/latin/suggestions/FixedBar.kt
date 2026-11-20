@@ -29,14 +29,14 @@ import helium314.keyboard.latin.utils.BarTools
 import helium314.keyboard.latin.utils.ToolbarKey
 
 /**
- * Fork, stage 85, rebuilt in stage 88: the geometry of the fixed bar. The tool row has no scrolling and no expand arrow.
- * Every item (the left key and each tool) has a **visible box** (the glyph area of 24 dp, 20 dp in the compact row; the
- * circle of the last microphone key; the disc behind the left key), and a cell around it for the finger. The spacers
- * before the buttons have equal weight, so the **gaps between neighbouring visible boxes are equal**, and the distance
- * from the screen edge to the first and the last visible box is the same ([EDGE_INSET_DP]). The place of a slot depends
- * only on the number of tools and on whether the last one is the circle, never on which tool it is or what is typed.
- * With more than [BarTools.FULL_SIZE_MAX] tools the glyphs are smaller (compact row), all the same size. A tool that is
- * unavailable in the field stays in its place in the "off" look (a real colour, a lock), see [StripIconColors].
+ * Fork, stage 85, refined in stage 88: the geometry of the fixed bar. The tool row has no scrolling and no expand arrow.
+ * Every item (the left key and each tool) has one cell width and equal gaps before, between and after (spacers of equal
+ * weight, one layout pass), the margin at both ends is the same ([EDGE_DP]): the **centres are evenly spread** from edge
+ * to edge, as in the owner's reference screenshots (also with the circle at the end), and the place of a slot depends only
+ * on the number of tools, never on which tool it is or what is typed. Every glyph is scaled into one box (24 dp, 20 dp in
+ * the compact row from [BarTools.FULL_SIZE_MAX] + 1 tools), so the visible gaps between plain glyphs are equal too; only
+ * the circle of a last microphone key (34 dp) is wider than a glyph. A tool that is unavailable in the field stays in its
+ * place in the "off" look (a real colour, a lock), see [StripIconColors].
  */
 /** Counters for the test that a strip update while typing builds, looks up and arranges nothing for the bar (stage 85 review, point 9). */
 internal object BarCounters {
@@ -48,8 +48,8 @@ internal object BarCounters {
 }
 
 internal object FixedBar {
-    /** From the screen edge to the first and the last visible box. */
-    private const val EDGE_INSET_DP = 12f
+    /** Margin of the left key and of the right end of the row. */
+    private const val EDGE_DP = 6f
     private const val GLYPH_DP = 24f
     private const val COMPACT_GLYPH_DP = 20f
     private const val FULL_CELL_DP = 40f
@@ -60,25 +60,27 @@ internal object FixedBar {
     /** The disc behind the left key is a circle of 20 in a 24.8 viewport (`toolbar_expand_key_background`). */
     private const val DISC_FRACTION = 20f / 24.8f
 
-    /** All measures of one arrangement, in pixels. */
+    /** All measures of one arrangement, in pixels. Every item has the same cell, so the centres are evenly spread. */
     class Sizes(private val density: Float, flat: Boolean, compact: Boolean, stripHeight: Int) {
         private fun px(dp: Float) = Math.round(dp * density)
-        val glyph = px(if (compact) COMPACT_GLYPH_DP else GLYPH_DP)
-        /** The width of a tool button; its height is [height]. */
+        /** The flat look has its own icons, drawn for the whole 34 dp button (the reference screenshots): they stay at their size ([centred]). */
+        val centred = flat && !compact
+        /** The width of every button (and of the left key); the height is [height]. */
         val cell = px(if (compact) COMPACT_CELL_DP else if (flat) FLAT_CELL_DP else FULL_CELL_DP)
-        val circle = px(if (compact) COMPACT_CIRCLE_DP else CIRCLE_DP)
-        /** Room for the finger around the visible box on each side. */
+        val glyph = if (centred) cell else px(if (compact) COMPACT_GLYPH_DP else GLYPH_DP)
+        val circle = minOf(px(if (compact) COMPACT_CIRCLE_DP else CIRCLE_DP), cell)
+        /** Room for the finger around the glyph on each side. */
         val hit = (cell - glyph) / 2
-        val circleCell = circle + 2 * hit
+        val circleCell = cell
         val height = if (flat || compact) cell else stripHeight
         val leftHeight = if (flat || compact) cell else minOf(cell, stripHeight)
         /** The visible box of the left key: its disc, or only the glyph in the flat style (no disc). */
-        val leftVisual = if (flat) glyph else Math.round(DISC_FRACTION * minOf(cell, leftHeight))
-        private val leftHit = (cell - leftVisual) / 2
-        val edge = px(EDGE_INSET_DP)
-        val leftMarginStart = edge - leftHit
-        val leftMarginEnd = (hit - leftHit).coerceAtLeast(0)
-        val rowMarginEnd = edge - hit
+        val leftVisual = if (flat) minOf(glyph, px(GLYPH_DP)) else Math.round(DISC_FRACTION * minOf(cell, leftHeight))
+        /** From the screen edge to the left key and from the last button to the screen edge. */
+        val edge = px(EDGE_DP)
+        val leftMarginStart = edge
+        val leftMarginEnd = 0
+        val rowMarginEnd = edge
     }
 
     fun sizes(view: View, flat: Boolean, count: Int): Sizes {
@@ -86,7 +88,7 @@ internal object FixedBar {
         return Sizes(view.resources.displayMetrics.density, flat, BarTools.isCompact(count), stripHeight)
     }
 
-    fun edgePx(density: Float) = Math.round(EDGE_INSET_DP * density)
+    fun edgePx(density: Float) = Math.round(EDGE_DP * density)
 
     /** The left key of the other styles: as big as a tool button and as far from the edge as the row is from the right one. */
     fun arrangeLeftKey(expandKey: ImageButton) {
@@ -182,7 +184,7 @@ internal object FixedBar {
             view.layoutParams = LinearLayout.LayoutParams(width, s.height).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
             // the glyph is scaled into one box for every tool, so that they all look equally big
             view.setPadding((width - s.glyph) / 2, (s.height - s.glyph) / 2, (width - s.glyph) / 2, (s.height - s.glyph) / 2)
-            view.scaleType = ImageView.ScaleType.FIT_CENTER
+            view.scaleType = if (s.centred) ImageView.ScaleType.CENTER else ImageView.ScaleType.FIT_CENTER
             if (flat) view.background = null else colors.setBackground(view, ColorType.STRIP_BACKGROUND)
             view.setTag(R.id.agent_bar_circle, null)
             view.setTag(R.id.agent_bar_tint, tint)

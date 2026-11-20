@@ -2776,10 +2776,10 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   bleibt für das Berührungssystem aktiv und ein Tipp sagt den Grund (`FixedBar.showHint`, Zeile 2,5 s anstelle der Werkzeuge; im Raster `ToolGridView.onUnavailable`). Die Symbole der Fork sind
   weiß gefüllt (`ic_agent_actions`, `ic_skill_*`, `ic_agent_dictate`, neu `ic_agent_char_art` statt `ic_edit` für `CHAR_ART`): schwarz mal Farbe war schwarz.
   Linke Taste: das Symbol bekommt den Kontrast gegen ihre Scheibe oder den Streifen (`updateLeftKey`).
-- Abstände (Etappe 88): `FixedBar.Sizes`: Jedes Element hat eine sichtbare Fläche (Symbol 24 dp, kompakt 20 dp; Kreis 34 dp, kompakt 30 dp; Scheibe der linken Taste) in einer Zelle von mindestens 40 dp
-  (voll) mit Platz für den Finger. Die Lücken zwischen den **sichtbaren** Rändern sind gleich (Abstandhalter mit gleichem Gewicht), der Rand zum Bildschirm ist an beiden Enden 12 dp
-  (`EDGE_INSET_DP`); die Plätze hängen von Anzahl und davon ab, ob das letzte Werkzeug der Kreis ist. Alle Symbole werden in dieselbe Fläche skaliert (`FIT_CENTER`).
-  `FixedBar.visualBox`/`leftBox` geben die Flächen (Tests), `slotCentres(count)` die Plätze aus der Anzahl ohne Kreis (Treffer beim Ziehen).
+- Abstände (Etappe 88): `FixedBar.Sizes`: Jedes Element (linke Taste, Werkzeuge, auch der Kreis) hat dieselbe Zelle (40 dp voll, flach 34 dp, kompakt 30 dp), Abstandhalter mit gleichem Gewicht, 6 dp Rand an
+  beiden Enden: die **Mitten** sind gleichmäßig verteilt (so die Referenzbilder des Owners, `FlatStyleRenderTest`), die Plätze hängen nur von der Anzahl ab. Alle Symbole werden in dieselbe Fläche skaliert
+  (24 dp, kompakt 20 dp, `FIT_CENTER`; im flachen Stil mit voller Größe bleiben die eigenen 34-dp-Symbole, `centred`), damit sind die sichtbaren Lücken zwischen gleich großen Symbolen gleich. Nur der Kreis ist breiter.
+  `FixedBar.visualBox`/`leftBox` geben die sichtbaren Flächen (Tests), `slotCentres(count)` die Plätze aus der Anzahl (Treffer beim Ziehen).
 - Anpassen (Etappe 86, neu gebaut in Etappe 88; Fallstricke P475 bis P481): Das Ziehen nutzt **kein Systemziehen**. `K/latin/suggestions/BarDrag.kt` (rein, mit Zeit und Anordnung als
   Parameter): Zustandsmaschine (`IDLE`, `PRESSED`, `DRAGGING`, `SCROLLING`), Haltezeit 180 ms, Touch-Slop, Zone (Leiste plus 40 dp, nach oben alles), Lücke an dem Platz, dessen Mitte dem Finger am nächsten
   liegt (Anordnung mit der Anzahl nach dem Ablegen, darum ohne Rückkopplung), Ablegen/Abbruch/voll, ein Zeiger. `K/latin/suggestions/BarEditor.kt` (rein): das Modell; `bar` gespeichert, `preview`,
@@ -6590,8 +6590,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   der Tastatur gilt die Farbe `MAIN_BACKGROUND` als Näherung (nicht an einem Bild geprüft).
 - **P472** Nicht verfügbar (88): `FixedBar.setAvailable(button, reason, …)` setzt weder `alpha` noch `isEnabled=false`; das Werkzeug bleibt für die Berührung aktiv, `SuggestionStripView.onClick`/`onLongClick` und
   `ToolGridView.act` prüfen `reasonOf`/`reasons` und zeigen den Grund. Wer eine Stelle ergänzt, die `isEnabled` eines Platzes liest, fragt `FixedBar.reasonOf`. Beschreibung: `„<Name>. <Grund>“`.
-- **P473** Plätze (88): Die Plätze hängen von der Anzahl **und davon ab, ob das letzte Werkzeug der Kreis ist** (Lücken zwischen sichtbaren Rändern); der Test `slotsAreEvenlySpread…` prüft Lücken und Ränder an den
-  sichtbaren Flächen (`visualBox`) und vergleicht Plätze nur bei gleicher Art des Endes. Wer Größen ändert, ändert `FixedBar.Sizes` und den Test.
+- **P473** Plätze (88): Plätze hängen nur von der Anzahl ab (gleiche Mitten, auch mit dem Kreis am Ende; erst auf gleiche Lücken zwischen sichtbaren Rändern gebaut, wegen der Referenzbilder des Owners zurückgenommen, siehe `docs/LEISTE-KONZEPT.md`). Der Test
+  `slotsAreEvenlySpread…` prüft die Mitten, die gleiche Größe der Symbolflächen und gleiche sichtbare Lücken zwischen gleich großen Symbolen. Wer Größen ändert, ändert `FixedBar.Sizes`, diesen Test und `FlatStyleRenderTest`.
 - **P474** Linke Taste (88): Ihr Symbol bekommt den Kontrast gegen die Scheibe (`toolbar_expand_key_background`, 20 von 24,8 der Taste) oder, im flachen Stil, gegen den Streifen; die Farbe steht als `colorFilter` auf der Ansicht
   (`leftKeyIconBase/Behind` zwischenspeichern die Rechnung).
 - **P475** Systemziehen (88): `startDragAndDrop` im Tastaturfenster (IME-Fenster, nicht fokussierbar, neben dem App-Fenster) lieferte auf dem Gerät des Owners kein Ablegen (Symbol folgte dem Finger und schnappte zurück, Build 41).
