@@ -215,6 +215,12 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     prefs.edit { putBoolean(AgentPreferences.SMART_PASTE, on) }
                     written++
                 }
+                // stage 82: copy, cut, paste and delete chips while text is selected
+                BarSwitchRow(stringResource(R.string.agent_selection_setting), stringResource(R.string.agent_selection_setting_sub),
+                    { bool(AgentPreferences.SELECTION_CHIPS, true) }, true, BAR_SWITCH_TAG + AgentPreferences.SELECTION_CHIPS) { on ->
+                    prefs.edit { putBoolean(AgentPreferences.SELECTION_CHIPS, on) }
+                    written++
+                }
             }
 
             SectionCard(null) {

@@ -202,7 +202,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Textregeln, Format `v1`, `parse` wirft nie), `PersonalInkSymbols.kt` (36, persönliche Vorlagen),
   `InkTiming.kt` (36, `InkTap` Tipp-Regel, `InkPace` Pause nach Tempo). Tests
   `InkRecognizerTest`, `OwnInkSymbolsTest`, `InkBenchmarkTest` (mit `InkFingerModel`),
-  `InkTimingTest`, `PersonalInkSymbolsTest`.
+  `InkTimingTest`, `PersonalInkSymbolsTest`, `InkLogicTest` (83: „/“ und „\“, kein „%“ für einen Strich, jede Teilzeichnung
+  jeder eingebauten Zeichnung ist kein Symbol, das mehr Striche braucht).
 - `C/format/` (Etappe 41, Formatwächter, Paket `dev.agentkeyboard.core.format`, P138–P140):
   `FormatGuard.kt` (`FieldKind` EMAIL/PHONE/DECIMAL/TEXT, `FormatHint` mit `replacement` = ganzer
   neuer Feldtext oder null für einen reinen Hinweis, `FormatGuard.check`: höchstens
@@ -1169,6 +1170,13 @@ eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgra
   `getExtractedText` in `copyText` (sein `getSelectedText` zählt, einmal) und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen).
   Der Zähler wirft nie. `LatinIME.onEvent` zählt jeden Tastenbefehl, auch Dauerfeuer und Pfeile des Touchpads (verzerrt nur die Karte „Tippen“).
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
+- `LatinIME.java` (82): `getAgentSelection` (markierter Bereich, sonst null), `getAgentEditorGeneration` (Nummer der Editor-Sitzung,
+  `AndroidEditorAdapter.generation`), `tryShowSelectionChips` (ohne Eingriff in die Werkzeugleiste, nicht mit `mAutoShowToolbar`) in
+  `setSuggestedWords` (nach den Symbol-Chips, vor dem Screenshot-Chip, nicht für Wischtipp-Stile `UPDATE_BATCH`/`TAIL_BATCH` und
+  `APPLICATION_SPECIFIED`) und `setNeutralSuggestionStrip` (nach den Symbol-Chips, vor der Pille), `onEvent` ruft am Ende
+  `SelectionChips.afterKey`, `onUpdateSelection` danach `SelectionChips.afterSelectionUpdate` (dafür steht das Ergebnis von
+  `mInputLogic.onUpdateSelection` in `selectionHandled`; der Rest des Ablaufs ist gleich). `ClipboardHistoryManager.onPrimaryClipChanged`
+  ruft als erste Zeile `SelectionChips.clipChanged`. `InputLogic`, `RichInputConnection` und `PointerTracker` sind unverändert.
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*` (seit Etappe 33 auch die
@@ -1510,8 +1518,9 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   nächste normale Vorschlag ersetzt sie.
 - Leiste, Reihenfolge in `LatinIME.setNeutralSuggestionStrip`: Befehls-Chips (mit Formatwächter
   41, Feld-Vorschlägen 45, Gedächtnis 46, Emoji-Mix aus `KeyboardCommands.buildChips`), Symbol-Chips
-  (27), Zwischenablage-Pille mit Smart Paste (40), dann der Update-Chip (54, `UpdateChip`), zuletzt
-  Satzzeichen oder leer. In `setSuggestedWords` kommt der Update-Chip nicht vor: Wortvorschläge und
+  (27), Auswahl-Chips (82, `A/SelectionChips.kt`: bei jeder Markierung Kopieren, Ausschneiden, Einfügen,
+  Löschen; ersetzen Wortvorschläge, solange markiert ist; Texte in `agent_selection_strings.xml`, Englisch und Deutsch), Zwischenablage-Pille mit Smart Paste (40), dann der
+  Update-Chip (54, `UpdateChip`), zuletzt Satzzeichen oder leer. In `setSuggestedWords` kommt der Update-Chip nicht vor: Wortvorschläge und
   Vorhersagen verdeckt er nie (Entscheidung des Leads, P212). Seit 56 findet ihn die Prüfung beim
   Öffnen; `UpdateOnOpen.refresh` ruft dann einmal `setNeutralSuggestionStrip`, aber nur, wenn die
   Tastatur noch im selben Feld steht und die Leiste zuletzt leer war (`LastField.stripNeutral`), sonst
@@ -3429,6 +3438,25 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   Wird die Zeichnung
   verworfen, meldet `cancel` eine leere Liste und die Leiste holt ihre Vorschläge zurück
   (`postUpdateSuggestionStrip`); `reset` setzt den Zustand vor `SymbolInk.cancel` zurück (P112).
+- Vollständigkeit (83, `C/InkRecognizer.kt`): `InkMatch.complete` ist wahr, wenn irgendeine Vorlage des Textes höchstens so viele
+  Striche (`InkCloud.strokeCount`, Linien plus Punkte) hat, wie gemalt wurden; der Abstand ist dann der der nächsten solchen
+  Vorlage (ohne Nähe-Schwelle: eine ferne vollständige Vorlage verdrängt eine nahe unvollständige desselben Textes aus der Liste,
+  der Text steht dann weit hinten). `match` führt zwei Listen; die Drehprüfung (`near`) rechnet je Art mit dem nächsten Abstand
+  der eigenen Art, eine nahe unvollständige Vorlage kürzt die Drehung der vollständigen nicht. `InkResult.best`: der nächste
+  vollständige Kandidat, wenn er angenommen wird (Abstand ≤ `ACCEPT_DISTANCE`, oder bis `CLEAR_DISTANCE` mit Abstand zum Nächsten
+  unter den vollständigen); nur wenn keiner angenommen wird, der nächste unvollständige nach derselben Regel unter den
+  unvollständigen (Rückfall: „?“ ohne Punkt, „+“ in einem Zug). Ausnahme: ein vollständiger Kandidat, der nur als klarer
+  angenommen wird (über `ACCEPT_DISTANCE`), weicht einem unvollständigen, der innerhalb davon und näher liegt. `alternatives`:
+  erst vollständige, dann unvollständige (% nach „/“), ohne Bestes nur unvollständige. `candidates` bleibt nach Abstand sortiert
+  und enthält alle. Neue Vorlagen „/“ (45°, etwa 60°, etwa 30°) und „\\“ (gespiegelt, `InkSymbols.slash`) sowie Fingervarianten
+  „%“ (Kreise und Strich in einem Zug), „$“ (S und Strich in einem Zug), „≠“ (Balken als Zickzack oder Schrägstrich angehängt).
+  `InkDots.isDot` (Regel 4) vergleicht nur mit vollständigen Symbolen ohne Punkte und lässt Texte aus, die nur ein gerader Strich
+  sind (`bareLines`: – | / \\ und eigene gerade Striche): Eine Linie, die auf Punkte wartet, ist der punktlose Teil von %, ÷, !, kein
+  Symbol, das „klar besser“ passt (ohne das nahm „/“ die Tipps von % weg: 177 statt 195 von 200). Winkel eines einzelnen Strichs
+  (`InkLogicTest.theAnglesOfASingleStrokePinned…`): bis 15° „–“, 18° bis 75° „/“, ab 78° „|“, gespiegelt „\\“. Eine Zeichnung direkt
+  nach dem Tippen, die weder Tipp noch angenommen ist (`SymbolInk.resolve`, `Sink.recognizes` = `best != null`), wird wie vorher
+  als Taste getippt; mit dem Rückfall ist `best` seltener null als nach der ersten Fassung von 83, genauso oft wie vor 83, wo
+  unvollständige Symbole auch gewannen.
 - `A/SymbolDrawing.kt`: Erkennung (eingebaute plus eigene Vorlagen, neu gebaut, wenn sich der
   gespeicherte Text ändert), Einfügen über `LatinIME.onTextInput` (beendet das Wort wie ein
   Satzzeichen, Autokorrektur des Worts davor wie dort), danach bis zu drei Alternativen als Chips
@@ -6258,20 +6286,52 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P348** Symbolseiten (81): Die Pfeiltaste ist ab jetzt standardmäßig aus (`Defaults.PREF_SHOW_DPAD_KEY`). Eine Einstellung, die
   der Owner einmal gesetzt hat (auch „an“), steht als gesetzter Wert in den Einstellungen und gewinnt gegen den Standard; nichts
   wird migriert. Keine Stelle im Code darf alle Standardwerte in die Einstellungen schreiben, sonst gilt der alte Wert weiter.
+- **P360** Auswahl-Chips (82): Der Zustand wird beim Bauen der Leiste gelesen (`LatinIME.getAgentSelection`), nicht gemerkt; ein
+  Tipp prüft Markierung (Anfang und Ende) und Editor-Sitzung des Feldes (`Bound`) und den Sperrzustand frisch (`LockState`, der Tipp
+  auf einen Chip leert ihn ohnehin, P309) und tut sonst nichts. „Alles auswählen“ und „Wort markieren“ gehen über
+  `mIC.performContextMenuAction` bzw. `mIC.setSelection`, ohne die erwartete Markierung der `RichInputConnection` zu setzen; die
+  Markierung kommt als normales `onUpdateSelection` zurück, das über `postResumeSuggestions` die neutrale Leiste baut, aber
+  `restartSuggestionsOnWordTouchedByCursor` kehrt auf einigen Wegen vorher zurück: darum baut `LatinIME.onUpdateSelection` die Leiste selbst
+  neu, wenn Chips stehen und die Markierung eine andere ist (`afterSelectionUpdate`). Die Robolectric-Schattenverbindung sendet das
+  Update nicht (`reportSelection` in `InputLogicTest`) und `handleMessages` verwirft die verzögerte Vorschlagsaktualisierung.
+  Kopieren, Ausschneiden und Einfügen baut die Leiste in `SelectionChips.afterKey` neu; ein Tipp, der die Markierung entfernt, baut
+  sie sofort neu (`shown`-Merker). Die Zeile kommt aus `KeyboardCommands.rowFor`: bei gleicher Beschriftung wird dieselbe Ansicht
+  wiederverwendet und ihre Tipps an die neue Markierung gebunden (ein „alter“ Chip derselben Zeile gilt also für die jetzige
+  Markierung; nur eine Zeile mit anderen Chips, z. B. neuem „Einfügen“, lässt die alte Ansicht an ihre alte Markierung und ihr altes
+  Feld gebunden). „Einfügen“ fragt die Zwischenablage einmal je Clip (`clipChanged` aus dem Listener des Verlaufs-Managers).
+- **P361** Auswahl-Chips stehen in jedem Feld außer Passwort, Inkognito, Feld ohne Lernen und gesperrtem Gerät (`FormatGuardChips.isBlocked`
+  plus `LockState`), strenger als die Kopieren-Taste der Werkzeugleiste (`copyText` prüft nichts). Felder, die beim Fokus alles
+  markieren (Adressleiste), zeigen die Chips sofort; Tippen ersetzt die Markierung und nimmt sie weg. Sie rufen nie
+  `setToolbarVisibility` auf (die erste Fassung schloss im Modus „Aufklappbar“ bei jedem Neubau die Werkzeugleiste): Eine offene
+  Werkzeugleiste verdeckt sie wie jeden Vorschlag; im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
+  `SuggestionStripView.setExternalSuggestionView` für jede externe Ansicht tut (Werkzeugleiste ausblenden, wie bei der Pille). Mit
+  `mAutoShowToolbar` bauen sie nichts, damit gilt das alte Verhalten (Werkzeugleiste bei Markierung). Schalter
+  `AgentPreferences.SELECTION_CHIPS` („Aktionen bei markiertem Text“, `AgentAreaBarScreen`, Standard an). Wischtippen über einer
+  Markierung: `setSuggestedWords` zeigt für `UPDATE_BATCH`/`TAIL_BATCH` keine Chips, damit die Wörter erscheinen.
+- **P362** `performContextMenuAction(startSelectingText)` fehlt mit Absicht. Aus dem Framework gelesen (nicht auf einem Gerät
+  geprüft): `TextView` kennt die Kennung nicht und lehnt sie ab; WebView und andere Editoren schalten damit einen Auswahlmodus ein,
+  in dem die nächste Cursorbewegung markiert, also nicht harmlos.
+- **P363** Erkenner (83): Ein Text ist unvollständig, wenn keine seiner Vorlagen so wenige Striche hat wie die Zeichnung; er gewinnt nur,
+  wenn kein vollständiger Kandidat angenommen wird. Eine Vorlage mit nur einem Strich (eigene Symbole, gelernte Zeichnungen) ist für jede
+  Zeichnung vollständig. Wer Vorlagen ergänzt, ergänzt auch die Fingervarianten mit weniger Strichen (ein Pfeil ohne Absetzen, ein
+  Herz in einem Zug, „%“ in einem Zug); sonst gewinnt ein einfacheres Symbol, das zufällig passt, oder es erscheint nichts. Neue gerade
+  Striche (wie „/“) wirken über `InkDots.bareLines` in Regel 4. Einzelne Striche um 18° bis 75° sind „/“, flacher „–“, steiler „|“.
+  Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
+  (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (717 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (721 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (92): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (93): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -6283,11 +6343,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
   MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
   RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
-  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
-  TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  SelectionChips, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
+  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6343,18 +6403,18 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (53): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (54): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
   InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
-  MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest, PendingBatchGateTest,
-  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
-  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
-  SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
-  SwappedLettersTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
-  UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
-  WorkflowContractTest, WorkflowTest
+  InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
+  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest,
+  PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest,
+  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest,
+  RgbPatternsTest, SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest,
+  StyledTranslationTest, SwappedLettersTest, SymbolTableTest, TimerParserTest, ToolTest,
+  TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
@@ -6428,27 +6488,28 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (35): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (36): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
   agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
   agent_name_strings, agent_prompt_strings, agent_rgb_pattern_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (44): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (45): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
   agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
   agent_prompts_ids, agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, strings, themes-flat
+  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
+  gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

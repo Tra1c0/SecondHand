@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 82, actions for selected text in the strip (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <item type="id" name="agent_selection_chips" />
+    <string name="agent_selection_copy">Copy</string>
+    <string name="agent_selection_copy_description">Copy the selected text</string>
+    <string name="agent_selection_cut">Cut</string>
+    <string name="agent_selection_cut_description">Cut the selected text</string>
+    <string name="agent_selection_paste">Paste</string>
+    <string name="agent_selection_paste_description">Paste the clipboard text in place of the selection</string>
+    <string name="agent_selection_delete">Delete</string>
+    <string name="agent_selection_delete_description">Delete the selected text</string>
+    <string name="agent_selection_setting">Actions for selected text</string>
+    <string name="agent_selection_setting_sub">While text is selected, the strip shows Copy, Cut, Paste and Delete. Not in password fields, and not when the toolbar shows itself for a selection.</string>
+</resources>

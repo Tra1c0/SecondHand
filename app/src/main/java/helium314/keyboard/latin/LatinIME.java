@@ -206,6 +206,28 @@ public class LatinIME extends InputMethodService implements
             mSuggestionStripView.setToolbarVisibility(false);
         return true;
     }
+    /** Stage 82: the selected range (start, end) the keyboard knows, or null without a selection or while the position is unknown. */
+    @Nullable
+    public int[] getAgentSelection() {
+        final RichInputConnection connection = mInputLogic.mConnection;
+        if (!connection.isCursorPositionKnown() || !connection.hasSelection()) return null;
+        return new int[]{connection.getExpectedSelectionStart(), connection.getExpectedSelectionEnd()};
+    }
+    /** Stage 82: the editor session of the field (a new one for every field start), for chips bound to a field. */
+    public long getAgentEditorGeneration() { return mAgentEditorController.getEditor().getGeneration(); }
+    /**
+     * Stage 82: copy, cut, paste and delete chips for the selected text, see SelectionChips. They never change
+     * the toolbar (an open one stays open and hides them like any suggestion; the Flat style and "auto hide
+     * toolbar" treat them like every external suggestion), and not with "auto show toolbar": that user chose
+     * the toolbar for a selection.
+     */
+    private boolean tryShowSelectionChips() {
+        if (!hasSuggestionStripView() || !onEvaluateInputViewShown() || mSettings.getCurrent().mAutoShowToolbar) return false;
+        final View chips = helium314.keyboard.agent.SelectionChips.createChipsView(this, mSuggestionStripView);
+        if (chips == null) return false;
+        mSuggestionStripView.setExternalSuggestionView(chips, false);
+        return true;
+    }
     public void onAgentTextSubmitted() {
         mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
         setGestureDataGatheringMode(getCurrentInputEditorInfo(), true);
@@ -1240,9 +1262,12 @@ public class LatinIME extends InputMethodService implements
         // view is not displayed we have no means of showing suggestions anyway, and if it is then
         // we want to show suggestions anyway.
         final SettingsValues settingsValues = mSettings.getCurrent();
-        if (isInputViewShown()
+        final boolean selectionHandled = isInputViewShown()
                 && mInputLogic.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
-                composingSpanStart, composingSpanEnd, settingsValues)) {
+                composingSpanStart, composingSpanEnd, settingsValues);
+        // stage 82: chips of a selection that is gone (InputLogic can return before it rebuilds the strip)
+        if (isInputViewShown()) helium314.keyboard.agent.SelectionChips.afterSelectionUpdate(this);
+        if (selectionHandled) {
             // we don't want to update a manually set shift state if selection changed towards one side
             // because this may end the manual shift, which is unwanted in case of shift + arrow keys for changing selection
             // todo: this is not fully implemented yet, and maybe should be behind a setting
@@ -1625,6 +1650,7 @@ public class LatinIME extends InputMethodService implements
                         mKeyboardSwitcher.getCurrentKeyboardScript(), mHandler);
         updateStateAfterInputTransaction(completeInputTransaction);
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+        helium314.keyboard.agent.SelectionChips.afterKey(this, event.getKeyCode()); // stage 82
     }
 
     public void onTextInput(@Nullable String rawText) {
@@ -1724,6 +1750,10 @@ public class LatinIME extends InputMethodService implements
         // a typed command shows its chips instead of word suggestions (stage 24)
         if (tryShowCommandChips()) return;
         if (tryShowSymbolChips()) return; // stage 27: alternatives of a drawn symbol
+        // stage 82: actions while text is selected; gesture typing over a selection and the app's own completions keep their words
+        final int style = suggestedWords.mInputStyle;
+        if (style != SuggestedWords.INPUT_STYLE_UPDATE_BATCH && style != SuggestedWords.INPUT_STYLE_TAIL_BATCH
+                && style != SuggestedWords.INPUT_STYLE_APPLICATION_SPECIFIED && tryShowSelectionChips()) return;
         // between words a fresh screenshot comes before next-word suggestions (stage 23g); the
         // suggestions above stay with InputLogic, so autocorrection is unchanged
         if (tryShowScreenshotChip()) return;
@@ -1833,6 +1863,7 @@ public class LatinIME extends InputMethodService implements
         final SettingsValues currentSettings = mSettings.getCurrent();
         if (tryShowCommandChips()) return;
         if (tryShowSymbolChips()) return;
+        if (tryShowSelectionChips()) return; // stage 82
         if (tryShowClipboardSuggestion()) {
             // clipboard suggestion has been set
             if (hasSuggestionStripView() && currentSettings.mAutoHideToolbar)

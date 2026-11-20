@@ -154,6 +154,7 @@ class ClipboardHistoryManager(
     }
 
     override fun onPrimaryClipChanged() {
+        helium314.keyboard.agent.SelectionChips.clipChanged(latinIME) // stage 82: "Einfügen" depends on it
         applyOldHistoryCleanup()
         // Make sure we read clipboard content only if history settings is set
         if (latinIME.mSettings.current.mClipboardHistoryEnabled) {

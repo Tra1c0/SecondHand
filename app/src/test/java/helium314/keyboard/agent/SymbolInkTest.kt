@@ -171,6 +171,18 @@ class SymbolInkTest {
         verify(listener).onCodeInput(eq('a'.code), anyInt(), anyInt(), eq(false))
     }
 
+    /** Stage 83 (owner: "/ gewischt wird zu %"): a slash swiped over the keys is "/" and a backslash "\\", never "%". */
+    @Test fun aSlashSwipedOverTheKeysIsASlashNotAPercentSign() {
+        stroke(*line(60f, 140f, 240f, 20f)) // bottom left to top right
+        pause()
+        assertEquals("/", recognizer.recognize(drawings.single()).best?.text)
+        drawings.clear()
+        stroke(*line(60f, 20f, 240f, 140f)) // top left to bottom right
+        pause()
+        assertEquals("\\", recognizer.recognize(drawings.single()).best?.text)
+        noLetterTyped()
+    }
+
     @Test fun tapsTypeLettersAndStartNoInk() {
         touch(MotionEvent.ACTION_DOWN, 50f, 50f); touch(MotionEvent.ACTION_UP, 50f, 50f)
         touch(MotionEvent.ACTION_DOWN, 120f, 60f); touch(MotionEvent.ACTION_UP, 120f, 60f)

@@ -157,6 +157,8 @@ class ShadowInputMethodService {
         /** How the editor treats text (stage 61 tests): normally, upper-casing everything it is given, or ignoring composing text. */
         enum class EditorMode { NORMAL, UPPERCASE, IGNORE_COMPOSING }
         var editorMode = EditorMode.NORMAL
+        /** The ids of the context menu actions the keyboard asked for (stage 82). */
+        val contextMenuActions = mutableListOf<Int>()
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -186,6 +188,7 @@ class ShadowInputMethodService {
             currentFieldId = 0
             contentCommit = null
             editorMode = EditorMode.NORMAL
+            contextMenuActions.clear()
         }
     }
 
@@ -365,7 +368,14 @@ class ShadowInputMethodService {
         override fun deleteSurroundingTextInCodePoints(p0: Int, p1: Int): Boolean = TODO("Not yet implemented")
         override fun commitCompletion(p0: CompletionInfo?): Boolean = TODO("Not yet implemented")
         override fun performEditorAction(p0: Int): Boolean { ShadowInputMethodService.editorActions.add(p0); return true }
-        override fun performContextMenuAction(p0: Int): Boolean = TODO("Not yet implemented")
+        // stage 82: like a TextView, "select all" selects only; the editor's own callback (onUpdateSelection) is the test's to send
+        override fun performContextMenuAction(p0: Int): Boolean {
+            contextMenuActions.add(p0)
+            if (p0 != android.R.id.selectAll) return false
+            selectionStart = 0
+            selectionEnd = text.length
+            return true
+        }
         override fun clearMetaKeyStates(p0: Int): Boolean = TODO("Not yet implemented")
         override fun reportFullscreenMode(p0: Boolean): Boolean = TODO("Not yet implemented")
         override fun performPrivateCommand(p0: String?, p1: Bundle?): Boolean = TODO("Not yet implemented")

@@ -206,6 +206,20 @@ class SettingsBarAreaTest {
         node(shots).assert(hasText("Neue Screenshots als Pille"))
     }
 
+    /** Stage 82: "Aktionen bei markiertem Text", default on, writes its key. */
+    @Test fun theSelectionActionsSwitchWritesItsPreference() {
+        show()
+        val tag = BAR_SWITCH_TAG + AgentPreferences.SELECTION_CHIPS
+        node(tag).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch)).assertIsEnabled()
+        assertEquals(ToggleableState.On, state(tag))
+        assertTrue(compose.onAllNodesWithText("Aktionen bei markiertem Text").fetchSemanticsNodes().isNotEmpty())
+        click(tag)
+        assertFalse(prefs.getBoolean(AgentPreferences.SELECTION_CHIPS, true))
+        assertEquals(ToggleableState.Off, state(tag))
+        click(tag)
+        assertTrue(prefs.getBoolean(AgentPreferences.SELECTION_CHIPS, false))
+    }
+
     @Test fun dependentRowsAreDisabledLikeOnTheOldPages() {
         prefs.edit().putString(Settings.PREF_TOOLBAR_MODE, ToolbarMode.HIDDEN.name).putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, false).commit()
         show()
