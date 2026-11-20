@@ -833,7 +833,7 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   **Etappe 79 liefert den ersten Teil** (nur lokal, nicht gepusht): Breite aus der echten Leiste und der Dichte, Chips in der Reihenfolge
   des Dienstes, veraltete Antworten und Rückrufe ignoriert; eine Freigabe-Methode für die Ansichten gibt es in der
   Plattform-Schnittstelle nicht (P320), die Ansichten werden nur losgelöst. Chips in Passwortfeldern und im Inkognito-Modus
-  sind gewollt und dokumentiert. Offen in (a): ein Lauf des Szenarios `autofill_inline` mit drei Chips, echte
+  sind gewollt und dokumentiert. **Etappe 79b** (lokal, nicht gepusht): der Kasten mit dem Kreuz erscheint erst beim ersten Chip, Zähler in `dump()` und auf der Diagnose-Seite, Diagnosezeilen im Gerätetest; die Plattformursache des Emulators ohne Chip ist nicht belegt (Gerätebefund: für die erste Antwort kam kein `inflate`-Rückruf, ein zweites Fokussieren lieferte alle drei Chips; siehe VALIDATION „Etappe 79b“). Offen in (a): ein Lauf des Szenarios `autofill_inline` mit drei Chips (läuft auf GitHub), echte
   Passwortmanager und ein echtes Telefon, die Abstimmung mit Tresor und Zwischenablage.
   (b) Lernende Eingabe: bessere Wortvorhersage und Korrektur aus dem eigenen Tippen, auf dem Gerät, opt-in.
   (c) KI auf dem Gerät: siehe W2.

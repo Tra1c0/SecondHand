@@ -248,4 +248,26 @@
     <string name="agent_diagnose_excluded_go_next">einzeiliges Feld mit der Aktion „Los“ oder „Weiter“</string>
     <string name="agent_diagnose_excluded_ascii">nur ASCII-Zeichen erlaubt</string>
     <string name="agent_diagnose_excluded_not_text">kein Textfeld</string>
+    <!-- stage 79b: inline autofill counters -->
+    <string name="agent_diagnose_autofill">Autofill-Vorschläge (Passwortmanager, nur Zahlen)</string>
+    <string name="agent_diagnose_autofill_responses">Antworten seit dem Start</string>
+    <string name="agent_diagnose_autofill_none">noch keine Antwort; ein Feld mit Autofill-Vorschlägen öffnen, dann diese Seite wieder öffnen</string>
+    <string name="agent_diagnose_autofill_responses_value">%1$d angenommen, %2$d leer, %3$d abgelehnt</string>
+    <string name="agent_diagnose_autofill_requested">Letzte Antwort: Vorschläge angefragt</string>
+    <string name="agent_diagnose_autofill_arrived">Letzte Antwort: Chips angekommen</string>
+    <string name="agent_diagnose_autofill_null">Letzte Antwort: leer angekommen</string>
+    <string name="agent_diagnose_autofill_stale">Letzte Antwort: verworfen (veraltet)</string>
+    <string name="agent_diagnose_autofill_pending">Letzte Antwort: noch nicht beantwortet</string>
+    <string name="agent_diagnose_autofill_placed">Letzte Antwort: Chips in der Leiste</string>
+    <string name="agent_diagnose_autofill_first">Zeit bis zur ersten Rückmeldung</string>
+    <string name="agent_diagnose_autofill_no_callback">keine Rückmeldung</string>
+    <string name="agent_diagnose_autofill_ms">%1$d ms</string>
+    <string name="agent_diagnose_autofill_shown">Autofill-Kasten gezeigt</string>
+    <string name="agent_diagnose_autofill_width">Leistenbreite bei der Anfrage</string>
+    <string name="agent_diagnose_autofill_no_request">noch keine Anfrage</string>
+    <string name="agent_diagnose_autofill_not_laid_out">noch nicht ausgelegt</string>
+    <string name="agent_diagnose_autofill_px">%1$d px</string>
+    <string name="agent_diagnose_autofill_input">Eingabe</string>
+    <string name="agent_diagnose_autofill_input_open">aktiv</string>
+    <string name="agent_diagnose_autofill_input_closed">beendet</string>
 </resources>

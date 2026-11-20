@@ -776,7 +776,8 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `FlatStrip.DEFAULT_EMOJIS`); ein Tipp fügt über `LatinIME.onTextInput` ein und ruft
   `RecentEmojis.add`.
 - `KeyboardSwitcher.java`: `setKeyboard` meldet der Leiste, ob eine Symbolseite (SYMBOLS oder
-  SYMBOLS_SHIFTED) offen ist (`showRecentEmojis`); ohne flachen Stil gibt es die Reihe nicht.
+  SYMBOLS_SHIFTED) offen ist (`showRecentEmojis`); ohne flachen Stil gibt es die Reihe nicht. Etappe 79b: danach ruft es
+  `onKeyboardLayoutChanged` (die abgedunkelte Ablage in Zahlenlayouts, P444).
 - Zwischenablage: `ClipboardHistoryView.kt` (im flachen Stil Kopfzeile, Abschnittstitel, Liste
   bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
@@ -842,6 +843,10 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `beginResponse()` je nicht leerer Antwort; ohne aktive Eingabe oder ohne Leiste liefert
   `onInlineSuggestionsResponse` `false`. Tests: `AT/InlineAutofillSizingTest.kt`, `AT/InlineAutofillSlotsTest.kt`,
   `AT/InlineAutofillGenerationTest.kt` (P318–P320). `InputLogic`, `RichInputConnection` und `PointerTracker` sind unberührt.
+- Etappe 79b (Autofill ohne leeren Kasten, Diagnose): `A/InlineAutofill.kt` bekommt `InlineAutofillResponse` (Reihe der Chips, Aktion „erster Chip“, Zähler je Antwort) und
+  `InlineAutofillCounters` (Summen und letzte Antwort, `shared`); `InlineAutofillGeneration.isOpen`. `InlineAutofillUtils.createView(…, InlineAutofillResponse)` startet die Rückrufe erst, wenn der Container steht.
+  `LatinIME`: `onInlineSuggestionsResponse` zeigt den Kasten (`showInlineAutofill`) nur aus der Aktion „erster Chip“, zählt leer/abgelehnt/angenommen; `dump()` druckt `InlineAutofillCounters.line()`;
+  `openInlineAutofillGeneration()` hält `generationOpen` der Zähler. Diagnose: `Diagnose.autofill` (Part `AUTOFILL`, vor „App und Telefon“) und `AgentDiagnoseScreen`. Tests: `AT/InlineAutofillResponseTest.kt`, `AT/InlineAutofillCardTest.kt` (P440–P443).
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -6371,6 +6376,17 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   liegen nur Stubs; auf einem Gerät nicht geprüft). Verhalten, gewollt und hier festgehalten: Die Chips erscheinen auch in Passwortfeldern und im Inkognito-Modus
   (nur `mSuggestionStripHiddenPerUserSettings` schaltet sie ab), denn ein Passwortmanager braucht genau das; Text und Werte der Vorschläge liest, speichert
   und loggt die Tastatur nicht (nur „onInlineSuggestionsResponse called“).
+- **P440** Autofill, Kasten erst beim ersten Chip (79b): Der Container mit dem Schließen-Kreuz steht erst, wenn `InlineAutofillResponse.onResult` den ersten Chip der aktuellen Generation eingesetzt hat (Aktion „erster Chip“ läuft genau einmal, nach dem Einsetzen). Vorher bleibt die Leiste, wie sie ist, und `isShowingInlineAutofill` ist falsch
+  (die Zwischenablage-Pille darf also kommen und wird dann vom Kasten ersetzt, wie Wörter es auch werden). Kommt der Chip während des Tippens, ersetzt der Kasten die Leiste trotzdem (Rangfolge wie vor 79b). Ein Chip nach Eingabeende, neuerer Antwort oder Schließen kommt nie an (`isCurrent`). Die Rückrufe laufen auf dem Haupt-Executor, der Container existiert also, wenn die Aktion läuft;
+  `LatinIME` fängt trotzdem ein fehlendes Bild ab. Wer die Reihenfolge von Container und `inflate` ändert, prüft, dass die Aktion nie vor dem Container läuft. Gerätebefund: Auf einem Emulator kam für die erste Antwort kein einziger `inflate`-Rückruf (`pending=3`, `firstCallbackMs=-1`); beim zweiten Fokussieren kamen alle drei Chips. Warum die Plattform schwieg, ist nicht geklärt (Plattform, das Protokoll war leer).
+- **P441** Autofill, Zähler (79b): `InlineAutofillCounters` zählt nur Zahlen; kein Titel, kein Text, kein Datensatz erscheint je in `dump()`, auf der Diagnose-Seite oder im Gerätetest. `null` (Plattform lieferte keine Ansicht), veraltet verworfen und „noch nicht beantwortet“ sind getrennt; die Zeit bis zum ersten Rückruf zählt jeden Rückruf, auch einen veralteten.
+  Doppelte Rückrufe desselben Index zählen bei `null` doppelt (die Plattform ruft je Vorschlag einmal). Die Felder sind `volatile`, weil `dump()` auf einem Binder-Thread liest. Der Dump von `LatinIME` ist über `dumpsys input_method` und `dumpsys activity service` erreichbar gedacht; auf einem Gerät nicht geprüft.
+- **P442** Autofill, Diagnose im Gerätetest (79b): Die INFO-Zeilen von `autofill_inline` entstehen nur nach einem Fehlschlag außerhalb des Kontrolllaufs und dürfen nie ein Ergebnis ändern; `cmd autofill set log_level verbose` gilt nur in diesem Schritt und wird im `finally` auf `off` gesetzt. Das Protokoll kann (nur) die erfundenen Testdaten enthalten.
+- **P443** Diagnose-Seite (79b): Die Karte „Autofill-Vorschläge“ (`Diagnose.Part.AUTOFILL`) steht zwischen „Tippen“ und „App und Telefon“ und liest die Zähler beim Öffnen der Seite (nicht live). Settings und Tastatur teilen den Prozess, sonst wäre die Karte leer.
+- **P444** Leiste und Zahlenlayouts (79b): Die Abdunklung der Ablage (`BarTools.NOT_IN_NUMBER_LAYOUTS`) wurde nur in `applyBarState` neu berechnet; `KeyboardSwitcher.setKeyboard` ruft jetzt `SuggestionStripView.onKeyboardLayoutChanged` (nur bei geändertem Zahlenzustand). `AgentEditorController.openPrompts` prüft das Zahlenlayout selbst (still, kein Hinweis), weil der Weg über die Leiste, den Code `AGENT_PROMPTS` und das Popup verschiedene Quellen hat.
+  `SuggestionStripView.onFieldStarted` setzt `barState` zurück (sonst überlebt `stickyTools` ein neues Feld derselben App).
+- **P445** Test-Feldwechsel (79b): `InputLogicTest.setText` startet ein Feld nur über `latinIME.mHandler`; `LatinIME.onStartInput` und damit `AgentEditorController.startEditor` (verwirft gemerkte Wahlen) laufen dabei nicht. Wer in diesem Prüfstand ein „anderes Feld“ prüft, ruft `controller.startEditor` selbst auf, sonst hängt das Ergebnis an einer asynchronen Aufgabe (Fortsetzung auf dem IO-Thread unter Legacy-Looper).
+
 - **P330** Begleit-App, Fehlercodes (80b): Der Kotlin-Wrapper des SDK macht aus jedem Pull-Fehler nur `geniex_model_pull failed (rc=<Code>)`; die
   Klartextmeldung des Rust-Teils (`geniex_model_last_error_message`, z. B. „chipset … not available for this model; supported: …“) ist über
   die Java-Klassen nicht erreichbar (thread-lokal, `ModelManager.lastErrorMessage` nur auf dem Pull-Thread). Die App entscheidet darum nach
@@ -6627,7 +6643,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (744 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (746 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6662,7 +6678,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (121): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (123): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
   CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
@@ -6673,22 +6689,22 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
   FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
   ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
-  InformalWordsStoreTest, InlineAutofillGenerationTest, InlineAutofillSizingTest,
-  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
-  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
-  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
-  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
-  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
-  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
-  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
-  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
-  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  InformalWordsStoreTest, InlineAutofillCardTest, InlineAutofillGenerationTest,
+  InlineAutofillResponseTest, InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest,
+  JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
+  LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
+  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
+  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
+  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
+  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
+  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
+  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
+  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,

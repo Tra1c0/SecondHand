@@ -36,7 +36,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, DEVICE }
+    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
     /**
      * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
      * package of the app and whether it is on the list of forced apps, for the button of the card.
@@ -618,6 +618,40 @@ object Diagnose {
         for (failure in failures) rows += Row(context.getString(R.string.agent_diagnose_typing_failure, failure.name),
             context.getString(R.string.agent_diagnose_typing_failure_value, failure.count, failure.errorClass))
         return Section(Part.TYPING, context.getString(R.string.agent_diagnose_typing), rows)
+    }
+
+    /**
+     * Stage 79b: the card "Autofill-Vorschläge": what the keyboard did with the inline suggestions of a password
+     * manager since it started, as numbers only (never a title or a text), to read after a miss.
+     */
+    fun autofill(context: Context, snapshot: InlineAutofillCounters.Snapshot): Section {
+        fun s(id: Int) = context.getString(id)
+        val rows = mutableListOf<Row>()
+        val last = snapshot.last
+        if (snapshot.accepted + snapshot.empty + snapshot.refused == 0) {
+            rows += Row(s(R.string.agent_diagnose_autofill_responses), s(R.string.agent_diagnose_autofill_none))
+        } else {
+            rows += Row(s(R.string.agent_diagnose_autofill_responses), context.getString(
+                R.string.agent_diagnose_autofill_responses_value, snapshot.accepted, snapshot.empty, snapshot.refused))
+        }
+        if (last != null) {
+            rows += Row(s(R.string.agent_diagnose_autofill_requested), last.count.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_arrived), last.withView.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_null), last.nullViews.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_stale), last.staleDrops.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_pending), last.pending.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_placed), last.placed.toString())
+            rows += Row(s(R.string.agent_diagnose_autofill_first), if (last.firstCallbackMillis < 0) s(R.string.agent_diagnose_autofill_no_callback)
+                else context.getString(R.string.agent_diagnose_autofill_ms, last.firstCallbackMillis))
+            rows += Row(s(R.string.agent_diagnose_autofill_shown), yesNo(context, last.shown))
+        }
+        rows += Row(s(R.string.agent_diagnose_autofill_width), when {
+            snapshot.stripWidthPx < 0 -> s(R.string.agent_diagnose_autofill_no_request)
+            snapshot.stripWidthPx == 0 -> s(R.string.agent_diagnose_autofill_not_laid_out)
+            else -> context.getString(R.string.agent_diagnose_autofill_px, snapshot.stripWidthPx)
+        })
+        rows += Row(s(R.string.agent_diagnose_autofill_input), s(if (snapshot.generationOpen) R.string.agent_diagnose_autofill_input_open else R.string.agent_diagnose_autofill_input_closed))
+        return Section(Part.AUTOFILL, s(R.string.agent_diagnose_autofill), rows)
     }
 
     // --- app and phone ---

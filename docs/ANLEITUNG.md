@@ -1781,7 +1781,7 @@ App → en-US“; nur seit dem Start der Tastatur, nichts wird gespeichert), den
 was die RGB-Beleuchtung in den letzten 5 Sekunden mit Licht je Bild gekostet hat (Tastatur mit
 RGB öffnen, kurz tippen, dann die Seite öffnen), welche Muster gerade benutzt werden (eigene mit
 Namen und „eigen“) und was ein Licht-Raster jedes Musters auf deinem Telefon kostet (beim Öffnen
-gemessen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
+gemessen), die Autofill-Vorschläge des Passwortmanagers (nur Zahlen: wie viele Antworten gekommen, leer oder abgelehnt waren, wie viele Chips der letzten Antwort ankamen, leer blieben, verworfen wurden oder noch fehlten, Zeit bis zum ersten Chip, ob der Kasten gezeigt wurde) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
 „Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
 Screenshot geht auch.
 
@@ -1792,6 +1792,8 @@ unter 16 ms ist gut, das ist ein Bild bei 60 Hz), wie oft sie dabei die App und 
 welche zehn Stellen am langsamsten waren. Es sind nur Zahlen, nie Text, und sie bleiben nur im
 Speicher, bis die Tastatur beendet wird. „Zahlen zurücksetzen“ fängt neu an; „Kopieren“ nimmt die Karte
 mit.
+
+**Kommen die Passwortmanager-Vorschläge nicht?** Öffne das Feld, warte kurz (das Feld mit dem Kreuz erscheint erst, wenn der erste Chip da ist), öffne dann Einstellungen → Diagnose und schick einen Screenshot der Karte „Autofill-Vorschläge“. „0 angekommen, 3 angefragt“ heißt: Die Tastatur hat Vorschläge bekommen, das System hat die Chips aber nicht geliefert; „3 angekommen“ bei nicht sichtbarem Kasten wäre ein Fehler der Tastatur. Es sind nur Zahlen, nie Titel oder Texte.
 
 **Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
 passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in einer anderen App in ein

@@ -1060,6 +1060,66 @@ def _autofill_state():
     return "autofill_service=%s; dumpsys autofill: %s" % (service, " | ".join(lines)[:500])
 
 
+AUTOFILL_LOG_TAGS = ("InlineSuggestionRenderService", "RemoteInlineSuggestionUi", "InlineContentProviderImpl",
+                     "AutofillInlineSuggestionsRequestSession", "InlineSuggestionSession", "AutofillSession")
+
+
+def _keyboard_dump_line(prefix):
+    """Stage 79b: the line of LatinIME.dump() that starts with `prefix`. The dump of an input method service is
+    printed by `dumpsys input_method` (the system forwards the dump request to the current input method); the
+    second command asks the running service directly. Fake data and numbers only."""
+    ime = shell("settings get secure default_input_method", check=False)  # package/class, as verified by the preflight
+    tried = []
+    for command in ("dumpsys input_method", "dumpsys activity service " + ime):
+        try:
+            text = shell(command, timeout=40, check=False)
+        except DeviceError as error:
+            tried.append("%s: %s" % (command, error))
+            continue
+        for line in text.splitlines():
+            if line.strip().startswith(prefix):
+                return "%s -> %s" % (command, line.strip()[:400])
+        tried.append("%s: no line '%s' (%d lines)" % (command, prefix, len(text.splitlines())))
+    return " | ".join(tried)[:500]
+
+
+def _autofill_failure_info(d):
+    """Stage 79b: facts for a failed autofill scenario, printed as INFO lines only (the lead reads RESULT/INFO lines).
+    Never changes the verdict and never raises."""
+    try:
+        log("INFO autofill diagnostic, keyboard counters: " + _keyboard_dump_line("InlineAutofill:"))
+    except Exception as error:
+        log("INFO autofill diagnostic, keyboard counters failed: %s" % error)
+    try:
+        log("INFO autofill diagnostic, ext.services pid: %r" % shell("pidof com.google.android.ext.services", check=False))
+    except Exception as error:
+        log("INFO autofill diagnostic, pidof failed: %s" % error)
+    try:
+        text = shell("logcat -d -t 400", timeout=40, check=False)
+        lines = [l.strip()[:200] for l in text.splitlines() if any(tag in l for tag in AUTOFILL_LOG_TAGS)]
+        log("INFO autofill diagnostic, logcat (%d matching lines of the last 400, last 25 shown):" % len(lines))
+        for line in lines[-25:]:
+            log("INFO   | " + line)
+    except Exception as error:
+        log("INFO autofill diagnostic, logcat failed: %s" % error)
+    # information only, never a pass: leave the field and focus it again once, then count the chips
+    try:
+        d.focus("secret")
+        d.focus("login")
+        deadline, titles = time.time() + 8, []
+        while time.time() < deadline:
+            screen = dump()
+            strip, _ = _strip_signature(screen)
+            titles = _chip_titles(screen, strip)
+            if len(titles) >= len(AUTOFILL_CHIP_TITLES):
+                break
+            time.sleep(1.0)
+        log("INFO autofill diagnostic, after refocusing the field once: %d chips (expected %d)" % (len(titles), len(AUTOFILL_CHIP_TITLES)))
+        log("INFO autofill diagnostic, keyboard counters after the refocus: " + _keyboard_dump_line("InlineAutofill:"))
+    except Exception as error:
+        log("INFO autofill diagnostic, refocus failed: %s" % error)
+
+
 def autofill_inline(d):
     """Inline autofill (stage 73c): with the test app's fake autofill service selected, focusing a user
     name field with autofill hints shows a suggestion chip in the keyboard's strip; a tap puts the fake
@@ -1079,69 +1139,84 @@ def autofill_inline(d):
         d.expect_equal("strip nodes of an inline suggestion without an autofill service %s" % surfaces, surfaces, [])
         d.expect_equal("login field without an autofill service", d.field("login"), "")
 
-        # (2) the service selected, a fresh activity (the autofill session starts when the field is focused)
+        # (2) the service selected, a fresh activity (the autofill session starts when the field is focused).
+        # Stage 79b: the system's autofill logs verbosely from here on (reset in the finally block), the log buffer is
+        # emptied so a failed run reads only this step; all of it only feeds the INFO lines of a failure.
+        shell("cmd autofill set log_level verbose", check=False)
+        shell("logcat -c", check=False)
         shell("settings put secure autofill_service " + AUTOFILL_SERVICE)
         time.sleep(2.0)
-        d.start("autofill_inline")
-        d.focus("login")
-        deadline = time.time() + 20
-        appeared = {}
-        while True:
-            strip, now = _strip_signature(dump())
-            appeared = {k: n for k, n in now.items() if k not in before}
-            if appeared or time.time() > deadline:
-                break
-            time.sleep(1.0)
-        report = _strip_report(strip, now)
-        log("INFO autofill, service set: " + report)
-        log("INFO autofill state: " + _autofill_state())
-        d.notes.append("new in the strip: %s" % sorted(appeared)[:8])
-
-        # Stage 79: the service offers three datasets in a fixed order; the chips are inflated one by one and may
-        # finish in any order, but the strip must show them left to right in the service's order.
-        titles, title_start = [], time.time()
-        title_deadline, trace = title_start + 12, []
-        while True:
-            screen = dump()
-            strip, now = _strip_signature(screen)
-            titles = _chip_titles(screen, strip)
-            trace.append("%d@%.1fs" % (len(titles), time.time() - title_start))  # a slow third chip vs. a missing one
-            if len(titles) >= len(AUTOFILL_CHIP_TITLES) or time.time() > title_deadline:
-                break
-            time.sleep(1.0)
-        log("INFO autofill chip titles left to right: %s; visible titles per poll: %s" % (titles, " ".join(trace)))
-        d.expect_equal("order of the three inline autofill chips, left to right (polls: %s; %s)" % (" ".join(trace)[-120:], report[:150]),
-                       titles, AUTOFILL_CHIP_TITLES)
-
-        # Where to tap: the chip view itself if it is a node, a node that reads the chip's title, or the
-        # left end of the chip row (the chip is at least 100 px wide and starts at the row's left edge).
-        target, how = None, ""
-        first_chip = _leftmost_chip_view(screen, strip)  # stage 79: with three chips, tap the first one
-        if first_chip is not None:
-            target, how = first_chip.center, "left-most chip view " + first_chip.box
-        if target is None:
-            for key, node in appeared.items():
-                if key[2] == AUTOFILL_CHIP_TITLES[0]:
-                    target, how = node.center, "chip text " + node.box
-                    break
-        if target is None:
-            rows = [n for k, n in appeared.items() if "HorizontalScroll" in k[0] and n.area > 0]
-            if rows:
-                target, how = (rows[0].left + 60, rows[0].center[1]), "left end of the chip row " + rows[0].box
-            elif strip is not None:
-                target, how = (strip.left + 60, strip.center[1]), "BLIND, left end of the strip " + strip.box
-        if target is None:
-            raise CheckFailed("no suggestion strip on the screen; " + report)
-        d.notes.append("tap at %s (%s)" % (target, how))
-        if not d.control:  # control run: the chip is not tapped, so the fields stay empty and the scenario must fail
-            tap(*target)
         try:
-            d.expect_field("login", FAKE_USER, limit=8.0)
-        except CheckFailed as error:
-            raise CheckFailed("%s | tap at %s (%s) | %s" % (error, target, how, report[:230]))
-        d.expect_field("secret", FAKE_PASSWORD)
+            _autofill_inline_with_service(d, before)
+        except (CheckFailed, DeviceError):
+            if not d.control:  # the control run fails on purpose: nothing to explain
+                _autofill_failure_info(d)
+            raise
     finally:
+        shell("cmd autofill set log_level off", check=False)
         shell("settings delete secure autofill_service", check=False)
+
+
+def _autofill_inline_with_service(d, before):
+    """Step 2 of autofill_inline: the service selected, the three chips expected, a tap on the first one."""
+    d.start("autofill_inline")
+    d.focus("login")
+    deadline = time.time() + 20
+    appeared = {}
+    while True:
+        strip, now = _strip_signature(dump())
+        appeared = {k: n for k, n in now.items() if k not in before}
+        if appeared or time.time() > deadline:
+            break
+        time.sleep(1.0)
+    report = _strip_report(strip, now)
+    log("INFO autofill, service set: " + report)
+    log("INFO autofill state: " + _autofill_state())
+    d.notes.append("new in the strip: %s" % sorted(appeared)[:8])
+
+    # Stage 79: the service offers three datasets in a fixed order; the chips are inflated one by one and may
+    # finish in any order, but the strip must show them left to right in the service's order.
+    titles, title_start = [], time.time()
+    title_deadline, trace = title_start + 12, []
+    while True:
+        screen = dump()
+        strip, now = _strip_signature(screen)
+        titles = _chip_titles(screen, strip)
+        trace.append("%d@%.1fs" % (len(titles), time.time() - title_start))  # a slow third chip vs. a missing one
+        if len(titles) >= len(AUTOFILL_CHIP_TITLES) or time.time() > title_deadline:
+            break
+        time.sleep(1.0)
+    log("INFO autofill chip titles left to right: %s; visible titles per poll: %s" % (titles, " ".join(trace)))
+    d.expect_equal("order of the three inline autofill chips, left to right (polls: %s; %s)" % (" ".join(trace)[-120:], report[:150]),
+                   titles, AUTOFILL_CHIP_TITLES)
+
+    # Where to tap: the chip view itself if it is a node, a node that reads the chip's title, or the
+    # left end of the chip row (the chip is at least 100 px wide and starts at the row's left edge).
+    target, how = None, ""
+    first_chip = _leftmost_chip_view(screen, strip)  # stage 79: with three chips, tap the first one
+    if first_chip is not None:
+        target, how = first_chip.center, "left-most chip view " + first_chip.box
+    if target is None:
+        for key, node in appeared.items():
+            if key[2] == AUTOFILL_CHIP_TITLES[0]:
+                target, how = node.center, "chip text " + node.box
+                break
+    if target is None:
+        rows = [n for k, n in appeared.items() if "HorizontalScroll" in k[0] and n.area > 0]
+        if rows:
+            target, how = (rows[0].left + 60, rows[0].center[1]), "left end of the chip row " + rows[0].box
+        elif strip is not None:
+            target, how = (strip.left + 60, strip.center[1]), "BLIND, left end of the strip " + strip.box
+    if target is None:
+        raise CheckFailed("no suggestion strip on the screen; " + report)
+    d.notes.append("tap at %s (%s)" % (target, how))
+    if not d.control:  # control run: the chip is not tapped, so the fields stay empty and the scenario must fail
+        tap(*target)
+    try:
+        d.expect_field("login", FAKE_USER, limit=8.0)
+    except CheckFailed as error:
+        raise CheckFailed("%s | tap at %s (%s) | %s" % (error, target, how, report[:230]))
+    d.expect_field("secret", FAKE_PASSWORD)
 
 
 FOLDER_NAME = "Arbeit73"  # stage 77: typeable with shift and the symbols layout, and no word the keyboard corrects

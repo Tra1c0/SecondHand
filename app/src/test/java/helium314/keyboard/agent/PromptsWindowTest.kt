@@ -22,6 +22,7 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.SuggestionStripView
 import helium314.keyboard.latin.utils.prefs
 import org.junit.After
 import org.junit.Before
@@ -457,6 +458,44 @@ class PromptsWindowTest {
         }
         startField("")
         assertTrue(controller.openPrompts())
+    }
+
+    // ---- stage 79b: number layouts ----
+
+    @Test fun theWindowDoesNotOpenInANumberLayoutAndNoNoticeIsShown() {
+        store.add("T", "x")
+        startField("", InputType.TYPE_CLASS_NUMBER)
+        assertTrue(switcher.keyboard!!.mId.element.isNumberLayout)
+        ShadowToast.reset()
+        assertFalse(controller.openPrompts())
+        icon()
+        assertEquals(View.GONE, window.visibility)
+        assertFalse(controller.isBlockingInput)
+        assertNull(ShadowToast.getLatestToast())
+        startField("")
+        assertTrue(controller.openPrompts())
+    }
+
+    @Test fun theBarsStoreToolFollowsTheSwitchToTheNumpadWithoutAStripUpdate() {
+        latinIME.prefs().edit(commit = true) {
+            putString(AgentPreferences.BAR_TOOLS, helium314.keyboard.latin.utils.BarTools.format(
+                listOf(helium314.keyboard.latin.utils.ToolbarKey.PROMPTS, helium314.keyboard.latin.utils.ToolbarKey.UNDO)))
+        }
+        // the strip reads the settings when it is created: a fresh input view after the bar was chosen
+        Settings.getInstance().loadSettings(latinIME, java.util.Locale.GERMANY, helium314.keyboard.latin.InputAttributes(EditorInfo(), false, latinIME.packageName))
+        root = switcher.onCreateInputView(latinIME, true)
+        latinIME.setInputView(root)
+        startField("")
+        val strip = root.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
+        fun storeTool() = strip.findViewById<ViewGroup>(R.id.toolbar).findViewWithTag<View>(helium314.keyboard.latin.utils.ToolbarKey.PROMPTS)
+        assertNotNull(storeTool(), "the bar has the store tool")
+        assertTrue(storeTool().isEnabled)
+        latinIME.mKeyboardActionListener.onCodeInput(KeyCode.NUMPAD, -1, -1, false)
+        assertTrue(switcher.keyboard!!.mId.element.isNumberLayout, "the numpad is shown")
+        assertFalse(storeTool().isEnabled, "dimmed at once")
+        latinIME.mKeyboardActionListener.onCodeInput(KeyCode.NUMPAD, -1, -1, false) // back
+        assertFalse(switcher.keyboard!!.mId.element.isNumberLayout)
+        assertTrue(storeTool().isEnabled, "available again")
     }
 
     // ---- PromptsKey.shown ----

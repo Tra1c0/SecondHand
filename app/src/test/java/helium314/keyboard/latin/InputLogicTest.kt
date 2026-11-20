@@ -4841,10 +4841,17 @@ class InputLogicTest {
         // another field: the choice is gone
         setText("prefix Hallo suffix")
         setCursorPosition(7, 12)
+        // setText starts the field through the handler only; the system's call that LatinIME.onStartInput answers with
+        // controller.startEditor (the place that drops the choice) is made here. Without it the choice survived, and the
+        // test passed only as long as the asynchronous preparation of the workflow had not finished yet (a race
+        // with an IO thread: it failed with a visible send button when that thread was faster).
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 7; initialSelEnd = 12 })
         reportEditorState(controller)
         controller.open()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         assertEquals("Hallo", panelText(panel, R.id.agent_source))
+        // nothing was prepared and no preparation is under way: not the "loading" state of a chosen workflow either
+        assertNotEquals(latinIME.getString(R.string.agent_workflow_loading), panelText(panel, R.id.agent_status))
         assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
         assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
     }

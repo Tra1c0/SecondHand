@@ -767,6 +767,8 @@ public final class KeyboardSwitcher {
             // fork, stage 23b: the Flat strip shows recent emojis on the symbol pages
             if (mSuggestionStripView != null) mSuggestionStripView.showRecentEmojis(
                     keyboardElement == KeyboardElement.SYMBOLS || keyboardElement == KeyboardElement.SYMBOLS_SHIFTED);
+            // fork, stage 79b: the bar's store tool is dimmed in number layouts, also after a switch (the numpad tool) without a strip update
+            if (mSuggestionStripView != null) mSuggestionStripView.onKeyboardLayoutChanged();
             mCurrentInputView.setKeyboardTopPadding(newKeyboard.mTopPadding);
             keyboardView.setKeyPreviewPopupEnabled(currentSettingsValues.mKeyPreviewPopupOn);
             keyboardView.updateShortcutKey(mRichImm.isShortcutImeReady());

@@ -628,6 +628,33 @@ class FixedBarTest {
         assertTrue(h.grid.isOpen); assertEquals(emptyList(), h.codes)
     }
 
+    @Test fun aNewFieldDropsTheStickyToolsOfTheLastFieldsSelection() {
+        val h = build()
+        val chips = android.widget.TextView(context).apply { text = "Kopieren" }
+        h.strip.setExternalSuggestionView(chips, false, true) // selection chips of the first field
+        assertTrue(suggestionsVisible(h))
+        assertTrue(leftKey(h).performClick()) // "show tools": sticky for as long as this selection lasts
+        assertTrue(toolsVisible(h))
+        // another field of the same app starts with a selection of its own (no strip update in between)
+        h.strip.onFieldStarted()
+        h.strip.setExternalSuggestionView(android.widget.TextView(context).apply { text = "Ausschneiden" }, false, true)
+        assertTrue(suggestionsVisible(h), "the new field's selection chips are not held back")
+        assertFalse(toolsVisible(h))
+    }
+
+    @Test fun theStoreIsDimmedAtOnceWhenTheKeyboardSwitchesToANumberLayoutAndEnabledAgainAfterwards() {
+        setBar(listOf(PROMPTS, CHAR_ART, UNDO))
+        reload()
+        val h = build()
+        assertTrue(slots(h).all { it.isEnabled })
+        h.strip.numberLayoutProbe = { true }
+        h.strip.onKeyboardLayoutChanged() // no strip update in between
+        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        h.strip.numberLayoutProbe = { false }
+        h.strip.onKeyboardLayoutChanged()
+        assertTrue(slots(h).all { it.isEnabled })
+    }
+
     private companion object {
         const val WIDTH = 1200
         const val STRIP = 130
