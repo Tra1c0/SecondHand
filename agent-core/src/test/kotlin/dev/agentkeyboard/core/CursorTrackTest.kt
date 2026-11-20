@@ -347,7 +347,7 @@ class CursorTrackTest {
     }
 
     @Test fun `a forward limit holds the cursor (the delete slider cannot select past its start)`() {
-        val s = Sim(0f, horizontalOnly = true, before = "hello world", after = "")
+        val s = Sim(0f, horizontalOnly = true, before = "hello world", after = " and more text after it") // text beyond the slide's start exists
         s.track.forwardLimitChars = 0 // nothing selected yet: no step to the right
         s.by(-13.0 * 5 - 5, 0.0, slow)
         assertEquals(5, s.steps.size)
