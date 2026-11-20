@@ -1364,8 +1364,8 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   echten Textanfang/-ende, nicht am Fensterrand). Cluster nach `TextColumns.graphemes` (eigene Regeln, auf jeder JVM gleich).
   `forwardLimitChars` (Löschwisch) und `horizontalOnly`. Alle Konstanten stehen im `companion` und sind erste Schätzungen.
   Test `CT/CursorTrackTest.kt`.
-- `A/CursorTrackpad.kt` (Etappe 87): `appliesToSpace(SpaceGestureSettings)` (Trackpad nur, wo links/rechts „Cursor bewegen“
-  sind und oben/unten nichts oder „Cursor bewegen“), `CLAIM_DP` = 10, `WINDOW_CHARS` = 200 und `runs` (gleiche Achse und
+  Test der reinen Entscheidungen von `A/CursorTrackpad.kt` (Gründe, Start): `AT/CursorTrackpadReasonTest.kt`.
+- `A/CursorTrackpad.kt` (Etappe 87): `spaceReason(Belegung, Schalter, Markierung)` mit `SpaceReason` (Etappe 87c: `QUALIFIES_ALL_AXES` = links und rechts „Cursor bewegen“, oben/unten nichts oder „Cursor bewegen“; `QUALIFIES_HORIZONTAL_START` = links und rechts „Cursor bewegen“, oben und/oder unten mit anderer Aktion; `NOT_SETTING_OFF`, `NOT_LEFT_RIGHT_NOT_CURSOR`, `NOT_SELECTION_PRESENT`), `appliesToSpace` (Name aus Etappe 87, wahr für beide Gründe), `decideStart(Belegung, dx, dy)` (`Start` UNDECIDED/TRACKPAD/LEGACY, `DOMINANCE` = 1,5, `DECIDE_CAP_DP` = 16), `CLAIM_DP` = 10, `WINDOW_CHARS` = 200 und `runs` (gleiche Achse und
   Richtung hintereinander zu einem Zug mit einem Tick; `claims` = die alte Schwelle von 10 dp auf der Wischachse, `MAX_PENDING` = 64 Proben,
   `SELECTION_WAIT_MS` = 300). Die Zustandsmaschine steht in
   `KeyboardActionListenerImpl.onCursorTrack(pointerId, code, dx, dy, zeit, downTime)`: **ein Zustand je Finger** (`trackStates[pointerId]`,
@@ -6637,13 +6637,18 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P431** Feldstart und Verbergen (`LatinIME.onStartInputViewInternal`, `onFinishInputViewInternal`, je eine Zeile `onCursorTrackEnd(-1)`): gibt jeden Besitz frei; eine aktive Berührung bleibt „aktiv“, bewegt aber nichts mehr (der Tracker hält sie für einen Wisch bis zum Heben); eine Berührung ohne Heben oder Abbruch hinterlässt so keinen Besitzer, der Wische verweigert oder Leertasten-Tipps mit 10 dp Zittern verschluckt.
 - **P432** Löschwischen: Die Länge der Markierung kommt aus der erwarteten Auswahl (`expectedSelectionEnd - expectedSelectionStart`), nicht aus `getSelectedText` (ein Editor darf null antworten); fehlt der markierte Text, gilt der Text als nicht lesbar (Schritte über den alten Pfad `onMoveDeletePointer`), die Vorwärtsgrenze bleibt die Markierungslänge.
 - **P433** Löschen beim Heben nur im selben Feld: `deleteSlideField` hält das Feld (`mInputAttributes`), in dem das Löschwischen begann (Spur und alter Pfad `onMoveDeletePointer`); `onUpWithDeletePointerActive` löscht nichts, wenn es ein anderes ist (eine Adressleiste, die beim Fokus alles markiert). Ohne Eingriff in `PointerTracker` oder `InputLogic`; `ACTION_CANCEL` im selben Feld löscht das Markierte weiterhin.
+- **P460** Start entscheidet (Etappe 87c): Mit `QUALIFIES_HORIZONTAL_START` (oben/unten mit Aktion belegt) bleibt die Berührung `PENDING`, bis `decideStart` entscheidet: Start seitlich (|dx| ≥ 1,5·|dy|) = Trackpad in alle vier Richtungen, Start senkrecht (|dy| ≥ 1,5·|dx|) = `TRACK_OFF` für den Rest der Berührung, damit läuft die Aktion von oben bzw. unten wie vor Etappe 87 (der alte Code rechnet immer vom Aufsetzpunkt aus). Dazwischen (Diagonale) wartet die Berührung bis 16 dp auf der größeren Achse, dann entscheidet die größere, bei Gleichstand seitlich. Eine seitliche Wischbewegung wird bei 10 dp entschieden wie der alte Anspruch. Ist die Richtung des senkrechten Starts frei (nichts oder „Cursor bewegen“), wird daraus das Trackpad. `OFF` ist nur VOR dem Anspruch möglich; wer die Spur hat, bekommt nie wieder `TRACK_OFF`.
+- **P461** `PENDING` → `OFF` gegen den alten Code geprüft: `PointerTracker.onKeySwipe` hält vor dem Haken nur die Schnelltipp-Sperre und `SpaceDetents.cancelsHold` (beide laufen weiter) und rechnet danach aus `mStartX`/`mStartY` neu; kein Zustand wird in der PENDING-Zeit vorweggenommen. Einmal-Aktionen oben/unten laufen bei der ersten Meldung (`onSpaceSwipe(Richtung, Schritte)`), fortlaufende (Sprache, Touchpad-Modus) bekommen die Schritte ab Aufsetzpunkt (`mStartY` rückt nur bei `true` vor). Die Fixture (`bindings87c*` in `InputLogicTest`, Aufruffolge des echten Listeners für Einmal-Aktion hoch/runter, Zifferblock, Touchpad-Modus, Sprachwechsel) liefert vor und nach Etappe 87c dieselbe Folge. Sprachwechsel und alles, was von der Zahl der Spracheinträge abhängt, ist nur in den ersten drei Meldungen verglichen (die Folge danach hängt von den aktivierten Sprachen ab).
+- **P462** Mit Markierung gilt weiter der alte Wisch (`NOT_SELECTION_PRESENT`); „Halten = Alles auswählen“ macht das häufig. Der Grund steht als reine Funktion in `CursorTrackpad.spaceReason`, damit die Diagnose (Etappe 87b) ihn nennen kann.
+- **P463** Warum Etappe 87 beim Owner nie anlief und kein Test es sah: Seine Belegung war links/rechts „Cursor bewegen“, oben/unten mit anderen Aktionen; die Prüfung verlangte oben/unten frei. Alle Tests der Etappe 87 benutzten die Vorgabe oder „Cursor bewegen“ für oben/unten.
+- **P464** Prüfstand: Der Rig-Start liegt hinter `SystemClock.uptimeMillis()` plus 10 s, damit Tipp-Zeiten früherer Tests im statischen Tipp-Zeitschreiber die Wisch-Meldungen nicht verschlucken; die Meldungsfolgen der Fixture sind ohne Zählung gleicher Folgemeldungen verglichen (ihre Zahl hängt von der Ereignisanzahl ab).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (746 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (747 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6678,33 +6683,34 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (123): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (124): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
   CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
   ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
-  CursorGestureTrackerTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
-  DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
-  EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
-  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
-  ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
-  InformalWordsStoreTest, InlineAutofillCardTest, InlineAutofillGenerationTest,
-  InlineAutofillResponseTest, InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
-  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
-  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  CursorGestureTrackerTest, CursorTrackpadReasonTest, DatePlaceCommandsTest, DebugPrivacyTest,
+  DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
+  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
+  InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
+  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
