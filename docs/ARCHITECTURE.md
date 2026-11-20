@@ -6603,7 +6603,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   (Leerzeichen, Doppel-Leerzeichen-Punkt funktioniert); ein Wisch, der die Spur bekam, bekommt nie wieder `TRACK_OFF` (Einstellung oder Markierung
   mitten in der Geste ändern nichts, erst die nächste Berührung).
 - **P424** Gerätetest-Szenarien (nicht gelaufen): Der erste `MOVE` von `drag_on` folgt dem `DOWN` sofort und ist 16 dp lang; sonst käme der Wisch nach 300–900 ms
-  und der Langdruck der Leertaste (450 ms) käme ihm zuvor.
+  und der Langdruck der Leertaste (450 ms) käme ihm zuvor. Weil die Spur an der ersten angekommenen Probe beginnt (Weg 0), zählt der 16-dp-Sprung nicht mit: der senkrechte Zug geht darum 70 dp weit (54 dp Weg, zwei Zeilen); mit 40 dp (erste Fassung) bewegte sich der Cursor auf dem Emulator nicht (Lauf 44746919230).
 - **P425** Ein verweigerter Finger, der wischt (`TRACK_REFUSED_DRAG`), verwirft seine Berührung. Ein ruhender oder tippender verweigerter Finger bleibt, was er war.
   Ohne die Verwerfung läuft die Wiederholungs-Zeitschaltuhr einer Löschtaste weiter (400 ms nach dem Aufsetzen, dann alle 50 ms ein Zeichen), weil `onKeySwipe` vor dem
   alten Code zurückkehrt und `cancelKeyTimersOf` nie erreicht. Auch das Heben tippt dann nichts (`mIsTrackingForActionDisabled`).
@@ -6615,7 +6615,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   lief der alte Leertasten-Wisch neben der Auswahl und löste sie auf). Mit ausgeschaltetem Schalter ist alles `OFF`, wie vor Etappe 87.
 - **P428** Ein Wisch während `ACTION_CANCEL` (Fenster, Systemgeste): Für die Leertaste bleibt der Cursor, wo er ist, nichts wird gelöscht und kein Leerzeichen getippt;
   beim Löschwischen löscht der Abbruch das Markierte (der Tracker behandelt ihn als Heben, genau wie der alte Code).
-- **P429** `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
+- **P429** Prüfstand: Ereigniszeiten wachsen über alle `TouchRig` hinweg (`rigClock`), weil der Tipp-Zeitschreiber des Trackers statisch ist: ein Prüfstand, der in der Zeit zurückspringt, gälte als schnelles Tippen und die Wisch-Geste würde verschluckt (nur in der vollen Klasse sichtbar, GitHub). Der Langdruck der Leertaste öffnet die Eingabemethodenwahl, die ein Fenster-Token braucht: Tests, die ihn auslösen, schalten `PREF_SPACE_TO_CHANGE_LANG` aus. `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
   Zeitschaltuhren laufen in der Ereigniszeit des Prüfstands, nicht in der Uhr des Telefons; `SystemClock` im Tracker (Schnelltipp-Sperre) bleibt echte Zeit.
 
 ## Datei-Inventar

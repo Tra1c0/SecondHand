@@ -766,7 +766,7 @@ def cursor_trackpad(d):
 
 
 def cursor_trackpad_vertical(d):
-    """One vertical swipe on the space bar moves the cursor one line up in a multi-line field (stage 87):
+    """One vertical swipe on the space bar moves the cursor up in a multi-line field (stage 87):
     the keyboard sends DPAD_UP and the editor decides where it lands. The letter typed afterwards must
     be in the first line. The test app's text field holds two lines."""
     d.start("cursor_trackpad_vertical")
@@ -775,7 +775,7 @@ def cursor_trackpad_vertical(d):
     d.press("enter")
     d.type("zwei")
     time.sleep(1.0)
-    d.drag_on("space", 0, -40)
+    d.drag_on("space", 0, -70)  # the track starts at the first delivered sample (the 16 dp jump): 54 dp are left, two lines of 26 dp
     d.type("x")
     time.sleep(1.0)
     lines = d.field("text").replace("\r", "").split("\n")

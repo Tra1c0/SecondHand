@@ -1509,7 +1509,8 @@ class InputLogicTest {
         val drawing = Mockito.mock(helium314.keyboard.keyboard.internal.DrawingProxy::class.java)
         val timer = FakeTimer()
         val detector = Mockito.mock(helium314.keyboard.keyboard.KeyDetector::class.java)
-        var now = 50_000L
+        // event times only grow across rigs: the tracker's typing-time recorder is static, and a rig that went back in time would count as fast typing
+        var now = rigClock + 5_000L
         private val fingers = java.util.TreeMap<Int, FloatArray>()
 
         /** Key repeat and long press timers that really fire, in the rig's virtual time (the event time): run by [wait] and by every event. */
@@ -1544,6 +1545,8 @@ class InputLogicTest {
 
         init {
             helium314.keyboard.keyboard.PointerTracker.setGestureHandlingEnabledByUser(false)
+            for (flag in listOf("sInGesture", "sInKeySwipe")) // static leftovers of other tests
+                org.robolectric.util.ReflectionHelpers.setStaticField(helium314.keyboard.keyboard.PointerTracker::class.java, flag, false)
             val attrs = latinIME.applicationContext.obtainStyledAttributes(helium314.keyboard.latin.R.styleable.MainKeyboardView)
             helium314.keyboard.keyboard.PointerTracker.init(attrs, timer, drawing)
             attrs.recycle()
@@ -1602,6 +1605,7 @@ class InputLogicTest {
         fun close() {
             for (id in fingers.keys.toList()) up(id)
             timer.clear()
+            rigClock = now
             helium314.keyboard.keyboard.PointerTracker.setKeyboardActionListener(helium314.keyboard.keyboard.KeyboardActionListener.EMPTY_LISTENER)
         }
     }
@@ -1738,6 +1742,8 @@ class InputLogicTest {
     }
 
     @Test fun twoFingersTimersSoloSpaceLongPressFiresAndAClaimedDragCancelsBothTimers() = withRig { rig ->
+        // the long press of space would open the input method picker, which needs a window token (not in every test order): off
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.wait(700)
         assertEquals(1, rig.timer.longPressesFired, "a held space bar fires its long press")
@@ -8331,6 +8337,7 @@ class InputLogicTest {
 }
 
 private var currentScript = ScriptUtils.SCRIPT_LATIN
+private var rigClock = 50_000L // stage 87: the virtual time of the last touch rig
 private var testKeyboard: helium314.keyboard.keyboard.Keyboard? = null
 private val messages = java.util.Collections.synchronizedList(mutableListOf<Message>()) // for latinIME / ShadowInputMethodService
 private val delayedMessages = java.util.Collections.synchronizedList(mutableListOf<Message>()) // for latinIME / ShadowInputMethodService
