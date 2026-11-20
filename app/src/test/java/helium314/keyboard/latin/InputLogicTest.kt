@@ -6229,7 +6229,7 @@ class InputLogicTest {
     }
 
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
-    @Test fun theChipsStandInFrontOfWordSuggestionsAndAChipOfAnOldSelectionDoesNothing() {
+    @Test fun theChipsStandInFrontOfWordSuggestionsAndAReusedRowActsOnTheNewSelection() {
         val strip = selectionStrip()
         selectAllBySpaceHold()
         val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
@@ -6239,12 +6239,14 @@ class InputLogicTest {
         assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // words wait while text is selected
         assertFalse("hallo" in stripWords(strip))
 
-        val stale = selectionChip(strip, "Cut")
-        setCursorPosition(1, 4) // another selection: the row is built for it
-        assertTrue(stale.performClick())
+        // a handle moves the selection: the row stays (nothing visible changed) and is bound to the new selection
+        val row = selectionChip(strip, "Cut")
+        setCursorPosition(1, 4)
+        assertTrue(row === selectionChip(strip, "Cut"))
+        assertTrue(row.performClick())
         handleMessages()
-        assertEquals("hello world", text) // the old chip is refused
-        assertEquals(null, clipboard.primaryClip)
+        assertEquals("ho world", text) // only the new selection (1..4) was cut, nothing of the old one
+        assertEquals("ell", clipboard.primaryClip!!.getItemAt(0).text.toString())
 
         setCursorPosition(4)
         latinIME.setSuggestions(words)
@@ -6320,12 +6322,17 @@ class InputLogicTest {
         val strip = selectionStrip()
         selectAllBySpaceHold()
         val old = selectionChip(strip, "Copy")
+        // a changed row is a new view; the old one keeps what it was bound to (a row that stays the same is reused and rebound)
+        helium314.keyboard.agent.SelectionChips.clipHasText = { true }
+        helium314.keyboard.agent.SelectionChips.clipChanged(latinIME)
+        assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
+        assertTrue(old !== selectionChip(strip, "Copy"))
         setText("hello world") // another field with the same text: select all selects the same range
         selectAllBySpaceHold()
-        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
         assertTrue(old.performClick())
         handleMessages()
-        assertEquals(null, clipboard.primaryClip) // refused
+        assertEquals(null, clipboard.primaryClip) // refused: it belongs to the first field
         assertTrue(selectionChip(strip, "Copy").performClick()) // the chip of this field works
         handleMessages()
         assertEquals("hello world", clipboard.primaryClip!!.getItemAt(0).text.toString())
@@ -6346,8 +6353,7 @@ class InputLogicTest {
         assertEquals(1, asked)
         assertEquals(1, helium314.keyboard.agent.SelectionChips.clipChecks)
         // a changed clipboard is asked again
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "x"))
-        helium314.keyboard.agent.SelectionChips.clipChanged(latinIME) // the listener of the history manager does this on a device
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "x")) // the clip listener of the history manager tells the chips
         assertEquals(2, asked)
         // a tap still works on the reused row
         assertTrue(selectionChip(strip, "Copy").performClick())
@@ -6371,8 +6377,9 @@ class InputLogicTest {
         selectAllBySpaceHold()
         assertTrue(selectionChips(strip).isNotEmpty())
         for (style in listOf(SuggestedWords.INPUT_STYLE_UPDATE_BATCH, SuggestedWords.INPUT_STYLE_TAIL_BATCH)) {
-            val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
-                null, null, false, false, false, style, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+            val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hal", "", 100, SuggestedWordInfo.KIND_TYPED, null, 0, 0),
+                SuggestedWordInfo("hallo", "", 90, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+                null, null, false, false, false, style, SuggestedWords.NOT_A_SEQUENCE_NUMBER) // the first is the typed word, not shown
             latinIME.setSuggestions(words)
             handleMessages()
             assertEquals(emptyList(), selectionLabels(strip), "style $style")
