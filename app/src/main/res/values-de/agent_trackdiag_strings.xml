@@ -52,7 +52,7 @@
     <string name="agent_trackdiag_start_first">; Start nach %1$s löst „%2$s“ aus</string>
     <string name="agent_trackdiag_start_next">, nach %1$s „%2$s“</string>
     <string name="agent_trackdiag_detail_all">jeder Wisch bewegt den Cursor frei</string>
-    <string name="agent_trackdiag_detail_none">keine Richtung steht auf „Cursor bewegen“</string>
+    <string name="agent_trackdiag_detail_none">keine Richtung steht auf „Cursor bewegen“; lege unter „Leertaste“ eine Richtung (zum Beispiel links) darauf</string>
     <string name="agent_trackdiag_detail_switch">„Cursor als Trackpad“ ist aus; schalte es ein</string>
     <string name="agent_trackdiag_line_space_active">Leertaste: aktiv – %1$s</string>
     <string name="agent_trackdiag_line_space_inactive">Leertaste: nicht aktiv – %1$s</string>

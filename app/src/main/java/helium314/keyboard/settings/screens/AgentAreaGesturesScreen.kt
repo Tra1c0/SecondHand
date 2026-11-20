@@ -333,7 +333,7 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
         // stage 87: the trackpad cursor of the space bar and the delete slider
         val trackpad = prefs.getBoolean(AgentPreferences.CURSOR_TRACKPAD, true)
         SettingSwitchRow(stringResource(R.string.agent_gestures_trackpad),
-            stringResource(if (CursorTrackpad.spaceReason(gestures) == CursorTrackpad.SpaceReason.NOT_NO_CURSOR_DIRECTION) R.string.agent_gestures_trackpad_summary_none else R.string.agent_gestures_trackpad_summary), area.dot,
+            stringResource(R.string.agent_gestures_trackpad_summary), area.dot, // one explanation in every case; the status line below says the current state (stage 87b)
             trackpad, { putBoolean(AgentPreferences.CURSOR_TRACKPAD, it) }, area.from, area.to, Modifier.testTag(ROW_TAG + AgentPreferences.CURSOR_TRACKPAD))
         // stage 87b: whether the space bar and the delete key qualify right now, and what to change if not (the listener's own rules)
         Text(CursorTrackText.spaceLine(context, CursorTrackVerdict.space(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,

@@ -42,6 +42,7 @@ import helium314.keyboard.latin.utils.getTimestampFormatter
 import helium314.keyboard.latin.utils.prefs
 import org.junit.runner.RunWith
 import org.mockito.Mockito
+import helium314.keyboard.latin.utils.dpToPx
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -2560,63 +2561,73 @@ class InputLogicTest {
     // review of stage 87c (second look): N-1, the px/dp rounding edge, and the other order of two fingers
 
     /**
-     * Runs [block] at the density of [qualifiers] ([density], from the system resources the listener and the tracker read). The tracker keeps its
-     * step from the class load (10 px at the test's density 1.0): the densities used here between 1.0 and 1.1 give floor(10 * density) = 10 px
-     * as well, so the tracker's step stays right, and 10 dp are more than 10 px, the same px/dp edge as at 2.625 (26 px against 26.25).
+     * Runs [block] at the display density of [qualifiers] ([density]), set AFTER the tracker class was loaded: the tracker keeps its step from the
+     * class load (10 px at the test's density 1.0), as the keyboard process does when the owner changes the display size later (review N-2).
+     * The listener must decide where the old swipe begins, that is at the tracker's step, whatever the density is now.
      */
     private fun atDensity(qualifiers: String, density: Float, block: () -> Unit) {
         org.robolectric.RuntimeEnvironment.setQualifiers(qualifiers)
-        assertEquals(density.toDouble(), android.content.res.Resources.getSystem().displayMetrics.density.toDouble(), 1e-4, "the density the tracker and the listener read")
+        assertEquals(density.toDouble(), android.content.res.Resources.getSystem().displayMetrics.density.toDouble(), 1e-4, "the density now")
         assertEquals(density.toDouble(), latinIME.resources.displayMetrics.density.toDouble(), 1e-4, "the density of the keyboard's resources")
-        assertEquals(10, org.robolectric.util.ReflectionHelpers.getStaticField<Int>(helium314.keyboard.keyboard.PointerTracker::class.java, "sPointerStep"), "the tracker's step")
+        assertEquals(10, org.robolectric.util.ReflectionHelpers.getStaticField<Int>(helium314.keyboard.keyboard.PointerTracker::class.java, "sPointerStep"), "the tracker's step stays")
         block()
     }
 
-    @Test fun cursor87cTheListenersStepIsTheTrackersStepAtEveryDensity() {
+    /** Densities: the one of the class load, an edge (10 dp = 10.5 px), and the owner's likely ones (10 dp = 26.25 px, 30 px). */
+    private val densities = listOf("+160dpi" to 1.0f, "+168dpi" to 1.05f, "+420dpi" to 2.625f, "+480dpi" to 3.0f)
+
+    @Test fun cursor87cTheTrackersStepComesFromTheTrackerAndDoesNotFollowALaterDensityChange() {
         val tracker = helium314.keyboard.keyboard.PointerTracker::class.java
-        assertEquals(org.robolectric.util.ReflectionHelpers.getStaticField<Int>(tracker, "sPointerStep"),
-            helium314.keyboard.agent.CursorTrackpad.pointerStepPx(android.content.res.Resources.getSystem()), "the value the tracker uses")
-        for ((qualifiers, step) in listOf("+160dpi" to 10, "+168dpi" to 10, "+420dpi" to 26, "+440dpi" to 27, "+480dpi" to 30)) {
+        val step = org.robolectric.util.ReflectionHelpers.getStaticField<Int>(tracker, "sPointerStep")
+        for ((qualifiers, formula) in listOf("+160dpi" to 10, "+168dpi" to 10, "+420dpi" to 26, "+440dpi" to 27, "+480dpi" to 30)) {
             org.robolectric.RuntimeEnvironment.setQualifiers(qualifiers)
-            assertEquals(step, helium314.keyboard.agent.CursorTrackpad.pointerStepPx(android.content.res.Resources.getSystem()), "floor(10 * density) at $qualifiers")
+            // a formula over the current density (what the first fix did on every report) drifts away from the tracker's value; the getter does not
+            assertEquals(formula, 10.dpToPx(android.content.res.Resources.getSystem()), "floor(10 * density) at $qualifiers")
+            assertEquals(step, org.robolectric.util.ReflectionHelpers.callStaticMethod<Int>(tracker, "getPointerStep"), "the getter gives the tracker's value at $qualifiers")
         }
     }
 
-    @Test fun bindings87cAtDensity105RestingAtTheStepTheVerticalSwipeHasBegunAndNoHoldFires() = withSpyRig { rig, spy ->
-        atDensity("+168dpi", 1.05f) {
-            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
-            setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
-            setText("Hallo Welt")
-            // 5 sideways and 10 px up: the old swipe goes up at 10 px (stepsY = -1, 5 < 10); 10 px are 9.5 dp
-            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 5f, SPACE_Y - 10f); rig.wait(700); rig.up(0)
-            assertEquals("onSpaceSwipe SWIPE_UP -1|onCodeInput -131 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
-            assertEquals(selectionStart, selectionEnd, "the hold did not select everything")
+    @Test fun bindings87cAfterADensityChangeRestingAtTheStepTheVerticalSwipeHasBegunAndNoHoldFires() {
+        for ((qualifiers, density) in densities) withSpyRig { rig, spy ->
+            atDensity(qualifiers, density) {
+                bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+                setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+                setText("Hallo Welt")
+                // 5 sideways and 10 px up: the old swipe goes up at 10 px (stepsY = -1, 5 < 10), at every density, the tracker's step is fixed
+                rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 5f, SPACE_Y - 10f); rig.wait(700); rig.up(0)
+                assertEquals("onSpaceSwipe SWIPE_UP -1|onCodeInput -131 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"), qualifiers)
+                assertEquals(selectionStart, selectionEnd, "the hold did not select everything at $qualifiers")
+            }
         }
     }
 
-    @Test fun cursor87cAtDensity105ASidewaysStartAtTheStepIsTheTrackpadAndALiftThereTypesNoSpace() = withSpyRig { rig, spy ->
-        atDensity("+168dpi", 1.05f) {
-            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
-            setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
-            latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
-            setText("Hallo Welt")
-            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 10f, SPACE_Y + 5f); rig.wait(700); rig.up(0) // 10 px sideways = 9.5 dp: the old swipe is sideways here
-            assertEquals("Hallo Welt", text, "no space typed, no hold")
-            assertEquals(selectionStart, selectionEnd)
-            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 5f); rig.up(0) // and a lift right after the first move
-            assertEquals("Hallo Welt", text, "no space typed")
-            assertTrue(swipeCalls(spy).none { it.contains("-131") || it.contains("-132") }, "no action: ${swipeCalls(spy)}")
+    @Test fun cursor87cAfterADensityChangeASidewaysStartAtTheStepIsTheTrackpadAndALiftThereTypesNoSpace() {
+        for ((qualifiers, density) in densities) withSpyRig { rig, spy ->
+            atDensity(qualifiers, density) {
+                bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+                setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+                latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+                setText("Hallo Welt")
+                rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 10f, SPACE_Y + 5f); rig.wait(700); rig.up(0) // 10 px sideways: the old swipe is sideways here
+                assertEquals("Hallo Welt", text, "no space typed, no hold at $qualifiers")
+                assertEquals(selectionStart, selectionEnd)
+                rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 5f); rig.up(0) // and a lift right after the first move
+                assertEquals("Hallo Welt", text, "no space typed at $qualifiers")
+                assertTrue(swipeCalls(spy).none { it.contains("-131") || it.contains("-132") }, "no action at $qualifiers: ${swipeCalls(spy)}")
+            }
         }
     }
 
-    @Test fun cursor87cAtDensity105TheDirectionDoesNotFlipBetweenTwoReports() = withSpyRig { rig, spy ->
-        atDensity("+168dpi", 1.05f) {
-            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
-            latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false); putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
-            multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
-            // 10/4 px: the old swipe is sideways (the vertical travel is below the step); 11/12 px a report later would be vertical by itself
-            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 4f); rig.move(0, SPACE_X - 11f, SPACE_Y - 12f); rig.up(0)
-            assertTrue(swipeCalls(spy).none { it.contains("-131") || it.startsWith("onSpaceSwipe ") }, "no undo: the start was sideways: ${swipeCalls(spy)}")
+    @Test fun cursor87cAfterADensityChangeTheDirectionDoesNotFlipBetweenTwoReports() {
+        for ((qualifiers, density) in densities) withSpyRig { rig, spy ->
+            atDensity(qualifiers, density) {
+                bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+                latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false); putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+                multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+                // 10/4 px: the old swipe is sideways (the vertical travel is below the step); 11/12 px a report later would be vertical by itself
+                rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 4f); rig.move(0, SPACE_X - 11f, SPACE_Y - 12f); rig.up(0)
+                assertTrue(swipeCalls(spy).none { it.contains("-131") || it.startsWith("onSpaceSwipe ") }, "no undo at $qualifiers: the start was sideways: ${swipeCalls(spy)}")
+            }
         }
     }
 

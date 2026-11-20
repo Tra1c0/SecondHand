@@ -52,7 +52,7 @@
     <string name="agent_trackdiag_start_first">; one starting %1$s runs “%2$s”</string>
     <string name="agent_trackdiag_start_next">, %1$s “%2$s”</string>
     <string name="agent_trackdiag_detail_all">every swipe moves the cursor freely</string>
-    <string name="agent_trackdiag_detail_none">no direction is set to “Move cursor”</string>
+    <string name="agent_trackdiag_detail_none">no direction is set to “Move cursor”; under “Space bar” set one direction (for instance left) to it</string>
     <string name="agent_trackdiag_detail_switch">“Cursor as a trackpad” is off; switch it on</string>
     <string name="agent_trackdiag_line_space_active">Space bar: active – %1$s</string>
     <string name="agent_trackdiag_line_space_inactive">Space bar: not active – %1$s</string>

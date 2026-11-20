@@ -664,8 +664,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.mode == TrackMode.OFF) return KeyboardActionListener.TRACK_OFF
         val density = latinIME.resources.displayMetrics.density.toDouble()
         val sample = TrackSample(eventTime, dx / density, dy / density)
-        // the old swipe begins at PointerTracker.sPointerStep px (floor(10 * density)): the raw px are compared with exactly that, not dp (stage 87c review N-1)
-        val stepPx = CursorTrackpad.pointerStepPx(android.content.res.Resources.getSystem()).toDouble()
+        // the old swipe begins at PointerTracker.sPointerStep px (floor(10 * density) at class load): the raw px are compared with exactly that value, not dp (stage 87c review N-1)
+        val stepPx = PointerTracker.getPointerStep().toDouble() // the tracker's own value: it is read once at class load, a formula here could drift from it (review N-2)
         if (st.mode == TrackMode.REFUSED) { // a refused finger stays a tap or a hold until it drags: then its touch is dropped
             return if (CursorTrackpad.claims(code == KeyCode.DELETE, dx.toDouble(), dy.toDouble(), stepPx)) KeyboardActionListener.TRACK_REFUSED_DRAG
             else KeyboardActionListener.TRACK_PENDING

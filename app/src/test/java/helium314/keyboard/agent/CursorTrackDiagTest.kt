@@ -50,7 +50,7 @@ class CursorTrackDiagTest {
 
     @Test fun noDirectionOnTheCursorSaysNotActiveWithoutAskingForSpecificBindings() {
         for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) set(g, SpaceAction.NONE)
-        assertEquals("Leertaste: nicht aktiv – keine Richtung steht auf „Cursor bewegen“", space())
+        assertEquals("Leertaste: nicht aktiv – keine Richtung steht auf „Cursor bewegen“; lege unter „Leertaste“ eine Richtung (zum Beispiel links) darauf", space())
         assertEquals("Löschtaste: aktiv", delete())
     }
 
