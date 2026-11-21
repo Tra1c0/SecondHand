@@ -6929,9 +6929,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (7): InputLogicTest, StripCalmLogTest, SuggestTest, SymbolLatencyTest,
+- `app/src/test/java/helium314/keyboard/latin/` (6): InputLogicTest, SuggestTest, SymbolLatencyTest,
   TypingEquivalenceTest, TypingRig, WordListDictionaries
-- `app/src/test/resources/stage89/` (3): strip-protocol-no-predictions, strip-protocol-with-predictions, strip-protocol-slow-connection
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `app/src/test/java/helium314/keyboard/latin/suggestions/` (3): BarDragTest, BarEditorTest,
   BarStateTest
