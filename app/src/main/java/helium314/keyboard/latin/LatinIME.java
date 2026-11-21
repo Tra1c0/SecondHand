@@ -925,6 +925,10 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onStartInput(final EditorInfo editorInfo, final boolean restarting) {
         mAgentEditorController.startEditor(editorInfo);
+        // fork, stage 89: numbers only, nothing for a password field or a locked device
+        helium314.keyboard.agent.BarCalmCounters.INSTANCE.onFieldStart(restarting,
+                helium314.keyboard.latin.utils.InputTypeUtils.isPasswordInputType(editorInfo.inputType)
+                        || helium314.keyboard.agent.LockState.INSTANCE.isLocked(this));
         if (!restarting) mInputLogic.onFreshEditorSession();
         mHandler.onStartInput(editorInfo, restarting);
     }
@@ -1764,6 +1768,11 @@ public class LatinIME extends InputMethodService implements
                 dismissGestureFloatingPreviewText /* dismissDelayed */);
     }
 
+    /** Fork, stage 89: a character key, a wipe or a delete went to the field (see {@link SuggestionStripView#onTyped}). */
+    public void onAgentTyped() {
+        if (hasSuggestionStripView()) mSuggestionStripView.onTyped();
+    }
+
     public boolean hasSuggestionStripView() {
         return null != mSuggestionStripView;
     }
@@ -1912,12 +1921,18 @@ public class LatinIME extends InputMethodService implements
         final SuggestedWords neutralSuggestions = currentSettings.mSuggestPunctuation
                 ? currentSettings.mPunctuationSuggestions
                 : SuggestedWords.getEmptyInstance();
+        // fork, stage 89: in a writing session an emptied field (nothing before the cursor) ends it, and the strip is told before the update
+        final boolean writingSession = hasSuggestionStripView() && mSuggestionStripView.isWritingSession();
+        if (hasSuggestionStripView())
+            mSuggestionStripView.setFieldEmpty(writingSession
+                    && mInputLogic.mConnection.getCodePointBeforeCursor() == Constants.NOT_A_CODE);
         setSuggestedWords(neutralSuggestions);
         if (hasSuggestionStripView() && currentSettings.mAutoShowToolbar) {
             final int codePointBeforeCursor = mInputLogic.mConnection.getCodePointBeforeCursor();
             if (mInputLogic.mConnection.hasSelection()
                     || codePointBeforeCursor == Constants.NOT_A_CODE
-                    || codePointBeforeCursor == Constants.CODE_ENTER) {
+                    // fork, stage 89: not after Enter while the user writes (paragraphs); a new field and a selection show the tools as before
+                    || (codePointBeforeCursor == Constants.CODE_ENTER && !writingSession)) {
                 mSuggestionStripView.setToolbarVisibility(true);
             }
         }

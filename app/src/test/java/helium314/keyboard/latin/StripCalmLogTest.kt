@@ -101,6 +101,8 @@ class StripCalmLogTest {
                 if (resumeAfterDelete && c == b) latinIME.mHandler.postResumeSuggestions(true)
                 val afterKey = state()
                 sample()
+                // the delayed messages run in steps of 10 ms (fake clock), so a change inside the 300 ms after the key is seen, not only its end
+                repeat(40) { rig.idle(10); Thread.sleep(2); sample() }
                 rig.settle()
                 sample()
                 if (c == '\n') println("after ENTER: text=[" + rig.text.replace("\n","<NL>") + "] composing=[" + rig.composing + "]")
@@ -115,9 +117,9 @@ class StripCalmLogTest {
         return rows
     }
 
-    /** The visible kinds in order: the state before the first key, then after every key and after the delayed messages of it. */
+    /** The visible kinds in order (every state seen during and after each key, 10 ms steps, consecutive duplicates removed). */
     private fun visible(rows: List<String>): List<String> =
-        listOf(rows[0].split("|")[1]) + rows.drop(1).flatMap { r -> r.split("|").let { listOf(it[1], it[2]) } }
+        rows.flatMap { r -> r.split("|")[3].split(">") }.fold(ArrayList<String>()) { acc, k -> if (acc.lastOrNull() != k) acc.add(k); acc }
 
     /** Every visible change of what the bar shows, empty included (critic K1). */
     private fun switches(rows: List<String>) = visible(rows).zipWithNext().count { (a, c) -> a != c }

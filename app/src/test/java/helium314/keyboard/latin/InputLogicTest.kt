@@ -8103,8 +8103,13 @@ class InputLogicTest {
         // typing ends the choice too: words replace the tools (the strip is given words directly: the harness keeps the selection)
         left.performClick()
         assertTrue(toolbarOf(strip).isVisible)
-        strip.setSuggestions(SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
-            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER), false)
+        // stage 89: the tools the user asked for stay against words until the next typed key (the key is the hook of the listener, called here)
+        val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        strip.setSuggestions(words, false)
+        assertTrue(toolbarOf(strip).isVisible)
+        strip.onTyped()
+        strip.setSuggestions(words, false)
         assertFalse(toolbarOf(strip).isVisible)
     }
 

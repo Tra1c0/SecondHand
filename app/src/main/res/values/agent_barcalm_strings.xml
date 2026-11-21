@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Stage 89: the card "Leiste" of the diagnose page (numbers only). -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_barcalm_title">Bar (numbers only, no text)</string>
+    <string name="agent_barcalm_row_changes_total">Bar – visible changes since the start</string>
+    <string name="agent_barcalm_row_changes_field">Bar – visible changes in the last field</string>
+    <string name="agent_barcalm_changes">to tools %1$d, to words %2$d, to empty %3$d, to chip or pill %4$d</string>
+    <string name="agent_barcalm_row_deletes_total">Bar – backspaces since the start</string>
+    <string name="agent_barcalm_row_deletes_field">Bar – backspaces in the last field</string>
+    <string name="agent_barcalm_deletes">inside the word %1$d, word found again %2$d, slow connection %3$d</string>
+    <string name="agent_barcalm_row_fields">Bar – field starts</string>
+    <string name="agent_barcalm_fields">new field %1$d, restart in the same field %2$d</string>
+    <string name="agent_barcalm_row_slow">Bar – connection at the last backspace</string>
+    <string name="agent_barcalm_slow_yes">slow</string>
+    <string name="agent_barcalm_slow_no">normal</string>
+    <string name="agent_barcalm_row_dropped">Bar – taps on outdated words dropped</string>
+    <string name="agent_barcalm_row_auto_show">Bar – setting “Show bar automatically”</string>
+    <string name="agent_barcalm_row_auto_hide">Bar – setting “Hide bar automatically”</string>
+    <string name="agent_barcalm_row_bigram">Bar – setting next-word suggestions</string>
+    <string name="agent_barcalm_row_personalized">Bar – setting personalized suggestions</string>
+</resources>
