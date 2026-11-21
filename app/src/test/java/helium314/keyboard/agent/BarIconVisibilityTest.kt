@@ -251,10 +251,58 @@ class BarIconVisibilityTest {
             val off = StripIconColors.normalOf(list)
             val label = "ground ${Integer.toHexString(ground)} on ${Integer.toHexString(onColour)} off ${Integer.toHexString(offColour)} -> on ${Integer.toHexString(on)} off ${Integer.toHexString(off)}"
             assertTrue(RgbColors.contrast(on, ground) >= RgbColors.contrast(off, ground) - 0.01, "on is not the weaker: $label")
-            assertTrue(RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02, "on and off differ: $label")
+            // 1.25:1 apart where that is possible with both at least 4.5:1 (on a mid grey even black is not enough: then the minimum contrast wins)
+            assertTrue(RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02 || on == Color.BLACK || on == Color.WHITE, "on and off differ: $label")
             assertTrue(RgbColors.contrast(on, ground) >= StripIconColors.MIN_CONTRAST - 0.05 && RgbColors.contrast(off, ground) >= StripIconColors.MIN_CONTRAST - 0.05, "floor: $label")
             // on stays on the side of the ground where the design put it
-            assertEquals(RgbColors.luminance(onColour) >= RgbColors.luminance(ground), RgbColors.luminance(on) >= RgbColors.luminance(ground), "side: $label")
+            // (unless that side cannot reach the minimum contrast at all: then the minimum contrast wins, as on a mid grey)
+            val side = if (RgbColors.luminance(onColour) >= RgbColors.luminance(ground)) Color.WHITE else Color.BLACK
+            if (RgbColors.contrast(side, ground) >= StripIconColors.NORMAL_CONTRAST)
+                assertEquals(RgbColors.luminance(onColour) >= RgbColors.luminance(ground), RgbColors.luminance(on) >= RgbColors.luminance(ground), "side: $label")
+        }
+    }
+
+    /** The rule holds on a whole grid, not only in the cases somebody thought of: every output is at least 3:1, normal and switched-on at least 4.5:1, apart where that is possible. */
+    @Test fun theRuleHoldsOverAGridOfGroundsAndColours() {
+        val steps = (0..255 step 16).toList() + 255
+        val greys = steps.map { Color.rgb(it, it, it) }
+        val others = listOf(0xFF0A0001.toInt(), 0xFFF0145A.toInt(), 0xFF1A73E8.toInt(), 0xFF2E7D32.toInt(), 0xFFC8FFEE.toInt(), 0xFFF2F2F2.toInt(), 0xFFFAFAFA.toInt(), 0xFFE8E8E8.toInt(), 0xFF080808.toInt(), 0xFF101010.toInt())
+        val grounds = greys + others
+        val colourSet = greys + others
+        val activated = intArrayOf(android.R.attr.state_activated)
+        var checked = 0
+        for (ground in grounds) {
+            val colors = design(ground, 0xFF808080.toInt(), ground, ground, ground)
+            for (onColour in colourSet) for (offColour in colourSet) {
+                val theme = android.content.res.ColorStateList(arrayOf(activated, intArrayOf()), intArrayOf(onColour, offColour))
+                val list = StripIconColors.guaranteed(colors, theme)
+                val bg = StripIconColors.background(colors)
+                val on = list.getColorForState(activated, 0)
+                val off = StripIconColors.normalOf(list)
+                val label = "ground ${Integer.toHexString(ground)} on ${Integer.toHexString(onColour)} off ${Integer.toHexString(offColour)} -> on ${Integer.toHexString(on)} off ${Integer.toHexString(off)}"
+                for (state in listOf(intArrayOf(), activated, intArrayOf(android.R.attr.state_pressed), intArrayOf(android.R.attr.state_pressed, android.R.attr.state_activated)))
+                    assertTrue(RgbColors.contrast(list.getColorForState(state, 0), bg) >= StripIconColors.MIN_CONTRAST - 0.02, "floor ${state.toList()}: $label")
+                assertTrue(RgbColors.contrast(off, bg) >= StripIconColors.NORMAL_CONTRAST - 0.05, "normal: $label")
+                assertTrue(RgbColors.contrast(on, bg) >= StripIconColors.NORMAL_CONTRAST - 0.05, "switched on: $label")
+                if (onColour != offColour) {
+                    val exhausted = on == Color.WHITE || on == Color.BLACK
+                    val apart = RgbColors.contrast(on, bg) >= RgbColors.contrast(off, bg) - 0.01 && RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02
+                    assertTrue(apart || exhausted, "on and off apart where possible: $label")
+                }
+                checked++
+            }
+            // an icon on an accent circle: 3:1 against the circle, whatever the colour
+            for (icon in colourSet) assertTrue(RgbColors.contrast(StripIconColors.ensureContrast(icon, ground, StripIconColors.MIN_CONTRAST), ground) >= StripIconColors.MIN_CONTRAST - 0.02, "circle icon ${Integer.toHexString(icon)} on ${Integer.toHexString(ground)}")
+        }
+        assertTrue(checked > 5000)
+    }
+
+    @Test fun theThreeCasesOfTheSecondReviewStayInRange() {
+        for ((ground, on, off) in listOf(Triple(0xFFF2F2F2.toInt(), 0xFFFAFAFA.toInt(), 0xFF202020.toInt()), Triple(0xFF101010.toInt(), 0xFF080808.toInt(), 0xFFE0E0E0.toInt()), Triple(0xFFE8E8E8.toInt(), 0xFFFFFFFF.toInt(), 0xFF303030.toInt()))) {
+            val colors = design(ground, on, ground, ground, ground)
+            val list = StripIconColors.guaranteed(colors, android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_activated), intArrayOf()), intArrayOf(on, off)))
+            val gotOn = list.getColorForState(intArrayOf(android.R.attr.state_activated), 0)
+            assertTrue(RgbColors.contrast(gotOn, ground) >= 4.45, "ground ${Integer.toHexString(ground)} on ${Integer.toHexString(on)} off ${Integer.toHexString(off)} -> on ${Integer.toHexString(gotOn)} ${RgbColors.contrast(gotOn, ground)}")
         }
     }
 

@@ -85,31 +85,24 @@ internal object StripIconColors {
         val bg = background(colors)
         val fallback = colors.get(ColorType.TOOL_BAR_KEY)
         fun original(state: IntArray) = theme?.getColorForState(state, theme.defaultColor) ?: fallback
+        // 1. the minimum contrast for every state: this is what wins over everything below
         fun of(state: IntArray) = ensureContrast(original(state), bg)
         var on = of(ACTIVATED)
-        var off = of(NONE)
-        // A theme that shows a switched-on tool (activated) differently from a switched-off one keeps that difference: lifting both to
-        // the contrast must not make them equal, and the switched-on one stays on the side of the ground where the design put it and
-        // is not the weaker of the two. The side comes from the ORIGINAL colours (the lifted ones may be nearly equal).
+        val off = of(NONE)
+        // 2. a theme that shows a switched-on tool differently from a switched-off one keeps the difference: the switched-on colour goes
+        //    further away from the ground (on ITS side, so its contrast only grows) until it is not the weaker of the two and 1.25:1 apart;
+        //    where even white or black is not enough, it stays at that
         if (original(ACTIVATED) != original(NONE)) {
-            fun strength(c: Int) = RgbColors.contrast(c, bg)
-            fun apart() = strength(on) >= strength(off) && RgbColors.contrast(on, off) >= MIN_STATE_STEP
-            val extreme = if (RgbColors.luminance(RgbColors.over(original(ACTIVATED), bg)) >= RgbColors.luminance(bg)) RgbColors.WHITE else RgbColors.BLACK
-            val onStart = on
+            fun apart() = RgbColors.contrast(on, bg) >= RgbColors.contrast(off, bg) && RgbColors.contrast(on, off) >= MIN_STATE_STEP
+            val extreme = if (RgbColors.luminance(on) >= RgbColors.luminance(bg)) RgbColors.WHITE else RgbColors.BLACK
+            val start = on
             var t = 0f
-            while (t < 1f && !apart()) { t = (t + 0.05f).coerceAtMost(1f); on = RgbColors.lerp(onStart, extreme, t) }
-            // the extreme was not enough: the switched-off colour goes back towards the ground, down to the floor
-            val offStart = off
-            t = 0f
-            while (t < 1f && !apart()) {
-                t = (t + 0.05f).coerceAtMost(1f)
-                val next = RgbColors.lerp(offStart, bg or RgbColors.BLACK, t)
-                if (strength(next) < MIN_CONTRAST) break
-                off = next
-            }
+            while (t < 1f && !apart()) { t = (t + 0.05f).coerceAtMost(1f); on = RgbColors.lerp(start, extreme, t) }
         }
+        // 3. the hard rule, last: no state leaves here below the floor
+        fun hard(c: Int) = if (RgbColors.contrast(c, bg) < MIN_CONTRAST) ensureContrast(c, bg) else c
         return ColorStateList(arrayOf(PRESSED_ACTIVATED, PRESSED, ACTIVATED, NONE),
-            intArrayOf(of(PRESSED_ACTIVATED), of(PRESSED), on, off))
+            intArrayOf(hard(of(PRESSED_ACTIVATED)), hard(of(PRESSED)), hard(on), hard(off)))
     }
 
     /** The colour of an icon at rest in [tint] (not pressed, not activated). */
