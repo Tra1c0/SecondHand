@@ -34,24 +34,26 @@ internal object PillColors {
 
     fun inBar(key: Int, ground: Seen, text: Int, icon: Int): Look {
         val g = ground.argb
-        val base = separate(surface(key, ground).argb, g)
+        // the step is measured against the FINISHED normal surface (the text rule may have moved it), and every candidate goes through the
+        // same text rule before it is judged, so what is compared is what is drawn
+        val normalFill = normal(key, ground, text, icon).fill
         // towards the ground, about 60 % of the way; further if the surface does not differ from the normal one by IN_BAR_STEP yet;
         // never so near the ground that it vanishes into it (a design whose keys have the colour of the ground has little room: then
         // the step is as large as that room allows)
-        var best = base
+        var best: Look? = null
         var bestScore = Double.NEGATIVE_INFINITY
         var u = 0.02f
         while (u <= 1f) {
-            val next = RgbColors.lerp(base, g, u)
-            if (RgbColors.contrast(next, g) >= IN_BAR_FROM_GROUND) {
-                val step = RgbColors.contrast(next, base)
+            val look = resolve(RgbColors.lerp(normalFill, g, u), g, text, icon)
+            if (RgbColors.contrast(look.fill, g) >= IN_BAR_FROM_GROUND) {
+                val step = RgbColors.contrast(look.fill, normalFill)
                 // the step counts up to IN_BAR_STEP; among those that reach it, the one nearest to 60 % wins
                 val score = if (step >= IN_BAR_STEP) 10.0 - Math.abs(u - 0.6f) else step
-                if (score > bestScore) { bestScore = score; best = next }
+                if (score > bestScore) { bestScore = score; best = look }
             }
             u += 0.02f
         }
-        return resolve(best, g, text, icon)
+        return best ?: resolve(normalFill, g, text, icon)
     }
 
     fun unavailable(look: Look): Look {

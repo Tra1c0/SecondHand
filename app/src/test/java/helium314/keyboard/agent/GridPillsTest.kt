@@ -248,9 +248,10 @@ open class GridPillsTest {
                 ?: bitmap.getPixel(box.right - box.height(), box.centerY())
             val outside = surfaceOf(outBox); val inside = surfaceOf(inBox)
             val ground = bitmap.getPixel(4, 1200)
-            assertTrue(RgbColors.contrast(outside, inside) >= 1.1, "$name: the surface of a pill in the bar differs from the others (${hex(outside)} / ${hex(inside)}: ${RgbColors.contrast(outside, inside)})")
+            // the surfaces are measured as the exact interior pixel (no blending), so the only slack is the rounding of the colour channels (0.01)
+            assertTrue(RgbColors.contrast(outside, inside) >= 1.15 - 0.01, "$name: the surface of a pill in the bar differs from the others (${hex(outside)} / ${hex(inside)}: ${RgbColors.contrast(outside, inside)})")
             assertTrue(RgbColors.contrast(outside, ground) >= 1.25, "$name: the pill stands out from the ground of the grid (${hex(outside)} on ${hex(ground)})")
-            assertTrue(RgbColors.contrast(inside, ground) >= 1.08, "$name: the pill in the bar is still no hole in the ground (${hex(inside)} on ${hex(ground)}: ${RgbColors.contrast(inside, ground)})")
+            assertTrue(RgbColors.contrast(inside, ground) >= 1.1 - 0.01, "$name: the pill in the bar is still no hole in the ground (${hex(inside)} on ${hex(ground)}: ${RgbColors.contrast(inside, ground)})")
             // and the outline is a second cue: its pixel at the edge differs from the ground clearly
             val edge = bitmap.getPixel(inBox.left + 3, inBox.centerY())
             assertTrue(RgbColors.contrast(edge, ground) >= 1.5, "$name: the outline of a pill in the bar shows (${hex(edge)} on ${hex(ground)}: ${RgbColors.contrast(edge, ground)})")
