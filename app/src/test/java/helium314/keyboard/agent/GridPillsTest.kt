@@ -214,6 +214,29 @@ open class GridPillsTest {
         }
     }
 
+    /** The button that starts the edit mode is an ordinary button like Undo/Reset: same height, width after its content, centred, readable. */
+    @Test fun theCustomizeButtonIsAsHighAsTheSmallButtonsCentredAndNarrowerThanTheGrid() {
+        for ((name, colors) in designs.take(2)) {
+            val editing = show(colors, editing = true)
+            val undo = editing.grid.findViewById<View>(R.id.agent_tool_grid_undo)
+            val shown = show(colors, editing = false)
+            val button = shown.grid.findViewById<android.widget.Button>(R.id.agent_tool_grid_edit)
+            assertTrue(undo.height > 0 && button.height > 0, "$name: both buttons are laid out")
+            assertEquals(undo.height, button.height, "$name: the button is as high as the small buttons")
+            assertTrue(button.width < shown.grid.width * 0.6f, "$name: the button is ${button.width} px wide in a grid of ${shown.grid.width} px")
+            val box = boxOf(shown, button)
+            assertTrue(abs(box.centerX() - shown.grid.width / 2) <= 2, "$name: the button is centred (centre ${box.centerX()} of ${shown.grid.width})")
+            button.layoutDirection = View.LAYOUT_DIRECTION_LTR
+            val bitmap = render(shown)
+            val area = Rect(box.left + box.height() / 2, box.top + box.height() / 4, box.right - box.height() / 2, box.bottom - box.height() / 4)
+            val m = measure(bitmap, box, area) ?: throw AssertionError("$name: no text is drawn on the button")
+            assertTrue(RgbColors.contrast(m.second, m.first) >= 4.4, "$name: the text ${hex(m.second)} on the button ${hex(m.first)}: ${RgbColors.contrast(m.second, m.first)}")
+            // the text is in the middle of the button, not at its top
+            val textRows = (box.top until box.bottom).filter { y -> (area.left until area.right).any { x -> abs(Color.red(bitmap.getPixel(x, y)) - Color.red(m.first)) > 60 } }
+            assertTrue(textRows.isNotEmpty() && abs((textRows.first() + textRows.last()) / 2 - box.centerY()) <= box.height() / 8, "$name: the text is centred vertically (rows ${textRows.firstOrNull()}..${textRows.lastOrNull()} in $box)")
+        }
+    }
+
     /** The pictures of the owner's design for looking at (not versioned). */
     @Test fun theOwnerGridIsWrittenAsPictures() {
         render(show(owner, editing = false), "$tag-1-offen")

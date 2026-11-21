@@ -405,8 +405,11 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
         scroll.setBackgroundColor(background)
         content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP))
-        content.addView(header(look.text, look.icon, look.fill), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            .apply { bottomMargin = dp(GAP_DP) })
+        // the header keeps the layout it asks for (the "customize" button: as high as Undo/Reset, as wide as its content, centred)
+        val headerView = header(look.text, look.icon, look.fill)
+        val headerParams = (headerView.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        content.addView(headerView, headerParams.apply { bottomMargin = dp(GAP_DP) })
         tools.chunked(COLUMNS).forEachIndexed { rowIndex, rowTools ->
             // no baseline alignment: a pill with a two-line name has a lower first baseline and would be pushed down, out of its row (88c)
             val row = LinearLayout(context).apply { isMotionEventSplittingEnabled = false; isBaselineAligned = false }
@@ -482,7 +485,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
                 ?.let { InsetDrawable(it, 0, 0, dp(GAP_DP), 0) }
             setCompoundDrawablesRelativeWithIntrinsicBounds(edit, null, null, null)
             setOnClickListener { onEditRequested?.invoke() }
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(EDIT_HEIGHT_DP)).apply { gravity = Gravity.END }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(EDIT_HEIGHT_DP)).apply { gravity = Gravity.CENTER_HORIZONTAL }
         }
     }
 
