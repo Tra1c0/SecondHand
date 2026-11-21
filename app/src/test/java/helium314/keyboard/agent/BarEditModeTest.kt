@@ -590,6 +590,43 @@ class BarEditModeTest {
         assertEquals(listOf(UNDO, REDO, PASTE), saved())
     }
 
+    private fun fling(h: Harness) = (h.grid.getChildAt(0) as android.widget.ScrollView).fling(6000)
+
+    @Test fun aTouchThatStopsAFlingPicksNothingUpAndTheNextDragWorks() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val before = h.grid.pill(AGENT)!!.alpha
+        // the panel is still running from a fling (in Robolectric the scroller does not end by itself: that is the case); a finger lands on a pill to stop it
+        fling(h)
+        val at = pillPoint(h, AGENT)
+        fling(h)
+        down(h, at.first, at.second)
+        idle(400) // the hold time passes with the finger resting
+        assertNull(h.grid.floatingCopy, "no tool is picked up by a finger that only stops the panel")
+        assertEquals(before, h.grid.pill(AGENT)!!.alpha, "the pill is not dimmed")
+        up(h, at.first, at.second)
+        assertUnsaved()
+        // the same while the finger holds and moves towards the bar: nothing hangs
+        fling(h)
+        val p = pillPoint(h, PASTE)
+        fling(h)
+        down(h, p.first, p.second)
+        idle(250)
+        assertNull(h.grid.floatingCopy)
+        glide(h, p, finalCentres(h, 3).last(), barY)
+        up(h, finalCentres(h, 3).last(), barY)
+        assertUnsaved()
+        // and an ordinary drag after it works (the scroller has been stopped by the test)
+        (h.grid.getChildAt(0) as android.widget.ScrollView).let { it.scrollTo(0, 0) }
+        val q = holdPill(h, CUT)
+        val x = finalCentres(h, 3).last()
+        glide(h, q, x, barY)
+        up(h, x, barY)
+        assertEquals(listOf(UNDO, REDO, CUT), saved())
+    }
+
     @Test fun aSecondFingerOnAnotherPillDuringTheFirstHundredAndEightyMsDoesNothing() {
         setBar(listOf(UNDO, REDO))
         reload()
