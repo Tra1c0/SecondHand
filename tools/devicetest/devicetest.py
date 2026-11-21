@@ -1062,39 +1062,56 @@ def pending_correction(screen=None):
     return "-"
 
 
+def _ensure_layout(d, language):
+    """Makes sure the keyboard shows the English ("en") or German ("de") layout: the command @lang offers the other
+    active languages, so if the wanted one is not offered, the keyboard is already on it."""
+    wanted = ("Englisch", "English") if language == "en" else ("Deutsch", "German")
+    d.start("probe_language")
+    d.focus("text")
+    d.type("@lang")
+    time.sleep(1.2)
+    try:
+        d.tap_in_strip(wanted)
+        time.sleep(1.5)
+    except CheckFailed:
+        pass  # not offered: already on that language
+    d.refresh_keys()
+    d.start("probe_language")
+    d.focus("text")
+    has_umlaut = "ü" in d.keymap or "Ü" in d.keymap
+    d.expect_equal("layout %s (umlaut key %s)" % (language, has_umlaut), has_umlaut, language == "de")
+
+
 def _probe_cases(d, name, prefix, cases, english=False):
     """Each case in a fresh field: prefix, then the text of the case, the pending correction and the strip are read
-    before the final space, the field after it. Returns a list of (text, pending, strip, field)."""
+    before the final space, the field after it. The layout (English or German) is set first and German is restored
+    afterwards. Returns a list of (text, pending, strip, field)."""
     rows = []
-    for text in cases:
-        d.start(name)
-        d.focus("text")
-        if english:
-            d.type("@lang")
-            d.tap_in_strip(("Englisch", "English"))
-            time.sleep(1.5)
-            d.refresh_keys()
-        d.type(prefix)
-        d.wait_for_suggestions()
-        d.type(" " + text)
-        time.sleep(1.2)
-        screen = dump()
-        pend = pending_correction(screen)
-        strip = [t for t in screen.strip_texts() if t not in STRIP_FIXED][:5]
-        d.type(" ")
-        time.sleep(1.0)
-        field = d.field("text")
-        rows.append((text, pend, strip, field))
-        log("PROBE %s | %s | typed %r | pending %s | strip %s | field after space %r" % (
-            name, "EN layout" if english else "DE layout", prefix + " " + text, pend, strip, field))
-        d.notes.append("%r -> %r" % (text, field))
-        if english:  # back to German for the scenarios after this one
+    _ensure_layout(d, "en" if english else "de")
+    try:
+        for text in cases:
             d.start(name)
             d.focus("text")
-            d.type("@lang")
-            d.tap_in_strip(("Deutsch", "German"))
-            time.sleep(1.5)
-            d.refresh_keys()
+            d.type(prefix)
+            d.wait_for_suggestions()
+            d.type(" " + text)
+            time.sleep(1.2)
+            screen = dump()
+            pend = pending_correction(screen)
+            strip = [t for t in screen.strip_texts() if t not in STRIP_FIXED][:5]
+            d.type(" ")
+            time.sleep(1.0)
+            field = d.field("text")
+            rows.append((text, pend, strip, field))
+            log("PROBE %s | %s | typed %r | pending %s | strip %s | field after space %r" % (
+                name, "EN layout" if english else "DE layout", prefix + " " + text, pend, strip, field))
+            d.notes.append("%r -> %r" % (text, field))
+    finally:
+        if english:
+            try:
+                _ensure_layout(d, "de")
+            except (CheckFailed, DeviceError) as error:
+                log("PROBE could not restore the German layout: %s" % error)
     d.expect_equal("probe ran %d cases" % len(rows), len(rows), len(cases))
     return rows
 
@@ -1108,7 +1125,7 @@ def probe_apostrophe_de(d):
 def probe_apostrophe_en(d):
     """Finding 2 on the English layout: contractions with and without the apostrophe, and "war's" for comparison."""
     _probe_cases(d, "probe_apostrophe_en", "and",
-                 ["I'm", "i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
+                 ["i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
 
 
 def probe_capital_i(d):
@@ -1126,6 +1143,34 @@ def probe_english_sentences(d):
                  ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
 
 
+def _settings_fresh(d, path, wanted):
+    """Opens the keyboard's settings in a cleared task (they would come back where they were left), follows the menu
+    texts of the path and taps the first node whose text or description starts with `wanted` (any case)."""
+    shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.0)
+    for _ in range(2):
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
+    for label in path:
+        d.tap_text(label)
+    seen = []
+    for _ in range(7):
+        for node in dump().nodes:
+            label = node.text or node.desc
+            if node.visible and label and label.lower().startswith(wanted.lower()):
+                tap(*node.center)
+                time.sleep(1.0)
+                shell("input keyevent KEYCODE_HOME", check=False)
+                time.sleep(1.0)
+                return label
+        seen = [(n.text or n.desc)[:30] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+        shell("input swipe 540 1700 540 700 400", check=False)
+        time.sleep(0.8)
+    raise CheckFailed("no text starting with %r on the screen; texts: %s" % (wanted, seen[:25]))
+
+
 def _keep_typed(d, word, times):
     """Types the word with a space `times` times the way the owner keeps a word: if the keyboard changed it,
     one tap on delete takes the correction back, then the space again (as learning_not_in_password)."""
@@ -1141,8 +1186,9 @@ def _keep_typed(d, word, times):
 
 def probe_history_loop(d):
     """Findings 2 and 4: with "Personalisierte Vorschläge" on, a typo the owner once kept ("nicbmal", "war'a") sits
-    in the typing history. Does the correct word ("nichtmal", "war's") then become that typo?"""
-    _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"), "Personalisierte Vorschläge")
+    in the typing history (German layout). Does the correct word ("nichtmal", "war's") then become that typo?"""
+    _settings_fresh(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"), "Personalisierte Vorschläge")
+    _ensure_layout(d, "de")
     d.start("probe_history_loop")
     d.focus("text")
     d.type("und")
@@ -1156,10 +1202,10 @@ def probe_history_loop(d):
 
 def probe_level_gentle(d):
     """Finding 3 at the level "Behutsam" (Tippen & Korrektur): "i" in the middle of a sentence, English layout."""
-    _open_settings_and_switch_on(d, ("Tippen & Korrektur",), "Behutsam")
+    label = _settings_fresh(d, ("Tippen & Korrektur",), "Behutsam")
+    d.notes.append("tapped %r" % label)
     _probe_cases(d, "probe_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
     _probe_cases(d, "probe_level_gentle_de", "und", ["war's", "nichtmal"])
-
 
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
