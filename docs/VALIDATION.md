@@ -1,5 +1,18 @@
 # Prüfnachweise
 
+## Etappe 89 — ruhige Leiste beim Schreiben (Stufe 1)
+
+**Auslöser (Owner, Build 43):** Bei Autokorrekturen, Leerzeichen, Satzzeichen und Absätzen wird die Vorschlagsleiste zur Werkzeugleiste, beim Löschen flackert sie. Konzept: `docs/LEISTE-RUHE-KONZEPT.md` (Ursache mit Aufrufketten, Regel, Kritik K1 bis K5, Abnahme-Zeilen).
+
+**Gemessen (Robolectric über `TypingRig`, `StripCalmLogTest`, Stub-Wörterbuch, Satz „Hallo, wie geht es dir. Gut“ + Absatz + „Und“ + zehn Rücktasten, jede Taste in 10-ms-Schritten abgefragt):**
+- Vorher (Stand 55ba1c7, nur Werkzeuge gegen Inhalt gezählt): 17 Wechsel ohne Folgewortvorhersage, 7 mit, 14 bei langsamer Verbindung.
+- Rot vor dem Umbau (Lauf auf dem Stand vor der Regel): `sentenceWithoutPredictions` (17 statt 1), `sentenceWithPredictions` (7 statt 1), `sentenceWithSlowConnection` (14 statt 1) und
+  `deletingInsideAWordWithSlowConnectionAndResumeDoesNotChangeTheBar` (der vermutete Weg der Claude-App: nach der Rücktaste erst Werkzeuge, dann Wörter, `<-|T|W|W>T>W`).
+- Nachher: Werkzeuge kommen genau einmal weg (erste Taste) und nie zurück, auch nicht beim Löschen, bei langsamer Verbindung und Wiederaufnahme; alle sichtbaren Wechsel (Wörter, leer, Chip) bleiben an Wortgrenzen (17 ohne Vorhersage, 7 mit Vorhersage, 14 bei langsamer Verbindung, davon null innerhalb eines Worts). Referenzfolgen: `app/src/test/resources/stage89/strip-protocol-*.txt`.
+- Weitere Tests: `BarStateTest` (Schreibsitzung, `pinned`, Auswahl-Chips gewinnen), `StripCalmLogTest` (Tipp auf veraltete Wörter fügt nichts ein, „Leiste automatisch anzeigen“ nach Enter, Passwortfeld, Zähler), `BarCalmCountersTest` (nur Zahlen, nichts im geschützten Feld), `InputLogicTest` (Auswahl-Werkzeuge, angepasst: Wörter nehmen die verlangten Werkzeuge erst nach einem getippten Zeichen).
+- **Nicht gesehen:** Bilder im dunklen Design (Szenario `bar_calm_typing` liefert `calm_after_space`, `calm_typed`, `calm_deleted`, `calm_undo_redo` über den Job-Log), nichts auf einem Telefon; die Frist von 250 ms ist aus der Struktur (100 ms Verzögerung plus Wörterbuchantwort) abgeleitet, nicht auf dem Xiaomi 15 gemessen.
+- Gerätetest `bar_calm_typing` (echte Tastenberührungen: Satz mit Komma und Punkt, zehn Löschtasten, Pfeil links, „Rückgängig“ zweimal, nächstes Zeichen): Lauf-ID und Ergebnis stehen im Bericht der Etappe. Enter wird dort nicht getippt (einzeiliges Testfeld), der Absatz ist in `StripCalmLogTest` abgedeckt.
+
 ## Etappe 88 — Leiste v2: sichtbare Symbole, echtes Ziehen
 
 **Auslöser (Owner, Build 41, Xiaomi 15, eigenes dunkles Design):** „Die Leiste ist nicht gleichmäßig.“ Zwei Symbole (Textaktionen, Skill-Taste) waren nicht zu sehen; das Drag and Drop „funktioniert nicht

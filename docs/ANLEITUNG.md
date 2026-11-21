@@ -213,6 +213,12 @@ du in einem Tipp, was sie zeigt:
 - **NUR VORSCHLÄGE**: nur Vorschläge und angeheftete Knöpfe.
 - **VERSTECKT**: keine Leiste, mehr Platz für Tasten.
 
+**Die Leiste beim Schreiben (ab Etappe 89).** In der Voreinstellung „Tasten + Vorschläge“ bleibt die Leiste, sobald du in einem Feld mit
+Vorschlägen etwas getippt oder gelöscht hast, im Bereich der Wörter; ist nichts vorzuschlagen, bleibt er leer, links bleibt der Pfeil.
+Die Werkzeuge siehst du bei einem neuen oder leeren Feld und nach einem Tipp auf den Pfeil links oder auf ein Werkzeug; dann bleiben sie
+stehen, bis du das nächste Zeichen tippst (so kannst du mehrmals „Rückgängig“ tippen und siehst den Wiederholen-Pfeil). Wie oft die Leiste
+wechselt und warum, zeigt Einstellungen → Diagnose → Karte „Leiste“ (nur Zahlen).
+
 Steht „Eigene Einstellung“ darunter, ist der vierte Modus „Nur Leisten-Tasten“ gewählt (unter
 „Knöpfe wählen und sortieren“ → „Leisten-Modus“). Die Karte „@-Befehle“ zeigt das Präfix und alle
 Befehle; ein Tipp auf einen Befehl schaltet ihn einzeln an oder aus, der Schalter oben rechts

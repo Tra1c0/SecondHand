@@ -36,6 +36,7 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
     Werkzeuge blass mit Schloss und dem Grund beim Tippen, Ziehen mit eigener Berührungsverarbeitung (Kopie am Finger, Lücke, Ablegen, Herausziehen, voll, Abbruch, Rückgängig, Zurücksetzen), Rückgängig
     bietet Wiederholen an (`docs/VALIDATION.md` → Etappe 88). Offen: auf dem Telefon des Owners prüfen (Gefühl der Haltezeit 180 ms, Zone 40 dp, Lage der Pille im Raster, Griff mit dem Daumen);
     Vorschläge mit Rückfrage stehen im Bericht der Etappe (Werkzeuge sichtbar lassen, solange Wiederholen angeboten wird; Zwei-Hälften-Platz bei höchstens drei Werkzeugen).
+  - **89 Ruhige Leiste:** Stufe 1 gebaut (Schreibsitzung, Entprellung der Wörter, Diagnose-Karte „Leiste“; Konzept `docs/LEISTE-RUHE-KONZEPT.md`, Nachweis `docs/VALIDATION.md` → Etappe 89). Offen: Stufe 2 (linke Taste und Mikrofon-Kreis stehen fest neben den Wörtern; Plan und Abnahme-Zeilen im Konzept, erst nach Zeichen des Leads, weil die Rasterfarben (88) dieselben Dateien ändern); Vorschlag an den Owner: Zwischenablage-Pille beim Schreiben nur einmal je Kopie (nicht gebaut; der Zähler der Karte zeigt, ob es vorkommt); auf dem Telefon prüfen.
   - **87 Cursor als Trackpad:** gebaut (siehe FEATURES), offen ist nur, was am Telefon entschieden wird: Die Konstanten
     (13 dp je Zeichen, 26 dp je Zeile, Beschleunigung, Magnetismus 35 %, Spiel 3 dp) sind erste Schätzungen und
     brauchen den Finger des Owners; der Gerätetest (`cursor_trackpad`, `cursor_trackpad_vertical` sind geschrieben,
