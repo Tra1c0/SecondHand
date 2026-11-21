@@ -574,7 +574,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         var fitting = MIN_TEXT_DP
         while (dpSize >= MIN_TEXT_DP) {
             paint.textSize = dpSize * resources.displayMetrics.density
-            val layout = android.text.StaticLayout.Builder.obtain(button.text, 0, button.text.length, paint, room).setMaxLines(3).build()
+            // the constructor, not StaticLayout.Builder (API 23; the minimum is 21)
+            @Suppress("DEPRECATION")
+            val layout = android.text.StaticLayout(button.text, paint, room, android.text.Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false)
             if (layout.lineCount <= 2 && (0 until layout.lineCount).all { layout.getLineWidth(it) <= room }) { fitting = dpSize; break }
             dpSize -= 0.5f
         }
