@@ -189,8 +189,11 @@ object RgbStrip {
         if (view.currentTextColor != color) view.setTextColor(color)
     }
 
-    private fun paintImage(view: ImageView, strip: View, tint: ColorStateList?, filterColor: Int, background: Int, force: Boolean) {
+    private fun paintImage(view: ImageView, strip: View, themeTint: ColorStateList?, filterColor: Int, background: Int, force: Boolean) {
         val drawable = view.drawable ?: return
+        // an unavailable tool of the fixed bar keeps its "off" colour (stage 88); the bar's own list (with the guaranteed contrast) replaces the theme's
+        if (view.getTag(R.id.agent_bar_off) != null) return
+        val tint = (view.getTag(R.id.agent_bar_tint) as? ColorStateList) ?: themeTint
         // a view colour filter (expand key, themes without a tint list) gets the light as a filter
         val useFilter = tint == null || view.colorFilter != null
         // an icon with its own colour filter on the drawable (Flat round button) keeps its colour

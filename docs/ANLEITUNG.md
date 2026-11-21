@@ -1325,7 +1325,7 @@ aufgebaut aus, wie in Gboard: links der **Raster-Knopf**, dann deine **Werkzeuge
 Plätzen, ganz rechts das **Mikrofon** im Kreis (die Sprach- oder die Diktat-Taste, je nachdem, was in der Leiste liegt).
 Nichts scrollt, es gibt keinen Pfeil zum Ein- und Ausblenden. Ein Werkzeug sitzt immer am selben Platz; die Plätze hängen nur
 davon ab, **wie viele** Werkzeuge in der Leiste liegen (1 bis 5 in voller Größe, 6 bis 8 als kompakte Reihe mit kleineren
-Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster).
+Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster). Jedes Symbol ist in jedem Design gut zu erkennen, und die Symbole liegen gleichmäßig verteilt (weniger Symbole: größere Abstände).
 
 - **Was die Leiste zeigt:** Solange nichts getippt wird, die Werkzeuge. Tippst du, ersetzen die Wortvorschläge sie; ebenso
   Befehls-Chips, Auswahl-Chips, die Zwischenablage-Pille, Autofill und die Hinweise auf neue Builds (die Reihenfolge, in der
@@ -1343,6 +1343,16 @@ Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster).
   die bisher angehefteten Tasten, wenn sie nicht darunter sind. Alles andere, was du bisher in der Leiste hattest (Wiederholen, Wort
   markieren, Kopieren, Einfügen, Pfeile), steht jetzt im Raster. Hast du die Reihenfolge schon in den Einstellungen verändert, gilt
   deine Reihenfolge. Die Tastatur schreibt dafür nichts weg, bevor du selbst etwas änderst.
+- **Werkzeug nicht verfügbar:** In privaten Feldern (Passwort, Inkognito) und in Zahlenfeldern bleiben manche Werkzeuge an ihrem Platz, blasser und mit
+  einem kleinen Schloss. Tippst du darauf, sagt die Leiste kurz warum („In diesem Feld nicht verfügbar: privates Feld“); ein Tipp irgendwo anders räumt die Zeile weg.
+- **Leiste anpassen (Ziehen):** Raster-Knopf, dann „Anpassen“ (oder ein Werkzeug der Leiste ohne eigene Langdruck-Aktion lange drücken). Eine Pille im Raster
+  kurz halten (oder seitlich ziehen): Eine Kopie des Symbols folgt dem Finger. Hältst du sie über die Leiste (oder knapp darunter), öffnet sich an der Stelle unter dem
+  Finger eine Lücke, die anderen Symbole rücken beiseite; loslassen setzt das Werkzeug dort ein, gespeichert ist es sofort. Ein Symbol der Leiste anfassen und anders hin
+  ziehen ordnet um; nach unten ins Raster ziehen nimmt es heraus. Loslassen außerhalb der Leiste legt ein Werkzeug aus dem Raster zurück. Ist die Leiste voll (acht),
+  wackelt sie und sagt es. Senkrecht auf dem Raster wischen scrollt es wie immer. „Rückgängig“ nimmt die letzte Änderung zurück, „Zurücksetzen“ stellt die
+  Standard-Leiste wieder her (nach „Ja“). Das Häkchen links beendet das Anpassen; die Zurück-Taste oder das Schließen der Tastatur auch (alles ist schon gespeichert).
+- **Rückgängig und Wiederholen:** Nach einem Rückgängig trägt das Rückgängig-Symbol einen kleinen Pfeil: Wiederholen ist dann der Langdruck darauf. Der Pfeil
+  verschwindet, sobald du tippst, löschst oder einfügst.
 - **Markierter Text und die Werkzeuge:** Markierst du Text, zeigt die Leiste Kopieren, Ausschneiden, Einfügen und Löschen statt der Werkzeuge. Zu den
   Werkzeugen (zum Beispiel den Textaktionen) kommst du mit dem Pfeil „<“ ganz links („Werkzeuge zeigen“). Das gilt **für diese Markierung**: Ziehst du die Griffe oder
   meldet die App die Markierung neu, bleiben die Werkzeuge stehen, bis die Markierung endet oder du tippst. Der Pfeil links heißt dann „Auswahl-Aktionen zeigen“ und

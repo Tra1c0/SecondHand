@@ -154,6 +154,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // codes without a key press, e.g. from the strip
+        helium314.keyboard.agent.UndoOffer.onCode(primaryCode) // stage 88: after an undo the bar offers a redo until the text changes
         if (TouchCalibration.active) keyboardSwitcher.mainKeyboardView?.let { view ->
             // view to keyboard coordinates, as KeyDetector does
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
@@ -232,6 +233,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onTextInput(text: String?) {
+        helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: emoji and other text change the text like a typed key
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
         latinIME.onTextInput(text)
     }
@@ -256,6 +258,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     // stage 27: with "Symbole malen" the gesture is ink for SymbolInk, never a gesture-typed word;
     // LatinIME, InputLogic and the batch gate (P5) see nothing of it
     override fun onStartBatchInput() {
+        helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: a gesture is typing
         if (!SymbolInk.isEnabled()) return latinIME.onStartBatchInput()
         if (!latinIME.agentEditorController.isBlockingInput) SymbolInk.onBatchStart()
     }

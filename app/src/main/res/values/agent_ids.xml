@@ -32,9 +32,18 @@
     <item type="id" name="agent_tool_grid" />
     <item type="id" name="agent_tool_grid_edit" />
     <item type="id" name="agent_tool_grid_hint" />
+    <item type="id" name="agent_tool_grid_undo" />
+    <item type="id" name="agent_tool_grid_reset" />
+    <item type="id" name="agent_tool_grid_reset_ask" />
+    <item type="id" name="agent_tool_grid_reset_yes" />
+    <item type="id" name="agent_tool_grid_reset_no" />
     <item type="id" name="agent_bar_circle" />
     <item type="id" name="agent_bar_gap" />
     <item type="id" name="agent_bar_tool" />
+    <item type="id" name="agent_bar_tint" />
+    <item type="id" name="agent_bar_icon_bg" />
+    <item type="id" name="agent_bar_off" />
+    <item type="id" name="agent_bar_hint" />
     <item type="id" name="agent_menu_design" />
     <item type="id" name="agent_menu_undo" />
     <item type="id" name="agent_menu_one_handed" />

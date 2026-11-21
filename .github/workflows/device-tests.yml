@@ -173,4 +173,6 @@ jobs:
           cat device-test-out/summary.md >> "$GITHUB_STEP_SUMMARY"
           cat device-test-out/summary.md
           ls -l device-test-out | tail -n +2 | awk '{print $5, $9}'
+          # stage 88: the small pictures of the bar as text (tools/devicetest/shots_from_log.py makes PNG files of them), last in the log
+          cat device-test-out/shots.txt 2>/dev/null || true
           python3 -I -c "import json,sys; sys.exit(0 if json.load(open('device-test-out/results.json'))['ok'] is True else 1)"

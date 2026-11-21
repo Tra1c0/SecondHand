@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
-import android.content.ClipData
-import android.content.ClipDescription
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
 import android.view.ContextThemeWrapper
-import android.view.DragEvent
+import android.view.MotionEvent
+import android.os.SystemClock
+import org.robolectric.shadows.ShadowLooper
+import java.util.concurrent.TimeUnit
+import helium314.keyboard.latin.suggestions.BarDrag
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -50,9 +52,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Stage 86: customizing the bar inside the keyboard. The drags are simulated: a view without a window cannot start a
- * system drag, so the tests replace the starter of the strip, take the drag state it is handed and send
- * `DragEvent`s to the bar and to the grid, as the system would. No real finger has touched any of this.
+ * Stages 86 and 88: customizing the bar inside the keyboard. Since stage 88 the drags are done with the keyboard's own touch
+ * handling, and these tests send real `MotionEvent`s (DOWN, MOVE, UP, CANCEL, with event times and a real hold) to the
+ * container of the edit mode; there is no `DragEvent` and no system drag anywhere. No finger on a device has touched any of this
+ * (the emulator scenarios `bar_edit_*` of the device tests do that).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -64,7 +67,6 @@ class BarEditModeTest {
 
     private class Harness(val root: FrameLayout, val strip: SuggestionStripView, val grid: ToolGridView, val keys: View,
                           val codes: MutableList<Int>) {
-        var dragState: Any? = null
     }
 
     @Before fun clean() {
@@ -109,7 +111,6 @@ class BarEditModeTest {
             override fun onSwipeDownOnToolbar() = Unit
         }, root)
         val h = Harness(root, strip, grid, keys, codes)
-        strip.dragStarter = { _, _, _, state, _ -> h.dragState = state; true }
         layout(h)
         return h
     }
@@ -127,43 +128,59 @@ class BarEditModeTest {
     private fun View.centreIn(root: View): Float = generateSequence(this) { it.parent as? View }.takeWhile { it !== root }.sumOf { it.left } + width / 2f
     private fun centres(h: Harness) = slots(h).map { it.centreIn(h.root) }
 
-    /** A drag event as the system builds it, found by its parameter types (the signature differs between Android versions). */
-    private fun dragEvent(action: Int, x: Float, y: Float, state: Any?): DragEvent {
-        val method = DragEvent::class.java.declaredMethods.filter { it.name == "obtain" && java.lang.reflect.Modifier.isStatic(it.modifiers) }
-            .maxByOrNull { it.parameterCount }!!
-        var firstInt = true
-        var floats = 0
-        val args = method.parameterTypes.map { type ->
-            when (type) {
-                Int::class.javaPrimitiveType -> if (firstInt) { firstInt = false; action } else 0
-                Float::class.javaPrimitiveType -> when (floats++) { 0 -> x; 1 -> y; else -> 0f }
-                Boolean::class.javaPrimitiveType -> false
-                Any::class.java -> state
-                ClipDescription::class.java -> ClipDescription("tool", arrayOf("text/plain"))
-                ClipData::class.java -> ClipData.newPlainText("tool", "x")
-                else -> null
-            }
-        }
-        method.isAccessible = true
-        return method.invoke(null, *args.toTypedArray()) as DragEvent
+    // ---- real touches (stage 88): MotionEvents to the container of the edit mode, no DragEvent anywhere ----
+
+    private var downTime = 0L
+    private fun idle(ms: Long) = ShadowLooper.idleMainLooper(ms, TimeUnit.MILLISECONDS)
+
+    private fun send(h: Harness, action: Int, x: Float, y: Float): Boolean {
+        val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0)
+        return try { h.grid.dispatchTouchEvent(event) } finally { event.recycle() }
     }
 
-    /** The grid's drop area: the content of its scroll view. */
-    private fun gridDropArea(h: Harness): View = (h.grid.getChildAt(0) as ViewGroup).getChildAt(0)
+    private fun down(h: Harness, x: Float, y: Float) { downTime = SystemClock.uptimeMillis(); send(h, MotionEvent.ACTION_DOWN, x, y) }
+    private fun moveTo(h: Harness, x: Float, y: Float, ms: Long = 16) { idle(ms); send(h, MotionEvent.ACTION_MOVE, x, y) }
+    private fun up(h: Harness, x: Float, y: Float) { idle(16); send(h, MotionEvent.ACTION_UP, x, y); idle(400) }
+    private fun cancel(h: Harness, x: Float, y: Float) { idle(16); send(h, MotionEvent.ACTION_CANCEL, x, y); idle(400) }
 
-    /**
-     * The drag event to the listener of [view], as the system's dispatch does after its own checks (a view tree without a
-     * window has no `ViewRootImpl`, which the dispatch of a `ViewGroup` needs).
-     */
-    private fun send(view: View, action: Int, x: Float, state: Any?): Boolean {
-        val info = View::class.java.getDeclaredField("mListenerInfo").apply { isAccessible = true }.get(view) ?: return false
-        val listener = info.javaClass.getDeclaredField("mOnDragListener").apply { isAccessible = true }.get(info) as? View.OnDragListener ?: return false
-        return listener.onDrag(view, dragEvent(action, x, 20f, state))
+    /** The finger moves in steps (a real finger sends many events), from its place to (x, y). */
+    private fun glide(h: Harness, from: Pair<Float, Float>, x: Float, y: Float, steps: Int = 6) {
+        for (i in 1..steps) moveTo(h, from.first + (x - from.first) * i / steps, from.second + (y - from.second) * i / steps)
     }
 
-    /** A position of the root, as the bar (whose events are relative to its own container) gets it. */
-    private fun Harness.bx(rootX: Float) = rootX - (container(this).centreIn(root) - container(this).width / 2f)
-    private fun Harness.toBar(action: Int, rootX: Float, state: Any?) = send(container(this), action, bx(rootX), state)
+    private fun assertUnsavedOrEqual(expected: List<ToolbarKey>) = assertTrue(saved() == expected || (saved() == null && BarTools.read(prefs) == expected))
+
+    private val barY get() = STRIP / 2f
+    private fun flat() = helium314.keyboard.keyboard.FlatStyle.isActive(Settings.getValues().mColors)
+    /** Where [count] slots are after a drop, in the coordinates of the root. */
+    private fun finalCentres(h: Harness, count: Int): List<Float> {
+        val left = toolbar(h).let { t -> generateSequence<View>(t) { it.parent as? View }.takeWhile { it !== h.root }.sumOf { it.left } }
+        return FixedBar.slotCentres(toolbar(h), flat(), count).map { it + left }
+    }
+    private fun pillPoint(h: Harness, key: ToolbarKey): Pair<Float, Float> {
+        h.grid.revealPill(key)
+        return h.grid.pillCentre(key)!!.let { it.x to it.y }
+    }
+
+    /** Holds the pill of [key] until the tool is in the hand; returns where the finger is. */
+    private fun holdPill(h: Harness, key: ToolbarKey): Pair<Float, Float> {
+        val at = pillPoint(h, key)
+        down(h, at.first, at.second)
+        idle(BarDrag.Config(slopPx = 1f).holdMs + 40)
+        assertNotNull(h.grid.floatingCopy, "the tool is picked up after the hold")
+        return at
+    }
+
+    /** Takes the tool of a slot in the hand with a short move (no hold needed on the bar). */
+    private fun grabSlot(h: Harness, index: Int): Pair<Float, Float> {
+        val x = centres(h)[index]
+        down(h, x, barY)
+        moveTo(h, x + 3f, barY)
+        val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop + 20f
+        moveTo(h, x + slop, barY) // beyond the touch slop
+        assertNotNull(h.grid.floatingCopy)
+        return (x + slop) to barY
+    }
 
     private fun startEdit(h: Harness) {
         leftKey(h).performClick()
@@ -171,19 +188,6 @@ class BarEditModeTest {
         h.grid.findViewById<View>(R.id.agent_tool_grid_edit).performClick()
         layout(h)
         assertNotNull(h.grid.editListener)
-    }
-
-    /** Takes [key] from the grid in the hand: the pill is held (long click), the strip starts the drag. */
-    private fun holdPill(h: Harness, key: ToolbarKey): Any {
-        h.dragState = null
-        assertTrue(h.grid.pill(key)!!.performLongClick())
-        return h.dragState!!
-    }
-
-    private fun holdSlot(h: Harness, key: ToolbarKey): Any {
-        h.dragState = null
-        assertTrue(slots(h).first { it.tag == key }.performLongClick())
-        return h.dragState!!
     }
 
     // ---- entering and leaving ----
@@ -268,49 +272,67 @@ class BarEditModeTest {
         assertNull(h.grid.editListener)
     }
 
-    // ---- drag and drop ----
+    // ---- dragging with real touches ----
 
-    @Test fun aToolDraggedFromTheGridIntoTheBarMakesRoomAtOnceAndIsSavedOnTheDrop() {
+    @Test fun aToolHeldInTheGridAndDraggedIntoTheBarMakesRoomAtOnceAndIsSavedOnTheDrop() {
         setBar(listOf(UNDO, REDO, COPY, CUT))
         reload()
         val h = build()
         startEdit(h)
-        val before = centres(h)
-        val bar = container(h)
-        val state = holdPill(h, PASTE)
-        assertTrue(h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state))
+        val final5 = finalCentres(h, 5)
+        var at = holdPill(h, PASTE)
+        // the copy of the tool is above everything and follows the finger
+        assertTrue(h.grid.indexOfChild(h.grid.floatingCopy) == h.grid.childCount - 1)
+        assertEquals(at.first, h.grid.floatingCopy!!.x + h.grid.floatingCopy!!.layoutParams.width / 2f, 1f)
+        assertUnsaved()
 
-        // over the second slot: the paste tool is between undo and redo, the others have moved over, nothing is saved yet
-        h.toBar(DragEvent.ACTION_DRAG_ENTERED, before[1] - 1f, state) // just left of the centre of slot 1: inserted before it
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, before[1] - 1f, state)
+        // over the gap between undo and redo: the paste tool takes the place, the others move over, nothing is saved yet
+        glide(h, at, final5[1] + 3f, barY); at = final5[1] + 3f to barY
         layout(h)
         assertEquals(listOf(UNDO, PASTE, REDO, COPY, CUT), tags(h))
-        assertEquals(0.45f, slots(h)[1].alpha) // the ghost of the dragged tool
-        assertTrue(centres(h).size == 5 && centres(h)[0] < before[0] + 1000f)
-        assertNotEquals(before.take(4), centres(h).take(4), "the others moved over")
+        assertEquals(0, slots(h)[1].imageAlpha) // the empty slot where it would land
         assertUnsaved()
-        assertTrue(h.grid.pill(PASTE)!!.alpha < 1f) // already counted as in the bar
+        assertEquals(at.first, h.grid.floatingCopy!!.x + h.grid.floatingCopy!!.layoutParams.width / 2f, 1f)
+        assertTrue(h.grid.pill(PASTE)!!.alpha < 1f)
 
-        // moving to the far right slot puts it last
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h).last() + 30f, state)
+        // along the bar: the last place
+        glide(h, at, final5.last() + 20f, barY); at = final5.last() + 20f to barY
         layout(h)
         assertEquals(listOf(UNDO, REDO, COPY, CUT, PASTE), tags(h))
+        // leaving the zone closes the gap
+        glide(h, at, at.first, 600f); at = at.first to 600f
+        layout(h)
+        assertEquals(listOf(UNDO, REDO, COPY, CUT), tags(h))
+        assertUnsaved()
+        // and back, onto the gap before the first tool, then lift
+        glide(h, at, final5[0] - 20f, barY); at = final5[0] - 20f to barY
+        layout(h)
+        assertEquals(listOf(PASTE, UNDO, REDO, COPY, CUT), tags(h))
+        up(h, at.first, at.second)
+        layout(h)
+        assertEquals(listOf(PASTE, UNDO, REDO, COPY, CUT), saved())
+        assertEquals(listOf(PASTE, UNDO, REDO, COPY, CUT), tags(h))
+        assertNull(h.grid.floatingCopy)
+        assertEquals(1, 1)
+        assertEquals(0.5f, h.grid.pill(PASTE)!!.alpha) // marked: it is in the bar now
+        assertEquals(255, slots(h)[0].imageAlpha)
+        assertEquals(emptyList(), h.codes) // arranging never runs a tool
+    }
 
-        // the drop saves, exactly once, and the strip shows the saved bar
-        assertTrue(h.toBar(DragEvent.ACTION_DROP, centres(h).last(), state))
-        assertTrue(h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state))
-        layout(h)
-        assertEquals(listOf(UNDO, REDO, COPY, CUT, PASTE), saved())
-        assertEquals(listOf(UNDO, REDO, COPY, CUT, PASTE), tags(h))
-        assertEquals(1f, slots(h).first { it.tag == PASTE }.alpha) // no ghost any more
-        // five tools: still full size; a sixth makes the row compact (positions follow the count only)
-        val hold = holdPill(h, SELECT_ALL)
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h).first() - 10f, hold)
-        h.toBar(DragEvent.ACTION_DROP, centres(h).first() - 10f, hold)
-        layout(h)
-        assertEquals(listOf(SELECT_ALL, UNDO, REDO, COPY, CUT, PASTE), saved())
-        assertTrue(slots(h).all { it.width == Math.round(30f * 3.25f) })
-        assertEquals(BarTools.read(prefs), tags(h))
+    @Test fun aToolDroppedBetweenTwoToolsIsInsertedThereAtEveryGapIncludingTheEnds() {
+        for (gap in 0..4) {
+            prefs.edit().clear().commit()
+            setBar(listOf(UNDO, REDO, COPY, CUT))
+            reload()
+            val h = build()
+            startEdit(h)
+            val final5 = finalCentres(h, 5)
+            val at = holdPill(h, PASTE)
+            glide(h, at, final5[gap], barY)
+            up(h, final5[gap], barY)
+            val expected = listOf(UNDO, REDO, COPY, CUT).toMutableList().also { it.add(gap, PASTE) }
+            assertEquals(expected, saved(), "gap $gap")
+        }
     }
 
     @Test fun aToolDraggedWithinTheBarIsMovedAndAToolDraggedOutIsRemoved() {
@@ -318,59 +340,57 @@ class BarEditModeTest {
         reload()
         val h = build()
         startEdit(h)
-        val bar = container(h)
 
-        // undo to the last place
-        var state = holdSlot(h, UNDO)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        assertEquals(0.45f, slots(h).first { it.tag == UNDO }.alpha, 0.001f) // the dragged slot is shown as a ghost
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h).last(), state)
+        // the first tool to the last place
+        var at = grabSlot(h, 0)
+        assertEquals(0, slots(h)[0].imageAlpha) // its slot is the gap while it is in the hand
+        val last = finalCentres(h, 4).last()
+        glide(h, at, last, barY)
         layout(h)
         assertEquals(listOf(REDO, COPY, CUT, UNDO), tags(h))
         assertUnsaved()
-        h.toBar(DragEvent.ACTION_DROP, centres(h).last(), state)
-        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
-        assertEquals(listOf(REDO, COPY, CUT, UNDO), saved())
-
-        // copy out of the bar onto the grid: it leaves the bar while the finger is outside, the drop saves
-        state = holdSlot(h, COPY)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        h.toBar(DragEvent.ACTION_DRAG_EXITED, 0f, state)
+        up(h, last, barY)
         layout(h)
-        assertEquals(listOf(REDO, CUT, UNDO), tags(h))
+        assertEquals(listOf(REDO, COPY, CUT, UNDO), saved())
+        assertEquals(listOf(REDO, COPY, CUT, UNDO), tags(h))
+
+        // a tool dragged down into the grid is gone from the bar, saved on the lift
+        at = grabSlot(h, 1)
+        glide(h, at, at.first, 550f)
+        layout(h)
+        assertEquals(listOf(REDO, CUT, UNDO), tags(h)) // the others have closed up
         assertEquals(listOf(REDO, COPY, CUT, UNDO), saved()) // not yet
-        assertTrue(send(gridDropArea(h), DragEvent.ACTION_DROP, 50f, state))
-        send(gridDropArea(h), DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        up(h, at.first, 550f)
         layout(h)
         assertEquals(listOf(REDO, CUT, UNDO), saved())
         assertEquals(listOf(REDO, CUT, UNDO), tags(h))
-        assertEquals(1f, h.grid.pill(COPY)!!.alpha) // the pill is not dimmed any more
+        assertEquals(1f, h.grid.pill(COPY)!!.alpha) // its pill is not marked any more
+        assertNull(h.grid.floatingCopy)
     }
 
-    @Test fun aDragThatEndsWithoutADropSavesNothingAndTheBarIsAsBefore() {
+    @Test fun aCancelledTouchGivesBackTheStateBeforeTheDragAndSavesNothing() {
         setBar(listOf(UNDO, REDO, COPY))
         reload()
         val h = build()
         startEdit(h)
-        val bar = container(h)
         val before = centres(h)
-        // from the grid, over the bar, then the finger lets go somewhere else (the drag ends without a drop)
-        var state = holdPill(h, PASTE)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, before[0], state)
+        val final4 = finalCentres(h, 4)
+        var at = holdPill(h, PASTE)
+        glide(h, at, final4[1], barY); at = final4[1] to barY
         layout(h)
         assertEquals(4, slots(h).size)
-        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        cancel(h, at.first, at.second)
         layout(h)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
         assertEquals(before, centres(h))
         assertUnsaved()
-        // out of the bar and gone
-        state = holdSlot(h, REDO)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        h.toBar(DragEvent.ACTION_DRAG_EXITED, 0f, state)
+        assertNull(h.grid.floatingCopy)
+        assertEquals(1f, h.grid.pill(PASTE)!!.alpha)
+        // a bar tool in the hand, out of the bar, cancelled: back in the bar
+        at = grabSlot(h, 1)
+        glide(h, at, at.first, 550f)
         assertEquals(listOf(UNDO, COPY), tags(h))
-        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        cancel(h, at.first, 550f)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
         assertUnsaved()
     }
@@ -380,17 +400,18 @@ class BarEditModeTest {
         reload()
         val h = build()
         startEdit(h)
-        val state = holdPill(h, PASTE)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h)[0], state)
+        val at = holdPill(h, PASTE)
+        glide(h, at, finalCentres(h, 4)[0], barY)
+        layout(h)
         assertEquals(4, slots(h).size)
         h.strip.onKeyboardHidden()
         assertFalse(h.grid.isOpen)
         assertNull(h.grid.editListener)
+        assertNull(h.grid.floatingCopy)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
         assertEquals(listOf(UNDO, REDO, COPY), saved())
-        // a late drop (the system sends it, the strip does not listen any more): nothing happens
-        h.toBar(DragEvent.ACTION_DROP, centres(h)[0], state)
+        // the rest of the touch arrives late: nothing happens
+        send(h, MotionEvent.ACTION_UP, finalCentres(h, 3)[0], barY)
         assertEquals(listOf(UNDO, REDO, COPY), saved())
         assertEquals(latinIME.getString(R.string.agent_bar_all_tools), leftKey(h).contentDescription)
     }
@@ -400,20 +421,20 @@ class BarEditModeTest {
         reload()
         val h = build()
         startEdit(h)
-        val state = holdPill(h, EMOJI)
-        h.toBar(DragEvent.ACTION_DROP, centres(h).last() + 20f, state)
-        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        val at = holdPill(h, EMOJI)
+        val x = finalCentres(h, 3).last()
+        glide(h, at, x, barY)
+        up(h, x, barY)
         assertEquals(listOf(UNDO, REDO, EMOJI), saved())
         h.strip.onKeyboardHidden() // the keyboard goes away
         assertEquals(listOf(UNDO, REDO, EMOJI), tags(h))
         assertNull(h.grid.editListener) // no edit mode on the next opening
         reload()
         assertEquals(listOf(UNDO, REDO, EMOJI), tags(build())) // a new strip (new theme, new start) reads it
-        // the settings dialog shows the same list (it reads the same preference)
         assertEquals(BarTools.format(listOf(UNDO, REDO, EMOJI)), BarTools.currentFormatted(prefs))
     }
 
-    @Test fun aFullBarRefusesTheNinthToolAndSaysSo() {
+    @Test fun aFullBarRefusesTheNinthToolShakesAndSaysSo() {
         val eight = BarTools.offered.filter { it !in BarTools.MIC_KEYS }.take(BarTools.MAX)
         setBar(eight)
         reload()
@@ -421,22 +442,249 @@ class BarEditModeTest {
         startEdit(h)
         val extra = BarTools.offered.first { it !in eight && it !in BarTools.MIC_KEYS }
         assertEquals(BarTools.MAX, slots(h).size)
-        val state = holdPill(h, extra)
-        h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h)[2], state)
-        assertEquals(eight, tags(h)) // no room: no ghost, nothing moves
-        assertEquals(latinIME.getString(R.string.agent_grid_full), h.grid.hint!!.text.toString())
-        h.toBar(DragEvent.ACTION_DROP, centres(h)[2], state)
+        val at = holdPill(h, extra)
+        val x = centres(h)[2]
+        glide(h, at, x, barY)
+        assertEquals(eight, tags(h)) // no room: no gap, nothing moves
+        assertEquals(latinIME.getString(R.string.agent_bar_dropped_full), h.grid.hint!!.text.toString())
+        up(h, x, barY)
         assertEquals(eight, saved())
+        assertEquals(eight, tags(h))
+        // a tool of the full bar can still be moved
+        val grab = grabSlot(h, 0)
+        glide(h, grab, finalCentres(h, 8).last(), barY)
+        up(h, finalCentres(h, 8).last(), barY)
+        assertEquals(eight.drop(1) + eight.first(), saved())
         // the tap alternative says the same, and after taking one out there is room
         h.grid.pill(extra)!!.performClick()
-        assertEquals(eight, saved())
-        slots(h).first().performClick() // takes the first tool out
-        assertEquals(eight.drop(1), saved())
-        assertEquals("Hold and drag to customize", h.grid.hint!!.text.toString())
+        assertEquals(eight.drop(1) + eight.first(), saved())
+        slots(h).first().performClick()
+        assertEquals(eight.drop(2) + eight.first(), saved())
         h.grid.pill(extra)!!.performClick()
-        assertEquals(eight.drop(1) + extra, saved())
         assertEquals(BarTools.MAX, saved()!!.size)
+    }
+
+    @Test fun anEmptyBarTakesTheFirstTool() {
+        setBar(emptyList())
+        reload()
+        val h = build()
+        startEdit(h)
+        assertEquals(0, slots(h).size)
+        val at = holdPill(h, UNDO)
+        val x = (finalCentres(h, 1)[0])
+        glide(h, at, x, barY)
+        up(h, x, barY)
+        assertEquals(listOf(UNDO), saved())
+    }
+
+    @Test fun aSecondFingerDuringTheDragIsIgnored() {
+        setBar(listOf(UNDO, REDO, COPY))
+        reload()
+        val h = build()
+        startEdit(h)
+        val final4 = finalCentres(h, 4)
+        val at = holdPill(h, PASTE)
+        glide(h, at, final4[1], barY)
+        layout(h)
+        assertEquals(listOf(UNDO, PASTE, REDO, COPY), tags(h))
+        // a second pointer goes down far away and moves: the drag does not follow it
+        fun two(action: Int, index: Int, x0: Float, y0: Float, x1: Float, y1: Float): Boolean {
+            val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER },
+                MotionEvent.PointerProperties().apply { id = 1; toolType = MotionEvent.TOOL_TYPE_FINGER })
+            val coords = arrayOf(MotionEvent.PointerCoords().apply { x = x0; y = y0 }, MotionEvent.PointerCoords().apply { x = x1; y = y1 })
+            val e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action or (index shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), 2, props, coords, 0, 0, 1f, 1f, 0, 0, 0, 0)
+            return try { h.grid.dispatchTouchEvent(e) } finally { e.recycle() }
+        }
+        idle(16)
+        two(MotionEvent.ACTION_POINTER_DOWN, 1, final4[1], barY, final4[3], barY)
+        idle(16)
+        two(MotionEvent.ACTION_MOVE, 0, final4[1], barY, final4[3] + 40f, barY) // only the second finger moves
+        layout(h)
+        assertEquals(listOf(UNDO, PASTE, REDO, COPY), tags(h))
+        idle(16)
+        two(MotionEvent.ACTION_POINTER_UP, 1, final4[1], barY, final4[3], barY)
+        assertNotNull(h.grid.floatingCopy) // the drag goes on with the first finger
+        up(h, final4[1], barY)
+        assertEquals(listOf(UNDO, PASTE, REDO, COPY), saved())
+    }
+
+    @Test fun aVerticalMoveOnTheGridBeforeTheHoldScrollsAndNeverStartsADrag() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val at = pillPoint(h, COPY)
+        down(h, at.first, at.second)
+        moveTo(h, at.first, at.second - 60f, 10)
+        moveTo(h, at.first, at.second - 120f, 10)
+        assertNull(h.grid.floatingCopy)
+        idle(400) // the hold time passes with the finger in the scroll
+        assertNull(h.grid.floatingCopy)
+        up(h, at.first, at.second - 120f)
+        assertUnsaved()
+        assertEquals(listOf(UNDO, REDO), tags(h))
+    }
+
+    /** A real scroll: the finger goes up the grid (the panel scrolls down), then lifts. */
+    private fun scrollGrid(h: Harness, dy: Float = 180f) {
+        val at = pillPoint(h, COPY)
+        down(h, at.first, at.second)
+        glide(h, at, at.first, at.second - dy, steps = 8)
+        up(h, at.first, at.second - dy)
+    }
+
+    @Test fun afterScrollingTheGridAPillCanStillBeDraggedIntoTheBarAndThisRepeats() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        var expected = listOf(UNDO, REDO)
+        for (key in listOf(PASTE, CUT, SELECT_ALL)) {
+            scrollGrid(h)
+            assertUnsavedOrEqual(expected)
+            val at = holdPill(h, key)
+            val x = finalCentres(h, expected.size + 1).last()
+            glide(h, at, x, barY)
+            up(h, x, barY)
+            expected = expected + key
+            assertEquals(expected, saved(), "after scrolling, $key dragged in")
+            layout(h)
+        }
+    }
+
+    @Test fun afterScrollingTheGridASlotCanStillBeReordered() {
+        setBar(listOf(UNDO, REDO, COPY))
+        reload()
+        val h = build()
+        startEdit(h)
+        for (round in 1..2) {
+            scrollGrid(h)
+            val grab = grabSlot(h, 0)
+            val x = finalCentres(h, 3).last()
+            glide(h, grab, x, barY)
+            up(h, x, barY)
+            layout(h)
+        }
+        assertEquals(listOf(COPY, UNDO, REDO), saved()) // twice the first to the end: UNDO,REDO,COPY -> REDO,COPY,UNDO -> COPY,UNDO,REDO
+    }
+
+    @Test fun aScrollThatTheContainerNeverSeesTheEndOfDoesNotBlockTheNextTouch() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        // the gesture goes to the scroll view: the container gets the moves up to the first and then nothing (the scroll view asks not to be intercepted)
+        val at = pillPoint(h, COPY)
+        down(h, at.first, at.second)
+        moveTo(h, at.first, at.second - 120f)
+        idle(600) // the hold time passes while the panel scrolls: no pick-up
+        assertNull(h.grid.floatingCopy)
+        // no UP, no CANCEL ever arrives; the next finger starts
+        val next = pillPoint(h, PASTE)
+        down(h, next.first, next.second)
+        idle(250)
+        assertNotNull(h.grid.floatingCopy, "a new touch is never blocked by an old one")
+        val x = finalCentres(h, 3).last()
+        glide(h, next, x, barY)
+        up(h, x, barY)
+        assertEquals(listOf(UNDO, REDO, PASTE), saved())
+    }
+
+    @Test fun aSecondFingerOnAnotherPillDuringTheFirstHundredAndEightyMsDoesNothing() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val a = pillPoint(h, AGENT)
+        val b = pillPoint(h, DICTATE) // both in the first row: no scrolling between the two points
+        var secondTouched = 0
+        h.grid.pill(DICTATE)!!.setOnTouchListener { _, _ -> secondTouched++; false }
+        assertFalse(h.grid.isMotionEventSplittingEnabled)
+        down(h, a.first, a.second)
+        fun two(action: Int, index: Int): Boolean {
+            val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER },
+                MotionEvent.PointerProperties().apply { id = 1; toolType = MotionEvent.TOOL_TYPE_FINGER })
+            val coords = arrayOf(MotionEvent.PointerCoords().apply { x = a.first; y = a.second }, MotionEvent.PointerCoords().apply { x = b.first; y = b.second })
+            val e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action or (index shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), 2, props, coords, 0, 0, 1f, 1f, 0, 0, 0, 0)
+            return try { h.grid.dispatchTouchEvent(e) } finally { e.recycle() }
+        }
+        idle(30)
+        two(MotionEvent.ACTION_POINTER_DOWN, 1)
+        idle(30)
+        two(MotionEvent.ACTION_POINTER_UP, 1)
+        idle(30)
+        up(h, a.first, a.second)
+        // only the first finger acted: a tap on its pill; the pill of the second finger never got a touch
+        assertEquals(0, secondTouched)
+        assertEquals(listOf(UNDO, REDO, AGENT), saved())
+    }
+
+    @Test fun aShortTouchOnAPillIsATapThatAppendsAndOnASlotRemoves() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val at = pillPoint(h, PASTE)
+        down(h, at.first, at.second)
+        idle(40)
+        up(h, at.first, at.second)
+        assertEquals(listOf(UNDO, REDO, PASTE), saved())
+        layout(h)
+        val x = centres(h)[0]
+        down(h, x, barY)
+        idle(40)
+        up(h, x, barY)
+        assertEquals(listOf(REDO, PASTE), saved())
+        assertEquals(emptyList(), h.codes)
+    }
+
+    @Test fun inARightToLeftBarThePlacesFollowTheVisualOrder() {
+        setBar(listOf(UNDO, REDO, COPY))
+        reload()
+        val h = build()
+        h.strip.layoutDirection = View.LAYOUT_DIRECTION_RTL
+        layout(h)
+        startEdit(h)
+        layout(h)
+        // the first tool of the list is at the right
+        assertTrue(centres(h)[0] > centres(h)[1] && centres(h)[1] > centres(h)[2])
+        val at = holdPill(h, PASTE)
+        val farLeft = 30f
+        glide(h, at, farLeft, barY)
+        layout(h)
+        assertEquals(listOf(UNDO, REDO, COPY, PASTE), tags(h)) // the visual left end is the end of the list
+        up(h, farLeft, barY)
+        assertEquals(listOf(UNDO, REDO, COPY, PASTE), saved())
+        layout(h)
+        assertTrue(centres(h)[3] < centres(h)[0])
+        // a tool dragged to the far right is first
+        val grab = grabSlot(h, 3)
+        glide(h, grab, WIDTH - 40f, barY)
+        up(h, WIDTH - 40f, barY)
+        assertEquals(listOf(PASTE, UNDO, REDO, COPY), saved())
+    }
+
+    @Test fun aHeldPillThatIsLiftedWithoutMovingChangesNothing() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val at = holdPill(h, PASTE)
+        up(h, at.first, at.second) // picked up by the hold, put back: not a tap, nothing added
+        assertUnsaved()
+        assertNull(h.grid.floatingCopy)
+        assertEquals(listOf(UNDO, REDO), tags(h))
+    }
+
+    @Test fun theEditContainerStillLetsTheLeftKeyAndTheStripThrough() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        // a touch on the left key's place is not taken by the container (it is the check button)
+        val consumed = send(h, MotionEvent.ACTION_DOWN, 20f, barY)
+        send(h, MotionEvent.ACTION_UP, 20f, barY)
+        assertFalse(consumed)
     }
 
     // ---- without dragging ----
@@ -519,10 +767,9 @@ class BarEditModeTest {
         }, false, latinIME.packageName))
         assertTrue(Settings.getValues().mIncognitoModeEnabled)
         val h = build()
-        assertFalse(slots(h).first { it.tag == AGENT }.isEnabled) // dimmed
+        assertNotNull(FixedBar.reasonOf(slots(h).first { it.tag == AGENT })) // off
         startEdit(h) // the edit mode does not read or write anything of the field
-        assertTrue(slots(h).first { it.tag == AGENT }.isEnabled) // customizing: a dimmed tool can still be taken out
-        assertTrue(slots(h).first { it.tag == AGENT }.alpha < 0.5f) // but still looks dimmed
+        assertNotNull(FixedBar.reasonOf(slots(h).first { it.tag == AGENT })) // customizing: it still looks off ...
         slots(h).first { it.tag == AGENT }.performClick()
         assertEquals(listOf(UNDO, DICTATE), saved())
         h.grid.pill(SKILL_1)!!.performClick() // a protected tool can be placed too ...
@@ -530,8 +777,8 @@ class BarEditModeTest {
         assertEquals(emptyList(), h.codes) // ... and nothing was run
         leftKey(h).performClick()
         // outside the edit mode the dimmed slots are dimmed again and do nothing
-        assertFalse(slots(h).first { it.tag == SKILL_1 }.isEnabled)
-        slots(h).first { it.tag == SKILL_1 }.performClick()
+        assertNotNull(FixedBar.reasonOf(slots(h).first { it.tag == SKILL_1 }))
+        slots(h).first { it.tag == SKILL_1 }.performClick() // ... and outside the edit mode a tap only says why
         assertEquals(emptyList(), h.codes)
     }
 
@@ -558,22 +805,23 @@ class BarEditModeTest {
         val h = build()
         startEdit(h)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
-        val c = centres(h)
-        val state = holdPill(h, PASTE)
+        val f = finalCentres(h, 4)
         // between the slots of redo and copy
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, (c[1] + c[2]) / 2f, state)
+        var at = holdPill(h, PASTE)
+        glide(h, at, f[2], barY)
         layout(h)
         assertEquals(listOf(UNDO, REDO, PASTE, COPY), tags(h))
-        h.toBar(DragEvent.ACTION_DROP, centres(h)[2], state)
-        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        up(h, f[2], barY)
         assertEquals(listOf(UNDO, VOICE, REDO, PASTE, COPY), saved()) // the list index is behind the hidden key
+        layout(h)
         assertEquals(listOf(UNDO, REDO, PASTE, COPY), tags(h))
         // a move of the first tool behind the second visible one
-        val hold = holdSlot(h, UNDO)
-        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h)[1] + 5f, hold)
-        layout(h)
-        h.toBar(DragEvent.ACTION_DROP, centres(h)[1], hold)
+        at = grabSlot(h, 0)
+        val x = finalCentres(h, 4)[1]
+        glide(h, at, x, barY)
+        up(h, x, barY)
         assertEquals(listOf(VOICE, REDO, UNDO, PASTE, COPY), saved())
+        layout(h)
         assertEquals(listOf(REDO, UNDO, PASTE, COPY), tags(h))
         // the screen reader's "move right" skips the hidden key too
         val moveRight = slots(h)[0].createAccessibilityNodeInfo().actionList.first { it.label?.toString() == "Move right" }

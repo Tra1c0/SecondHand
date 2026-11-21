@@ -26,8 +26,7 @@ import kotlinx.coroutines.launch
 import java.util.EnumMap
 import java.util.Locale
 
-fun createToolbarKey(context: Context, key: ToolbarKey): ImageButton {
-    val button = ImageButton(context, null, R.attr.suggestionWordStyle)
+fun createToolbarKey(context: Context, key: ToolbarKey, button: ImageButton = ImageButton(context, null, R.attr.suggestionWordStyle)): ImageButton {
     button.scaleType = ImageView.ScaleType.CENTER
     button.tag = key
     button.contentDescription = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)

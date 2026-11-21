@@ -25,14 +25,17 @@ Only the standard library is used. Nothing typed here is secret; the texts are f
 """
 
 import argparse
+import base64
 import json
 import math
 import os
 import re
+import struct
 import subprocess
 import sys
 import threading
 import time
+import zlib
 
 KEYBOARD_PACKAGE = "dev.personal.agentkeyboard.debug"
 TEST_PACKAGE = "dev.personal.secondhand.devicetest"
@@ -1466,11 +1469,605 @@ def prompt_folders(d):
         pass  # the next scenario starts a fresh app; the window is gone with the field
 
 
+
+# ------------------------------------------------------------------ stage 88: the bar, with real touches and pictures
+# The tools of the fixed bar are views with the resource id agent_bar_tool and a description (the tool's name, for a tool
+# that is off in the field "<name>. <reason>"). Customizing is done with the keyboard's own touch handling, so these
+# scenarios use real touches (`input motionevent DOWN/MOVE/UP` with waits), read the order of the slots left to right
+# from the accessibility dump, and check that it persisted after hiding and reopening the keyboard.
+
+BAR_TOOL_ID = KEYBOARD_PACKAGE + ":id/agent_bar_tool"
+LEFT_KEY_ID = KEYBOARD_PACKAGE + ":id/suggestions_strip_toolbar_key"
+GRID_NODE_IDS = {"hint": "agent_tool_grid_hint", "undo": "agent_tool_grid_undo", "reset": "agent_tool_grid_reset",
+                 "reset_yes": "agent_tool_grid_reset_yes", "reset_no": "agent_tool_grid_reset_no"}
+EDIT_LABELS = ("Anpassen", "Customize")
+IN_BAR_SUFFIXES = (", in der Leiste", ", in the bar")
+SHOT_CHUNK = 4000
+SHOT_MAX_WIDTH = 300
+SHOTS = []  # (name, [lines]) collected during the run and written to <out>/shots.txt at its end
+
+
+def bar_slots(screen):
+    """The tool slots of the bar, left to right: the views with the id agent_bar_tool; if the dump does not carry that id,
+    the image buttons inside the strip other than the left key."""
+    found = [n for n in screen.nodes if n.rid == BAR_TOOL_ID and n.visible]
+    if not found:
+        strip = screen.keyboard_node("suggestion_strip_view")
+        if strip is not None:
+            found = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.cls.endswith("ImageButton")
+                     and n.rid != LEFT_KEY_ID and n.desc and strip.left <= n.center[0] < strip.right
+                     and strip.top <= n.center[1] < strip.bottom]
+    return sorted(found, key=lambda n: n.left)
+
+
+def bar_order(screen):
+    return [n.desc for n in bar_slots(screen)]
+
+
+def left_key(screen):
+    for n in screen.nodes:
+        if n.rid == LEFT_KEY_ID and n.visible:
+            return n
+    return None
+
+
+def grid_node(screen, name):
+    return screen.keyboard_node(GRID_NODE_IDS[name])
+
+
+def grid_pills(screen):
+    """The pills of the grid below the strip: (text, node), marked ones (tools in the bar) last."""
+    strip = screen.keyboard_node("suggestion_strip_view")
+    top = strip.bottom if strip else 0
+    pills = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.cls.endswith("Button")
+             and n.text and n.top >= top and n.rid == ""]
+    return pills
+
+
+def first_free_pill(screen):
+    for n in grid_pills(screen):
+        if not n.desc.endswith(IN_BAR_SUFFIXES) and n.text not in EDIT_LABELS:
+            return n
+    return None
+
+
+def touch_down(x, y):
+    shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
+
+
+def touch_move(x, y):
+    shell("input motionevent MOVE %d %d" % (x, y), timeout=30)
+
+
+def touch_up(x, y):
+    shell("input motionevent UP %d %d" % (x, y), timeout=30, check=False)
+
+
+def glide(start, end, steps=6):
+    """Moves a finger that is down from start to end in steps; returns the end."""
+    for i in range(1, steps + 1):
+        touch_move(int(start[0] + (end[0] - start[0]) * i / steps), int(start[1] + (end[1] - start[1]) * i / steps))
+        time.sleep(0.08)
+    return end
+
+
+def bar_report(screen):
+    """What the strip and the grid show, for a failure message: class#id'description or text'[box], strip first."""
+    strip = screen.keyboard_node("suggestion_strip_view")
+    parts = []
+    for n in screen.nodes:
+        if n.package != KEYBOARD_PACKAGE or n.cls.endswith(".Key") or not n.visible:
+            continue
+        inside = strip is not None and strip.left <= n.center[0] < strip.right and strip.top <= n.center[1] < strip.bottom
+        label = (n.desc or n.text)[:24]
+        if inside or label:
+            parts.append("%s%s%s%s%s" % ("S:" if inside else "", n.cls.rsplit(".", 1)[-1][:14], "#" + n.rid.rsplit("/", 1)[-1] if n.rid else "",
+                                         "'%s'" % label if label else "", n.box))
+    return " ".join(parts)[:2400]
+
+
+def wait_report(d, condition, what, limit=15.0):
+    """Like Driver.wait, but a timeout is a failed check that says what the keyboard showed."""
+    deadline = time.time() + limit
+    while True:
+        screen = dump()
+        if condition(screen):
+            return screen
+        if time.time() > deadline:
+            foreground_info("waited for " + what)  # which activity is in front (stage 87c diagnosis)
+            raise CheckFailed("waited %ds for %s; the keyboard shows: %s" % (int(limit), what, bar_report(screen)))
+        time.sleep(0.7)
+
+
+SHOW_TOOLS_LABELS = ("Werkzeuge zeigen", "Show tools")
+
+
+def ensure_tools(d):
+    """The strip shows the tools (after typing, or with a clipboard chip, it shows content and the left key says "Werkzeuge zeigen")."""
+    for _ in range(3):
+        screen = dump()
+        key = left_key(screen)
+        if key is not None and key.desc in SHOW_TOOLS_LABELS:
+            tap(*key.center)
+            time.sleep(0.8)
+        else:
+            return screen
+    return dump()
+
+
+def _has_edit_button(screen):
+    return any(n.text in EDIT_LABELS for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible)
+
+
+def open_edit_mode(d):
+    """Opens the grid with the left key and the edit mode with its button; waits for the hint. If the tap does not open
+    the grid it is tried again and then as a long press (which starts the edit mode itself); what happened is in the failure."""
+    ensure_tools(d)
+    tried = []
+    screen = dump()
+    for attempt in ("tap", "tap", "long press"):
+        key = left_key(screen)
+        if key is None:
+            foreground_info("no left key of the bar")
+            raise CheckFailed("no left key of the bar; the keyboard shows: " + bar_report(screen))
+        if attempt == "tap":
+            tap(*key.center)
+        else:
+            shell("input swipe %d %d %d %d 800" % (key.center[0], key.center[1], key.center[0], key.center[1]), check=False)
+        time.sleep(1.2)
+        screen = dump()
+        tried.append("%s at %s -> left key %r, button %s, hint %s" % (attempt, key.center, getattr(left_key(screen), "desc", None),
+                                                                  _has_edit_button(screen), grid_node(screen, "hint") is not None))
+        if grid_node(screen, "hint") is not None:
+            return screen
+        if _has_edit_button(screen):
+            break
+    else:
+        foreground_info("the grid did not open")
+        crash = shell("logcat -d -t 300 -s AndroidRuntime:E DEBUG:F", check=False)[-700:].replace("\n", " | ")
+        raise CheckFailed("the grid did not open: %s; log: %s; the keyboard shows: %s" % ("; ".join(tried), crash, bar_report(screen)))
+    tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)
+    return wait_report(d, lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint (%s)" % "; ".join(tried))
+
+
+def finish_edit_mode(d):
+    """The check button (the left key in the edit mode); waits until the grid has closed."""
+    key = left_key(dump())
+    if key is not None:
+        tap(*key.center)
+    return d.wait(lambda s: grid_node(s, "hint") is None and left_key(s) is not None, "the edit mode to end")
+
+
+def reset_bar(d):
+    """Zurücksetzen with its question and Ja, all inside the edit view, then the check button."""
+    open_edit_mode(d)
+    tap(*grid_node(dump(), "reset").center)
+    screen = d.wait(lambda s: grid_node(s, "reset_yes") is not None, "the question of the reset")
+    tap(*grid_node(screen, "reset_yes").center)
+    time.sleep(0.6)
+    finish_edit_mode(d)
+
+
+def hide_and_reopen(d, field="text"):
+    """The keyboard goes away (back) and comes back by a tap into the field; what was saved must still be there."""
+    shell("input keyevent KEYCODE_BACK", check=False)
+    d.wait(lambda s: len(s.keys()) < 10, "the keyboard to hide")
+    time.sleep(0.5)
+    d.focus(field)
+    time.sleep(0.6)
+    return ensure_tools(d)
+
+
+def screen_raw():
+    """The screen as RGBA pixels (screencap without -p: no PNG filtering, so it is cheap to cut and shrink). Returns (w, h, bytes) or None."""
+    try:
+        data = adb("exec-out", "screencap", timeout=40, binary=True)
+        w, h, fmt = struct.unpack("<III", data[:12])
+        for header in (12, 16):
+            if len(data) - header == w * h * 4:
+                return w, h, data[header:]
+    except (DeviceError, struct.error):
+        pass
+    return None
+
+
+def png_of(w, h, pixels, top, max_width=SHOT_MAX_WIDTH, bottom=None, levels=0xF0):
+    """A PNG (stdlib only) of the rows from top down to bottom, shrunk by dropping pixels so that it is at most max_width
+    wide; the colours are cut to 4 bits per channel so that it is small (it goes through the job log as text)."""
+    factor = max(1, -(-w // max_width))
+    rows = []
+    mask = bytes((v & levels) for v in range(256))
+    for y in range(max(0, top), min(h, bottom if bottom else h), factor):
+        row = pixels[y * w * 4:(y + 1) * w * 4]
+        r, g, b = (row[0::4][::factor]).translate(mask), (row[1::4][::factor]).translate(mask), (row[2::4][::factor]).translate(mask)
+        out = bytearray(1 + 3 * len(r))
+        out[1::3], out[2::3], out[3::3] = r, g, b
+        rows.append(bytes(out))
+    width = len(rows[0]) // 3 if rows else 0
+
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, len(rows), 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
+
+
+def shot(d, label):
+    """A small picture of the keyboard (and 200 px above it) through the job log: SHOT <name> <i>/<n> <base64> lines.
+    tools/devicetest/shots_from_log.py makes the PNG files again. Never fails a scenario."""
+    if d.control:
+        return
+    try:
+        raw = screen_raw()
+        if raw is None:
+            log("INFO no picture for %s (the screen could not be read)" % label)
+            return
+        w, h, pixels = raw
+        strip = dump().keyboard_node("suggestion_strip_view")
+        top = (strip.top - 120) if strip else int(h * 0.55)
+        data = base64.b64encode(png_of(w, h, pixels, top, bottom=top + 700)).decode("ascii")
+        parts = [data[i:i + SHOT_CHUNK] for i in range(0, len(data), SHOT_CHUNK)] or [""]
+        name = "%s-%s" % (d.name, label)
+        SHOTS.append((name, ["SHOT %s %d/%d %s" % (name, i, len(parts), part) for i, part in enumerate(parts, 1)]))
+    except Exception as error:  # a picture is evidence, not a test
+        log("INFO no picture for %s: %s" % (label, error))
+
+
+def _luminance(rgb):
+    def lin(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
+
+
+def contrast(a, b):
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def ink_contrast(raw, box):
+    """The contrast of the core of the ink in a slot against what is behind it, or None without ink. What is behind is the
+    most frequent colour of the box (the strip, or the circle of the last microphone key)."""
+    w, h, pixels = raw
+    left, top, right, bottom = max(0, box[0]), max(0, box[1]), min(w, box[2]), min(h, box[3])
+    colours = {}
+    seen = []
+    for y in range(top, bottom, 2):
+        for x in range(left, right, 2):
+            i = (y * w + x) * 4
+            c = (pixels[i], pixels[i + 1], pixels[i + 2])
+            colours[c] = colours.get(c, 0) + 1
+            seen.append(c)
+    if not colours:
+        return None
+    back = max(colours, key=colours.get)
+    far = max(seen, key=lambda c: max(abs(c[0] - back[0]), abs(c[1] - back[1]), abs(c[2] - back[2])))
+    strongest = max(abs(far[0] - back[0]), abs(far[1] - back[1]), abs(far[2] - back[2]))
+    if strongest < 24:
+        return None
+    core = [c for c in seen if max(abs(c[0] - back[0]), abs(c[1] - back[1]), abs(c[2] - back[2])) >= strongest * 0.9]
+    mean = tuple(sum(c[i] for c in core) / len(core) for i in range(3))
+    return contrast(mean, back)
+
+
+def _restore_default_bar(d):
+    try:
+        reset_bar(d)
+    except (DeviceError, CheckFailed):
+        pass
+
+
+def _typed_still_works(d):
+    """The end of every bar scenario: the keyboard still types after the changes. (The control run leaves the last
+    character out, so this is where it fails.)"""
+    d.refresh_keys()
+    d.type("ab")
+    d.expect_field("text", "Ab")
+
+
+def bar_icons_visible(d):
+    """Every tool of the bar is clearly visible (contrast of the real pixels against the strip), in the day and the night
+    look of the keyboard. Build 41 showed two tools as black holes on a dark design."""
+    d.start("bar_icons_visible")
+    d.focus("text")
+    try:
+        for mode in ("no", "yes"):
+            shell("cmd uimode night " + mode, check=False)
+            time.sleep(2.5)
+            hide_and_reopen(d)
+            time.sleep(0.8)
+            screen = ensure_tools(d)
+            slots = bar_slots(screen)
+            if len(slots) < 2:
+                raise CheckFailed("the bar shows %d tools; the keyboard shows: %s" % (len(slots), bar_report(screen)))
+            raw = screen_raw()
+            if raw is None:
+                raise DeviceError("the screen could not be read")
+            weakest = None
+            for n in slots:
+                c = ink_contrast(raw, (n.left, n.top, n.right, n.bottom))
+                d.notes.append("night=%s %s: contrast %s" % (mode, n.desc, "none" if c is None else "%.1f" % c))
+                if c is None:
+                    raise CheckFailed("night=%s: no icon is visible in the slot %r %s" % (mode, n.desc, n.box))
+                weakest = c if weakest is None else min(weakest, c)
+            d.expect_equal("night=%s: the weakest icon has a contrast of at least 3:1 (%.1f)" % (mode, weakest), weakest >= 3.0, True)
+            shot(d, "default_bar_night_" + mode)
+    finally:
+        shell("cmd uimode night auto", check=False)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def bar_edit_drag_in(d):
+    """Customizing with a real finger: hold a tool in the grid, drag it between two tools of the bar (the others make room
+    while the finger is down), lift; the bar has it there, also after the keyboard was hidden and shown again."""
+    d.start("bar_edit_drag_in")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        shot(d, "default_bar")
+        before = bar_order(dump())
+        d.expect_equal("the default bar has at least four tools", len(before) >= 4, True)
+        screen = open_edit_mode(d)
+        shot(d, "edit_mode")
+        pill = first_free_pill(screen)
+        if pill is None:
+            raise CheckFailed("the grid shows no tool outside the bar; it shows %s" % [n.text for n in grid_pills(screen)][:12])
+        slots = bar_slots(screen)
+        y = (slots[0].top + slots[0].bottom) // 2
+        target = ((slots[1].left + slots[1].right) // 2 + (slots[2].left + slots[2].right) // 2) // 2
+        at = pill.center
+        touch_down(*at)
+        try:
+            time.sleep(0.6)  # the hold: the tool is in the hand
+            at = glide(at, (target, y), steps=7)
+            time.sleep(0.5)
+            during = dump()
+            order = bar_order(during)
+            shot(d, "dragging")
+            d.expect_equal("while the finger is down the bar has one place more", len(order), len(before) + 1)
+            gap = order.index(pill.text) if pill.text in order else -1
+            d.expect_equal("the gap is between two tools (place %d)" % gap, 0 < gap < len(before), True)
+        finally:
+            touch_up(*at)
+        time.sleep(1.0)
+        after = bar_order(dump())
+        d.expect_equal("the tool is where the gap was", after, order)
+        d.expect_equal("the others kept their order", [x for x in after if x != pill.text], before)
+        shot(d, "after_drop")
+        finish_edit_mode(d)
+        hide_and_reopen(d)
+        d.expect_equal("the order was saved", bar_order(dump()), after)
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def bar_edit_reorder(d):
+    """The first tool of the bar is dragged to the last place with a real finger; saved."""
+    d.start("bar_edit_reorder")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        before = bar_order(dump())
+        d.expect_equal("the default bar has at least four tools", len(before) >= 4, True)
+        screen = open_edit_mode(d)
+        slots = bar_slots(screen)
+        y = (slots[0].top + slots[0].bottom) // 2
+        start = slots[0].center
+        end = (slots[-1].right - 10, y)
+        touch_down(*start)
+        at = start
+        try:
+            at = glide(start, (start[0] + 80, y), steps=2)  # beyond the touch slop: the tool is in the hand
+            at = glide(at, end, steps=7)
+            time.sleep(0.5)
+            d.expect_equal("while the finger is down the first tool is at the end", bar_order(dump()), before[1:] + before[:1])
+        finally:
+            touch_up(*at)
+        time.sleep(1.0)
+        d.expect_equal("after the lift", bar_order(dump()), before[1:] + before[:1])
+        finish_edit_mode(d)
+        hide_and_reopen(d)
+        d.expect_equal("the order was saved", bar_order(dump()), before[1:] + before[:1])
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def bar_edit_drag_out(d):
+    """A tool of the bar is dragged down into the grid with a real finger: it is gone from the bar, also after reopening."""
+    d.start("bar_edit_drag_out")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        before = bar_order(dump())
+        d.expect_equal("the default bar has at least four tools", len(before) >= 4, True)
+        screen = open_edit_mode(d)
+        slots = bar_slots(screen)
+        victim = slots[2]
+        start = victim.center
+        touch_down(*start)
+        at = start
+        try:
+            at = glide(start, (start[0], start[1] + 80), steps=2)
+            keyboard = screen.keyboard_view()
+            low = (start[0], (keyboard.top + keyboard.bottom) // 2 if keyboard else start[1] + 600)
+            at = glide(at, low, steps=7)
+            time.sleep(0.5)
+            expected = before[:2] + before[3:]
+            d.expect_equal("while the finger is down the bar has closed up", bar_order(dump()), expected)
+        finally:
+            touch_up(*at)
+        time.sleep(1.0)
+        d.expect_equal("the tool is gone", bar_order(dump()), before[:2] + before[3:])
+        finish_edit_mode(d)
+        hide_and_reopen(d)
+        d.expect_equal("the removal was saved", bar_order(dump()), before[:2] + before[3:])
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def lowest_free_pill(screen, skip=()):
+    """The tool outside the bar that lies lowest in the visible grid (fully inside the keyboard window)."""
+    view = screen.keyboard_view()
+    limit = view.bottom if view is not None else 10 ** 6
+    free = [n for n in grid_pills(screen) if not n.desc.endswith(IN_BAR_SUFFIXES) and n.text not in EDIT_LABELS
+            and n.text not in skip and n.bottom <= limit]
+    return max(free, key=lambda n: n.top) if free else None
+
+
+def drag_pill_into_bar(d, pill, before):
+    """Holds a pill of the grid and drags it between the second and third tool of the bar (real touch); checks the gap
+    while the finger is down and the bar after the lift. Returns the order of the bar."""
+    slots = bar_slots(dump())
+    y = (slots[0].top + slots[0].bottom) // 2
+    target = ((slots[1].left + slots[1].right) // 2 + (slots[2].left + slots[2].right) // 2) // 2
+    at = pill.center
+    touch_down(*at)
+    try:
+        time.sleep(0.6)  # the hold: the tool is in the hand
+        at = glide(at, (target, y), steps=8)
+        time.sleep(0.5)
+        during = bar_order(dump())
+        d.expect_equal("while the finger is down (%s) the bar has one place more" % pill.text, len(during), len(before) + 1)
+    finally:
+        touch_up(*at)
+    time.sleep(1.0)
+    after = bar_order(dump())
+    d.expect_equal("%s is where the gap was" % pill.text, after, during)
+    d.expect_equal("the others kept their order", [x for x in after if x != pill.text], before)
+    return after
+
+
+def bar_edit_scroll_then_drag(d):
+    """The grid has some 25 tools, so it is scrolled before a tool far down is dragged into the bar (real touches).
+    Build 41 + stage 88 before the fix: a scroll that started on a pill left the container stuck, no drag worked
+    afterwards until the edit mode was left. A second drag in the same edit mode must work too."""
+    d.start("bar_edit_scroll_then_drag")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        before = bar_order(dump())
+        screen = open_edit_mode(d)
+        first = lowest_free_pill(screen)
+        if first is None:
+            raise CheckFailed("the grid shows no tool outside the bar; it shows %s" % [n.text for n in grid_pills(screen)][:12])
+        tops = {n.text: n.top for n in grid_pills(screen)}
+        # scroll with a finger that starts on a pill, as a user does (not on the free margin)
+        start = first.center
+        touch_down(*start)
+        try:
+            glide(start, (start[0], start[1] - 650), steps=10)
+        finally:
+            touch_up(start[0], start[1] - 650)
+        time.sleep(0.8)
+        screen = dump()
+        moved = [t for t in grid_pills(screen) if t.text in tops and abs(t.top - tops[t.text]) > 100]
+        d.expect_equal("the grid scrolled under the finger (%d pills moved)" % len(moved), len(moved) > 0, True)
+        pill = lowest_free_pill(screen)
+        if pill is None:
+            raise CheckFailed("no tool left in the scrolled grid")
+        shot(d, "scrolled")
+        after = drag_pill_into_bar(d, pill, before)
+        # a second drag in the same edit mode, after the first one and the scroll
+        second = lowest_free_pill(dump(), skip=(pill.text,))
+        if second is None:
+            raise CheckFailed("no second tool in the grid")
+        after2 = drag_pill_into_bar(d, second, after)
+        d.expect_equal("two tools were added", len(after2), len(before) + 2)
+        finish_edit_mode(d)
+        hide_and_reopen(d)
+        d.expect_equal("the order was saved", bar_order(dump()), after2)
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def bar_edit_undo(d):
+    """A tap on a tool of the grid appends it, Rückgängig takes it back, Zurücksetzen (with its question) brings the
+    standard bar back."""
+    d.start("bar_edit_undo")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        before = bar_order(dump())
+        screen = open_edit_mode(d)
+        pill = first_free_pill(screen)
+        if pill is None:
+            raise CheckFailed("the grid shows no tool outside the bar")
+        tap(*pill.center)
+        time.sleep(0.8)
+        d.expect_equal("a tap appends the tool", bar_order(dump()), before + [pill.text])
+        tap(*grid_node(dump(), "undo").center)
+        time.sleep(0.8)
+        d.expect_equal("Rückgängig takes it back", bar_order(dump()), before)
+        tap(*first_free_pill(dump()).center)
+        time.sleep(0.8)
+        d.expect_equal("appended again", len(bar_order(dump())), len(before) + 1)
+        tap(*grid_node(dump(), "reset").center)
+        d.wait(lambda s: grid_node(s, "reset_yes") is not None, "the question")
+        tap(*grid_node(dump(), "reset_no").center)
+        time.sleep(0.6)
+        d.expect_equal("No keeps the bar", len(bar_order(dump())), len(before) + 1)
+        tap(*grid_node(dump(), "reset").center)
+        d.wait(lambda s: grid_node(s, "reset_yes") is not None, "the question")
+        tap(*grid_node(dump(), "reset_yes").center)
+        time.sleep(0.8)
+        d.expect_equal("Zurücksetzen brings back the standard bar", bar_order(dump()), before)
+        finish_edit_mode(d)
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
+def bar_shots(d):
+    """Pictures of the bar with 1, 3, 5 and 8 tools (the tap in the edit mode builds them), for looking at the spacing."""
+    d.start("bar_shots")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        d.expect_equal("the standard bar has five tools", len(bar_order(dump())), 5)
+        shot(d, "grid_closed_5")
+        screen = open_edit_mode(d)
+        shot(d, "grid_open")
+        for _ in range(3):  # to eight
+            pill = first_free_pill(dump())
+            if pill is None:
+                raise CheckFailed("no tool left to add")
+            tap(*pill.center)
+            time.sleep(0.7)
+        d.expect_equal("eight tools", len(bar_order(dump())), 8)
+        shot(d, "bar_8")
+        for _ in range(5):  # to three
+            tap(*bar_slots(dump())[-1].center)
+            time.sleep(0.7)
+        d.expect_equal("three tools", len(bar_order(dump())), 3)
+        shot(d, "bar_3")
+        for _ in range(2):  # to one
+            tap(*bar_slots(dump())[-1].center)
+            time.sleep(0.7)
+        d.expect_equal("one tool", len(bar_order(dump())), 1)
+        shot(d, "bar_1")
+        finish_edit_mode(d)
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
              clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline,
-             cursor_trackpad, cursor_trackpad_vertical]
+             cursor_trackpad, cursor_trackpad_vertical,
+             # stage 88: the bar with real touches; each leaves the standard bar behind
+             bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
@@ -1633,14 +2230,16 @@ def run_scenario(function, driver):
     except Exception as error:  # a bug in this script must not look like a pass
         status, detail = "ERROR", "script: %s: %s" % (type(error).__name__, error)
     driver.name = name
-    shot = driver.screenshot("end")
+    if status != "PASS" and name.startswith("bar_"):
+        shot(driver, "failed")
+    shot_ok = driver.screenshot("end")
     if status != "PASS":
         try:
             driver.save_dump(dump(), "end")
         except DeviceError:
             pass
-    return {"name": name, "status": status, "detail": detail[:600], "seconds": round(time.time() - started, 1),
-            "screenshot": shot, "doc": (function.__doc__ or "").strip().split("\n")[0]}
+    return {"name": name, "status": status, "detail": detail[:(3000 if name.startswith("bar_") and status != "PASS" else 600)], "seconds": round(time.time() - started, 1),
+            "screenshot": shot_ok, "doc": (function.__doc__ or "").strip().split("\n")[0]}
 
 
 def write_reports(out_dir, info, results, problems, ok, control):
@@ -1734,6 +2333,10 @@ def main():
         ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] in wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
+        if SHOTS:  # a file, which the workflow prints last (the end of the log is what can be read)
+            with open(os.path.join(args.out, "shots.txt"), "w", encoding="utf-8") as shots_out:
+                for name, lines in reversed(SHOTS):  # the first taken lies last
+                    shots_out.write("\n".join(lines) + "\n")
         write_reports(args.out, info, results, problems, ok, args.control)
         passed = sum(1 for r in results if r["status"] == "PASS")
         known = sum(1 for r in results if r["status"] == "KNOWN")

@@ -489,13 +489,13 @@ class PromptsWindowTest {
         val strip = root.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
         fun storeTool() = strip.findViewById<ViewGroup>(R.id.toolbar).findViewWithTag<View>(helium314.keyboard.latin.utils.ToolbarKey.PROMPTS)
         assertNotNull(storeTool(), "the bar has the store tool")
-        assertTrue(storeTool().isEnabled)
+        assertNull(helium314.keyboard.latin.suggestions.FixedBar.reasonOf(storeTool()))
         latinIME.mKeyboardActionListener.onCodeInput(KeyCode.NUMPAD, -1, -1, false)
         assertTrue(switcher.keyboard!!.mId.element.isNumberLayout, "the numpad is shown")
-        assertFalse(storeTool().isEnabled, "dimmed at once")
+        assertNotNull(helium314.keyboard.latin.suggestions.FixedBar.reasonOf(storeTool()), "dimmed at once")
         latinIME.mKeyboardActionListener.onCodeInput(KeyCode.NUMPAD, -1, -1, false) // back
         assertFalse(switcher.keyboard!!.mId.element.isNumberLayout)
-        assertTrue(storeTool().isEnabled, "available again")
+        assertNull(helium314.keyboard.latin.suggestions.FixedBar.reasonOf(storeTool()), "available again")
     }
 
     // ---- PromptsKey.shown ----

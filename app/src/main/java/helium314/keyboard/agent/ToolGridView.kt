@@ -6,7 +6,13 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
+import android.graphics.PointF
+import android.graphics.RectF
+import android.os.SystemClock
 import android.util.AttributeSet
+import android.view.MotionEvent
+import android.widget.ImageView
+import helium314.keyboard.latin.suggestions.BarDrag
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -21,6 +27,7 @@ import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.StripIconColors
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.getStringResourceOrName
 import java.util.Locale
@@ -39,18 +46,23 @@ import java.util.Locale
  */
 class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs) {
     /** One pill: the tool and whether the current field allows it. */
-    class Tool(val key: ToolbarKey, val available: Boolean = true)
+    class Tool(val key: ToolbarKey, val available: Boolean = true, val reason: helium314.keyboard.latin.utils.BarTools.Reason? = null)
 
     /** What the panel asks of the edit mode of the bar (stage 86). */
     interface EditListener {
         /** A tap on a pill: the tool goes into the bar or out of it. */
         fun onTap(key: ToolbarKey)
-        /** Holding a pill: starts the drag of the tool; true when it started. */
-        fun onDrag(pill: View, key: ToolbarKey): Boolean
+        /** The last change can be taken back ("Rückgängig"). */
+        fun canUndo(): Boolean
+        fun onUndo()
+        /** "Zurücksetzen" was confirmed in the panel: the standard bar comes back. */
+        fun onReset()
         /** Actions for screen readers on the pill of [key]: the label and what it does (true when it did something). */
         fun actions(key: ToolbarKey): List<Pair<Int, () -> Boolean>>
     }
 
+    /** A pill of a tool that the field does not allow was tapped: the owner of the panel says why (stage 88). */
+    var onUnavailable: ((ToolbarKey, helium314.keyboard.latin.utils.BarTools.Reason?) -> Unit)? = null
     /** Called after the panel has closed itself because a pill was tapped. */
     var onTool: ((ToolbarKey) -> Unit)? = null
     /** The button "Anpassen" was tapped; the owner of the panel starts the edit mode. */
@@ -58,12 +70,22 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     /** Non-null while the bar is being edited. */
     var editListener: EditListener? = null
         private set
-    /** Where a dragged tool dropped on the panel goes (the tool leaves the bar). */
-    var dropListener: OnDragListener? = null
-        set(value) { field = value; content.setOnDragListener(value); scroll.setOnDragListener(value) }
+    /**
+     * Stage 88: the touch logic of the edit mode (see [BarDrag]); this view is the container that takes the touches of the bar
+     * slots and of a drag, and draws the floating copy of the dragged tool above the bar and the panel.
+     */
+    var dragLogic: BarDrag? = null
+    /** The tool of the bar slot under a point of this view (its coordinates), or null. */
+    var slotAt: ((Float, Float) -> ToolbarKey?)? = null
+    /** The events of the touch logic, after the logic has handled them; the owner updates the bar. */
+    var onDragEvents: ((List<BarDrag.Event>) -> Unit)? = null
+    /** Where the slot of [key] is in the bar after a drop (centre, in the coordinates of this view), for the floating copy to glide to. */
+    var slotCentre: ((ToolbarKey) -> PointF?)? = null
     private var hintText: CharSequence? = null
     private var marked = emptySet<ToolbarKey>()
     private var lastTools = emptyList<Tool>()
+    private var pillBackground = 0
+    private val reasons = HashMap<ToolbarKey, helium314.keyboard.latin.utils.BarTools.Reason?>()
     /** Called whenever the panel goes away, for whatever reason. */
     var onClosed: (() -> Unit)? = null
 
@@ -75,6 +97,10 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     init {
         visibility = GONE
+        // one finger at a time: a second finger on another pill must not act (stage 88, B7)
+        isMotionEventSplittingEnabled = false
+        scroll.isMotionEventSplittingEnabled = false
+        content.isMotionEventSplittingEnabled = false
         content.orientation = LinearLayout.VERTICAL
         // swallow touches between the pills so that they do not reach the keys underneath
         content.isClickable = true
@@ -90,6 +116,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         (parent as? AgentKeyboardFrame)?.updateOverlayAccessibility()
     }
 
+    /** Why the pill of [key] is in the "off" look, or null when the tool is available (stage 88). */
+    fun reason(key: ToolbarKey) = reasons[key]
+
     /** The pill of [key], or null when the panel does not list it. */
     fun pill(key: ToolbarKey): Button? = pills[key]
 
@@ -101,6 +130,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     /** Switches the edit mode on (with the listener) or off (null); the pills are built again. */
     fun setEditing(listener: EditListener?) {
+        if (listener == null) { cancelTouch(); dragLogic = null; slotAt = null; onDragEvents = null; slotCentre = null }
         editListener = listener
         hintText = null
         if (listener == null) marked = emptySet()
@@ -117,6 +147,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     fun setMarked(keys: Set<ToolbarKey>) {
         marked = keys
         if (editListener == null) return
+        refreshActions()
         pills.forEach { (key, pill) -> applyMark(key, pill) }
     }
 
@@ -131,14 +162,209 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     fun close() {
         if (!isOpen) return
+        cancelTouch()
         visibility = GONE
         editListener = null // the edit mode ends with the panel; what was dropped is saved already
         onClosed?.invoke()
     }
 
+    override fun onDetachedFromWindow() {
+        cancelTouch()
+        super.onDetachedFromWindow()
+    }
+
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
         if (visibility != VISIBLE) close() // the keyboard was hidden
+    }
+
+    // ---- stage 88: the touches of the edit mode ----
+
+    private var trackedPointer = -1
+    private var floating: ImageView? = null
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var downScrollY = 0
+    private val holdTimer = Runnable {
+        val logic = dragLogic ?: return@Runnable
+        // the panel moved under the finger: the scroll view has the gesture (it may never tell the container), no pick-up
+        if (scroll.scrollY != downScrollY) { endTouch(logic); return@Runnable }
+        handle(logic.tick(SystemClock.uptimeMillis()))
+    }
+
+    /** Forgets a touch (whatever state it was in); a drag in progress is given back like a cancel. */
+    private fun endTouch(logic: BarDrag) {
+        handler.removeCallbacks(holdTimer)
+        trackedPointer = -1
+        val events = logic.cancel()
+        if (events.isNotEmpty()) handle(events)
+    }
+
+    private fun targetAt(x: Float, y: Float): BarDrag.Target? {
+        slotAt?.invoke(x, y)?.let { return BarDrag.Target.Slot(it) }
+        if (y < scroll.top) return null // the strip: only the slots count, the left key and the rest pass through
+        for ((key, pill) in pills) if (rectOf(pill).contains(x, y)) return BarDrag.Target.Pill(key)
+        return null
+    }
+
+    /** The bounds of [view] (a pill) in the coordinates of this view, scrolled. */
+    private fun rectOf(view: View): RectF {
+        var x = 0f
+        var y = 0f
+        var v: View = view
+        while (v !== this) {
+            val parent = v.parent as? View ?: break
+            x += v.left - parent.scrollX
+            y += v.top - parent.scrollY
+            v = parent
+        }
+        return RectF(x, y, x + view.width, y + view.height)
+    }
+
+    /** Scrolls the panel so that the pill of [key] is in view (a finger does this by scrolling; the tests need it too). */
+    fun revealPill(key: ToolbarKey) {
+        val pill = pills[key] ?: return
+        val r = rectOf(pill)
+        if (r.top >= scroll.top && r.bottom <= height) return
+        scroll.scrollBy(0, (r.top - scroll.top - dp(GAP_DP)).toInt())
+    }
+
+    /** The centre of the pill of [key] in the coordinates of this view, or null when it is not listed or scrolled out of sight. */
+    fun pillCentre(key: ToolbarKey): PointF? {
+        val pill = pills[key] ?: return null
+        val r = rectOf(pill)
+        if (r.bottom < scroll.top || r.top > height) return null
+        return PointF(r.left + dp(ICON_START_DP + 12f), r.centerY())
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        val logic = dragLogic ?: return false
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // a new gesture never fails on an old state: the end of the last one may have gone to the scroll view or a child
+                endTouch(logic)
+                downScrollY = scroll.scrollY
+                val on = targetAt(ev.x, ev.y) ?: return false
+                if (!logic.down(ev.getPointerId(0), ev.x, ev.y, ev.eventTime, on)) return false
+                trackedPointer = ev.getPointerId(0)
+                handler.postDelayed(holdTimer, (logic.holdDueAt() - ev.eventTime).coerceAtLeast(0L))
+                return on is BarDrag.Target.Slot // a pill still works as a button (tap) and as a scroller until the drag starts
+            }
+            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> {
+                if (trackedPointer < 0) return false
+                val dragging = logic.phase == BarDrag.Phase.DRAGGING
+                val events = feed(logic, ev)
+                // a short touch on a pill is done here (the pill's own click would need a post that a view without a window never runs, and a cancelled child cannot click twice)
+                return dragging || logic.phase == BarDrag.Phase.DRAGGING || events.any { it is BarDrag.Event.Tapped }
+            }
+        }
+        return logic.phase == BarDrag.Phase.DRAGGING
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        val logic = dragLogic ?: return super.onTouchEvent(ev)
+        if (trackedPointer < 0) return false // nothing of ours: the touch passes to what is behind (the strip, the left key)
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> { feed(logic, ev) }
+        }
+        return true // a second finger and the rest of a gesture that started here are ours (and ignored)
+    }
+
+    private fun feed(logic: BarDrag, ev: MotionEvent): List<BarDrag.Event> {
+        val index = ev.findPointerIndex(trackedPointer)
+        val pointerUp = ev.actionMasked == MotionEvent.ACTION_POINTER_UP
+        if (ev.actionMasked == MotionEvent.ACTION_POINTER_UP && ev.getPointerId(ev.actionIndex) != trackedPointer) return emptyList() // another finger lifts: ignored
+        if (index < 0) return emptyList()
+        val x = ev.getX(index)
+        val y = ev.getY(index)
+        val events = when (ev.actionMasked) {
+            MotionEvent.ACTION_MOVE -> logic.move(trackedPointer, x, y, ev.eventTime)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> logic.up(trackedPointer, x, y, ev.eventTime)
+            else -> logic.cancel()
+        }
+        if (logic.phase != BarDrag.Phase.PRESSED) handler.removeCallbacks(holdTimer)
+        if (logic.phase == BarDrag.Phase.IDLE) trackedPointer = -1
+        if (pointerUp && logic.phase != BarDrag.Phase.IDLE) return events
+        handle(events)
+        return events
+    }
+
+    private fun handle(events: List<BarDrag.Event>) {
+        val logic = dragLogic ?: return
+        if (events.isNotEmpty()) onDragEvents?.invoke(events)
+        for (e in events) when (e) {
+            is BarDrag.Event.PickedUp -> startFloating(e.key, e.fromBar)
+            is BarDrag.Event.Dropped -> endFloating(e.key, e.toBar)
+            is BarDrag.Event.Cancelled -> removeFloating()
+            else -> Unit
+        }
+        if (logic.phase == BarDrag.Phase.DRAGGING) moveFloating(logic.x, logic.y)
+    }
+
+    private val floatingSize get() = dp(FLOAT_DP)
+
+    private fun startFloating(key: ToolbarKey, fromBar: Boolean) {
+        removeFloating()
+        val colors = Settings.getValues()?.mColors
+        val disc = colors?.get(ColorType.KEY_BACKGROUND) ?: FlatStyle.KEY
+        val ring = colors?.get(ColorType.ACTION_KEY_BACKGROUND) ?: FlatStyle.ACCENT
+        val icon = StripIconColors.ensureContrast(colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL, disc)
+        val view = ImageView(context)
+        view.setImageDrawable(KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(icon) })
+        view.scaleType = ImageView.ScaleType.FIT_CENTER
+        val pad = dp(10f)
+        view.setPadding(pad, pad, pad, pad)
+        view.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(disc); setStroke(dp(2f), ring) }
+        view.elevation = dp(10f).toFloat()
+        view.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+        view.isClickable = false
+        view.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        view.scaleX = SCALE; view.scaleY = SCALE
+        view.contentDescription = null
+        addView(view, LayoutParams(floatingSize, floatingSize))
+        floating = view
+        view.tag = key
+        pills[key]?.alpha = LIFTED_ALPHA // the pill of the tool being dragged stays as an empty place
+        moveFloating(dragLogic?.x ?: 0f, dragLogic?.y ?: 0f)
+    }
+
+    /** The floating copy is centred under the finger (a pill is wide, so an offset from its centre would put the copy far from the finger), kept inside the keyboard window. */
+    private fun moveFloating(x: Float, y: Float) {
+        val view = floating ?: return
+        val half = floatingSize / 2f
+        view.x = x.coerceIn(half, (width - half).coerceAtLeast(half)) - half
+        view.y = y.coerceIn(half, (height - half).coerceAtLeast(half)) - half
+        view.visibility = VISIBLE
+    }
+
+    private fun endFloating(key: ToolbarKey, toBar: Boolean) {
+        val view = floating ?: return
+        floating = null
+        pills[key]?.let { applyMark(key, it) } // the pill's look follows the bar again
+        val half = floatingSize / 2f
+        val target = (if (toBar) slotCentre?.invoke(key) else pillCentre(key))
+        if (target == null || !isAttachedToWindow) { removeView(view); return }
+        view.animate().cancel()
+        view.animate().x(target.x - half).y(target.y - half).scaleX(0.8f).scaleY(0.8f).alpha(0.2f).setDuration(GLIDE_MS)
+            .withEndAction { removeView(view) }.start()
+    }
+
+    private fun removeFloating() {
+        val view = floating ?: return
+        floating = null
+        view.animate().cancel()
+        removeView(view)
+        (view.tag as? ToolbarKey)?.let { key -> pills[key]?.let { applyMark(key, it) } }
+    }
+
+    /** The floating copy while a drag is going on (tests and the owner look at it). */
+    val floatingCopy: View? get() = floating
+
+    /** Stops tracking a touch and removes the floating copy; nothing is saved here (the model drops its drag state). */
+    fun cancelTouch() {
+        handler.removeCallbacks(holdTimer)
+        trackedPointer = -1
+        dragLogic?.cancel()
+        removeFloating()
     }
 
     private fun dp(value: Float) = Math.round(value * resources.displayMetrics.density)
@@ -147,18 +373,20 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         lastTools = tools
         content.removeAllViews()
         pills.clear()
+        reasons.clear()
         val colors = Settings.getValues()?.mColors
         val background = colors?.get(ColorType.MAIN_BACKGROUND) ?: FlatStyle.BACKGROUND
         val pill = colors?.get(ColorType.KEY_BACKGROUND) ?: FlatStyle.KEY
         val text = colors?.get(ColorType.KEY_TEXT) ?: FlatStyle.LABEL
         val icon = colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL
+        pillBackground = pill
 
         scroll.setBackgroundColor(background)
         content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP))
         content.addView(header(text, icon, pill), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = dp(GAP_DP) })
         tools.chunked(COLUMNS).forEachIndexed { rowIndex, rowTools ->
-            val row = LinearLayout(context)
+            val row = LinearLayout(context).apply { isMotionEventSplittingEnabled = false }
             rowTools.forEachIndexed { column, tool ->
                 val params = LinearLayout.LayoutParams(0, dp(PILL_HEIGHT_DP), 1f)
                 if (column > 0) params.marginStart = dp(GAP_DP)
@@ -178,8 +406,10 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     /** The hint line while editing, else the button that starts the edit mode. */
     private fun header(textColor: Int, iconColor: Int, pillColor: Int): View {
-        if (editListener != null) {
-            return TextView(context).apply {
+        val listener = editListener
+        if (listener != null) {
+            val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            box.addView(TextView(context).apply {
                 id = R.id.agent_tool_grid_hint
                 text = hintText ?: context.getString(R.string.agent_grid_edit_hint)
                 setTextColor(textColor)
@@ -187,7 +417,31 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
                 gravity = Gravity.CENTER
                 setPadding(0, dp(GAP_DP), 0, dp(GAP_DP))
                 accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-            }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            // "Rückgängig" and "Zurücksetzen" (with the question in the panel itself, no system dialog)
+            val actions = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            val ask = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; visibility = GONE; id = R.id.agent_tool_grid_reset_ask }
+            fun gap() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(EDIT_HEIGHT_DP)).apply { marginStart = dp(GAP_DP); marginEnd = dp(GAP_DP) }
+            actions.addView(smallButton(R.id.agent_tool_grid_undo, R.string.agent_bar_edit_undo, textColor, pillColor) {
+                if (listener.canUndo()) { listener.onUndo(); refreshActions() }
+            }, gap())
+            actions.addView(smallButton(R.id.agent_tool_grid_reset, R.string.agent_bar_edit_reset, textColor, pillColor) {
+                actions.visibility = GONE; ask.visibility = VISIBLE
+            }, gap())
+            ask.addView(TextView(context).apply {
+                setTextColor(textColor); setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
+                text = context.getString(R.string.agent_bar_reset_ask)
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            }, gap())
+            ask.addView(smallButton(R.id.agent_tool_grid_reset_yes, R.string.agent_bar_reset_yes, textColor, pillColor) {
+                ask.visibility = GONE; actions.visibility = VISIBLE; listener.onReset(); refreshActions()
+            }, gap())
+            ask.addView(smallButton(R.id.agent_tool_grid_reset_no, R.string.agent_bar_reset_no, textColor, pillColor) {
+                ask.visibility = GONE; actions.visibility = VISIBLE
+            }, gap())
+            box.addView(actions)
+            box.addView(ask)
+            return box
         }
         return Button(context, null, 0).apply {
             id = R.id.agent_tool_grid_edit
@@ -209,6 +463,26 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         }
     }
 
+    private fun smallButton(buttonId: Int, textRes: Int, textColor: Int, pillColor: Int, action: () -> Unit) = Button(context, null, 0).apply {
+        id = buttonId
+        text = context.getString(textRes)
+        isAllCaps = false
+        setTextColor(StripIconColors.ensureContrast(textColor, pillColor))
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
+        typeface = FlatStyle.labelTypeface
+        isSoundEffectsEnabled = false
+        background = roundedBackground(pillColor, dp(EDIT_HEIGHT_DP) / 2f)
+        minimumWidth = 0; minimumHeight = 0
+        setPadding(dp(ICON_START_DP), 0, dp(ICON_START_DP), 0)
+        setOnClickListener { action() }
+    }
+
+    /** "Rückgängig" looks off while there is nothing to take back. */
+    fun refreshActions() {
+        val undo = content.findViewById<View>(R.id.agent_tool_grid_undo) ?: return
+        undo.alpha = if (editListener?.canUndo() == true) 1f else 0.4f
+    }
+
     private fun applyMark(key: ToolbarKey, pill: Button) {
         val label = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)
         val inBar = key in marked
@@ -220,40 +494,46 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         val key = tool.key
         val button = Button(context, null, 0) // no default style: no shadow, no minimum size, no caps
         val label = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)
+        // the text and the icon have the guaranteed contrast against the pill; an unavailable tool gets the "off" colour (a real colour, not an alpha)
+        val off = !tool.available && editListener == null
+        val text = StripIconColors.ensureContrast(textColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
+        val iconTint = StripIconColors.ensureContrast(iconColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
         button.tag = key
         button.text = label
         button.isAllCaps = false
-        button.setTextColor(textColor)
+        button.setTextColor(text)
         button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         button.typeface = FlatStyle.labelTypeface
         FlatStyle.scrollWhenTooLong(button)
+        // a long name ("Diktieren (auf dem Gerät)") shrinks to fit the pill instead of being cut off; short names keep the full size
+        button.maxLines = 1
+        androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(button, 11, TEXT_DP.toInt(), 1, TypedValue.COMPLEX_UNIT_DIP)
         button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
         button.isSoundEffectsEnabled = false
         button.background = roundedBackground(pillColor, dp(PILL_HEIGHT_DP) / 2f)
         button.setPadding(dp(ICON_START_DP), 0, dp(ICON_START_DP), 0)
-        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(iconColor) }
+        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(iconTint) }
             ?.let { InsetDrawable(it, 0, 0, dp(ICON_GAP_DP), 0) }
         button.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, null, null)
         val editing = editListener
         if (editing != null) {
             // customizing is about the layout of the bar: also a tool the field does not allow can be moved
             button.setOnClickListener { editing.onTap(key) }
-            button.setOnLongClickListener { editing.onDrag(button, key) }
             editing.actions(key).forEach { (labelRes, action) ->
                 androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(labelRes)) { _, _ -> action() }
             }
             applyMark(key, button)
             return button
         }
-        button.isEnabled = tool.available
-        button.alpha = if (tool.available) 1f else DIMMED_ALPHA
+        reasons[key] = if (tool.available) null else (tool.reason ?: helium314.keyboard.latin.utils.BarTools.Reason.PRIVATE_FIELD)
+        // a tool the field does not allow stays tappable for the touch system: the tap says why (stage 88)
         button.contentDescription = if (tool.available) label else context.getString(R.string.agent_bar_tool_unavailable, label)
         button.setOnClickListener { act(key) }
         return button
     }
 
     private fun act(key: ToolbarKey) {
-        if (pills[key]?.isEnabled == false) return // dimmed: the field does not allow it
+        if (key in reasons && reasons[key] != null) { onUnavailable?.invoke(key, reasons[key]); return } // "off": say why, stay open
         close()
         onTool?.invoke(key)
     }
@@ -272,8 +552,11 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         private const val TEXT_DP = 16f
         private const val ICON_START_DP = 18f
         private const val ICON_GAP_DP = 15f
-        private const val DIMMED_ALPHA = 0.38f
         private const val MARKED_ALPHA = 0.5f
         private const val EDIT_HEIGHT_DP = 40f
+        private const val FLOAT_DP = 52f
+        private const val SCALE = 1.15f
+        private const val LIFTED_ALPHA = 0.3f
+        private const val GLIDE_MS = 140L
     }
 }

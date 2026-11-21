@@ -52,6 +52,9 @@ object BarTools {
 
     fun isCompact(count: Int) = count > FULL_SIZE_MAX
 
+    /** The standard bar ("Zurücksetzen", stage 88): what [migrate] makes of the default old toolbar preferences. */
+    val standard: List<ToolbarKey> by lazy { migrate(listOf(AGENT, SETTINGS, VOICE, CLIPBOARD, UNDO, REDO, SELECT_WORD, COPY, PASTE, LEFT, RIGHT), listOf(AGENT)) }
+
     /**
      * What the bar shows for a user who never edited it: the first [MIGRATED_FROM_ORDER] enabled keys of the old
      * toolbar order, then the pinned keys that are not among them (they were always visible, so they stay),
@@ -135,7 +138,19 @@ object BarTools {
 
     // ---- availability ----
 
+    /** Why a tool is shown in the "off" look (stage 88): the real reason of the check that blocks it. */
+    enum class Reason { PRIVATE_FIELD, INCOGNITO_SWITCH, LOCKED_DEVICE, NUMBER_LAYOUT }
+
+    /** The reason [key] is unavailable in the current field, or null when it is available. */
+    fun unavailableReason(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean, numberLayout: Boolean = false, alwaysIncognito: Boolean = false): Reason? = when {
+        key in PROTECTED && locked -> Reason.LOCKED_DEVICE
+        // the user's own switch "Always incognito" makes every field incognito: say that, not "private field"
+        key in PROTECTED && incognitoOrProtectedField -> if (alwaysIncognito) Reason.INCOGNITO_SWITCH else Reason.PRIVATE_FIELD
+        key in NOT_IN_NUMBER_LAYOUTS && numberLayout -> Reason.NUMBER_LAYOUT
+        else -> null
+    }
+
     /** Whether [key] is dimmed in the current field: the tools that refuse password fields, incognito and a locked device. */
     fun isUnavailable(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean, numberLayout: Boolean = false) =
-        key in PROTECTED && (incognitoOrProtectedField || locked) || key in NOT_IN_NUMBER_LAYOUTS && numberLayout
+        unavailableReason(key, incognitoOrProtectedField, locked, numberLayout) != null
 }

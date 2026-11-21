@@ -137,6 +137,7 @@ class FixedBarTest {
     private val sets = listOf(
         listOf(UNDO, REDO, COPY, PASTE, CUT, SELECT_ALL, SELECT_WORD, CLIPBOARD),
         listOf(AGENT, EMOJI, SKILL_1, SKILL_2, SKILL_3, PROMPTS, CHAR_ART, DESIGN),
+        listOf(PASTE, CUT, EMOJI, SELECT_WORD, REDO, UNDO, COPY, DESIGN),
     )
 
     private fun checkGeometry(flat: Boolean) {
@@ -154,23 +155,34 @@ class FixedBarTest {
                 val tools2 = slots(h)
                 assertEquals(bar, tools2.map { it.tag }, label)
                 val left = leftKey(h)
+                // the centres of the left key and the tools are evenly spread from the left margin to the right margin
+                val rowLeft = toolbar(h).leftIn(h.root).toFloat()
+                val leftBox = FixedBar.leftBox(left, flat, count).let { android.graphics.RectF(it.left + left.leftIn(h.root) - left.left, it.top, it.right + left.leftIn(h.root) - left.left, it.bottom) }
+                val boxes = listOf(leftBox) + tools2.map { FixedBar.visualBox(it).let { b -> android.graphics.RectF(b.left + rowLeft, b.top, b.right + rowLeft, b.bottom) } }
+                assertEquals(boxes.sortedBy { it.left }, boxes, label)
                 val centres = (listOf(left) + tools2).map { it.centreIn(h.root) }
-                // left key first, then the tools in order, evenly spread from the left margin to the right margin
-                assertEquals(centres.sorted(), centres, label)
                 centres.zipWithNext { a, b -> if (centres.size > 2) assertTrue(abs((b - a) - (centres[1] - centres[0])) <= 1.5f, "$label pitch ${b - a}") }
                 if (count > 0) assertTrue(abs(centres.first() - (WIDTH - centres.last())) <= 2.5f, "$label symmetric ${centres.first()} / ${centres.last()}")
+                // stage 88: the glyphs are all drawn in one box, so the visible gaps between neighbouring plain glyphs are equal as well
+                val plainBoxes = tools2.zip(boxes.drop(1)).filter { !FixedBar.isCircle(it.first) }.map { it.second }
+                plainBoxes.forEach { assertTrue(abs(it.width() - plainBoxes.first().width()) <= 1.5f && abs(it.height() - plainBoxes.first().height()) <= 1.5f, "$label box ${it.width()} x ${it.height()}") }
+                val plainGaps = boxes.drop(1).zipWithNext { a, b -> b.left - a.right }.filterIndexed { i, _ -> !FixedBar.isCircle(tools2[i + 1]) }
+                plainGaps.forEach { assertTrue(abs(it - plainGaps.first()) <= 2.5f, "$label visible gaps $plainGaps") }
                 // the same count gives the same places whichever tools are in it
                 val previous = patterns.put(count, centres)
                 if (previous != null) assertTrue(previous.zip(centres).all { (a, b) -> abs(a - b) <= 1f }, "$label equal places: $previous vs $centres")
                 // no scrolling and no expand arrow in the strip
                 assertNoScrolling(h.strip)
                 assertNull(h.strip.findViewById<View>(R.id.pinned_keys)?.takeIf { (it as ViewGroup).childCount > 0 })
-                // compact from six tools: smaller buttons
-                tools2.forEach { assertEquals(tools2.first().width, it.width, label) }
+                // compact from six tools: smaller glyphs, all the same size (the circle at the end is wider)
+                val plain = tools2.filter { !FixedBar.isCircle(it) }
+                plain.forEach { assertEquals(plain.first().width, it.width, label) }
                 if (count > 0) {
                     val full = Math.round((if (flat) 34f else 40f) * 3.25f)
                     val compact = Math.round(30f * 3.25f)
-                    assertEquals(if (BarTools.isCompact(count)) compact else full, tools2.first().width, label)
+                    plain.firstOrNull()?.let { assertEquals(if (BarTools.isCompact(count)) compact else full, it.width, label) }
+                    val glyph = Math.round((if (BarTools.isCompact(count)) 20f else if (flat) 34f else 24f) * 3.25f) // the flat look's own icons are drawn for the whole button
+                    plain.forEach { assertTrue(abs(glyph - FixedBar.visualBox(it).width()) <= 1.5f, label) }
                 }
                 // the last microphone key is the circle, no other slot is
                 assertEquals(variant == 1 && count > 0, tools2.lastOrNull()?.let { FixedBar.isCircle(it) } ?: false, label)
@@ -180,6 +192,50 @@ class FixedBarTest {
                 assertEquals(latinIME.getString(R.string.agent_bar_all_tools), left.contentDescription)
             }
         }
+    }
+
+    private fun layoutAt(h: Harness, width: Int) {
+        h.root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(STRIP + KEYBOARD, View.MeasureSpec.EXACTLY))
+        h.root.layout(0, 0, width, STRIP + KEYBOARD)
+    }
+
+    /** Stage 88: on a narrow screen (360 dp and 320 dp) every item is wholly inside the bar and no two cells overlap, up to eight tools. */
+    private fun checkNarrow(flat: Boolean) {
+        val tools = listOf(UNDO, REDO, COPY, PASTE, CUT, SELECT_ALL, SELECT_WORD, CLIPBOARD)
+        for (dp in listOf(360, 320)) {
+            val width = Math.round(dp * 3.25f)
+            for (count in 0..8) {
+                // the last one is a microphone key in the second round: the wider circle must fit too
+                for (mic in listOf(false, true)) {
+                    val bar = tools.take(count).let { if (mic && count > 0) it.dropLast(1) + DICTATE else it }
+                    setBar(bar)
+                    reload()
+                    val h = build()
+                    h.strip.setToolbarVisibility(true)
+                    layoutAt(h, width)
+                    val label = "flat=$flat dp=$dp count=$count mic=$mic"
+                    val items = listOf(leftKey(h)) + slots(h)
+                    val rowLeft = toolbar(h).leftIn(h.root)
+                    val boxes = listOf(leftKey(h).let { android.graphics.RectF(it.left.toFloat(), 0f, it.right.toFloat(), 1f) }) +
+                        slots(h).map { FixedBar.visualBox(it).let { b -> android.graphics.RectF(b.left + rowLeft, 0f, b.right + rowLeft, 1f) } }
+                    // the cells (what a finger can hit) lie inside the bar and do not overlap
+                    val cells = listOf(leftKey(h).left to leftKey(h).right) + slots(h).map { it.leftIn(h.root) to it.leftIn(h.root) + it.width }
+                    cells.forEach { (l, r) -> assertTrue(l >= 0 && r <= width, "$label cell $l..$r outside 0..$width") }
+                    cells.zipWithNext { a, b -> assertTrue(b.first >= a.second, "$label cells overlap: $a $b") }
+                    // the visible shapes keep a margin to the screen edge on both sides and a visible gap between them
+                    boxes.forEach { assertTrue(it.left >= 3f * 3.25f - 0.5f && it.right <= width - 3f * 3.25f + 0.5f, "$label box ${it.left}..${it.right} too near the edge of $width") }
+                    boxes.zipWithNext { a, b -> assertTrue(b.left - a.right >= 4f * 3.25f, "$label gap ${b.left - a.right} px between ${a.right} and ${b.left}") }
+                    assertEquals(items.size, boxes.size)
+                }
+            }
+        }
+    }
+
+    @Test fun upToEightToolsFitOnNarrowScreensInTheDefaultLook() = checkNarrow(flat = false)
+
+    @Test fun upToEightToolsFitOnNarrowScreensInTheFlatLook() {
+        flatPreset()
+        checkNarrow(flat = true)
     }
 
     private fun assertNoScrolling(view: View) {
@@ -371,7 +427,7 @@ class FixedBarTest {
         reload()
         val open = build()
         val placesOpen = slots(open).map { it.centreIn(open.root) }
-        slots(open).forEach { assertTrue(it.isEnabled && it.alpha == 1f, "${it.tag}") }
+        slots(open).forEach { assertTrue(FixedBar.reasonOf(it) == null, "${it.tag}") }
 
         // a password field: the settings are reloaded for the field the way the keyboard does at a field start
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
@@ -383,11 +439,11 @@ class FixedBarTest {
         layout(closed)
         // same places
         assertTrue(placesOpen.zip(slotsClosed.map { it.centreIn(closed.root) }).all { (a, b) -> abs(a - b) <= 1f })
-        val dimmed = slotsClosed.filter { !it.isEnabled }.map { it.tag }
+        val dimmed = slotsClosed.filter { FixedBar.reasonOf(it) != null }.map { it.tag }
         assertEquals(listOf(AGENT, SKILL_1, DICTATE), dimmed)
-        slotsClosed.filter { !it.isEnabled }.forEach {
-            assertTrue(it.alpha < 0.5f)
-            assertTrue("not available" in it.contentDescription.toString(), it.contentDescription.toString())
+        slotsClosed.filter { FixedBar.reasonOf(it) != null }.forEach {
+            assertEquals(1f, it.alpha) // not an alpha: a real colour and a lock (stage 88)
+            assertTrue(latinIME.getString(R.string.agent_bar_hint_private) in it.contentDescription.toString(), it.contentDescription.toString())
             it.performClick() // a dimmed slot does not react (a touch never reaches a disabled view; the strip also ignores the call)
         }
         assertEquals(emptyList(), closed.codes)
@@ -395,7 +451,7 @@ class FixedBarTest {
         assertEquals(listOf(KeyCode.UNDO), closed.codes)
         // the grid: the same tools dimmed, none removed
         leftKey(closed).performClick()
-        assertEquals(BarTools.PROTECTED.size, closed.grid.listed.count { !closed.grid.pill(it)!!.isEnabled })
+        assertEquals(BarTools.PROTECTED.size, closed.grid.listed.count { closed.grid.reason(it) != null })
         assertTrue(BarTools.PROTECTED.all { closed.grid.pill(it) != null })
         closed.grid.pill(AGENT)!!.performClick()
         assertEquals(listOf(KeyCode.UNDO), closed.codes)
@@ -403,7 +459,181 @@ class FixedBarTest {
         // the field is left: the tools are available again
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
         val again = build()
-        assertTrue(slots(again).all { it.isEnabled && it.alpha == 1f })
+        assertTrue(slots(again).all { FixedBar.reasonOf(it) == null })
+    }
+
+    @Test fun aTapOnAToolInTheOffLookSaysWhyForEveryReason() {
+        setBar(listOf(AGENT, UNDO, PROMPTS))
+        reload()
+        // a number layout: the store is off
+        var h = build()
+        h.strip.numberLayoutProbe = { true }
+        h.strip.onKeyboardLayoutChanged()
+        val prompts = slots(h).first { it.tag == PROMPTS }
+        assertEquals(BarTools.Reason.NUMBER_LAYOUT, FixedBar.reasonOf(prompts))
+        fun hint() = h.strip.findViewById<android.widget.TextView>(R.id.agent_bar_hint)
+        assertNull(hint())
+        prompts.performClick()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_number), hint().text.toString())
+        assertEquals(View.VISIBLE, hint().visibility)
+        assertTrue(latinIME.getString(R.string.agent_bar_hint_number) in prompts.contentDescription.toString())
+        assertEquals(emptyList(), h.codes)
+        hint().performClick() // a touch on the line clears it
+        assertEquals(View.GONE, hint().visibility)
+        // a private field: the protected tools are off
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+            InputAttributes(EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD }, false, latinIME.packageName))
+        h = build()
+        val agent = slots(h).first { it.tag == AGENT }
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, FixedBar.reasonOf(agent))
+        agent.performClick()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_private), hint().text.toString())
+        assertTrue(latinIME.getString(R.string.agent_bar_hint_private) in agent.contentDescription.toString())
+        assertEquals(emptyList(), h.codes)
+        // a tool that works clears the line and runs
+        slots(h).first { it.tag == UNDO }.performClick()
+        assertEquals(View.GONE, hint().visibility)
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        // a long press on a tool without an own long press action starts customizing, also for a tool in the off look
+        assertTrue(agent.performLongClick())
+        h.strip.onKeyboardHidden()
+        // the grid: the pill says why and stays open
+        leftKey(h).performClick()
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, h.grid.reason(AGENT))
+        h.grid.pill(AGENT)!!.performClick()
+        assertTrue(h.grid.isOpen)
+        assertEquals(View.VISIBLE, hint().visibility)
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        // the locked device: the reason of the model (the bar itself is not shown on a locked device)
+        assertEquals(BarTools.Reason.LOCKED_DEVICE, BarTools.unavailableReason(AGENT, false, true))
+        assertEquals(BarTools.Reason.NUMBER_LAYOUT, BarTools.unavailableReason(PROMPTS, false, false, true))
+        assertNull(BarTools.unavailableReason(UNDO, true, true, true))
+    }
+
+    // ---- stage 88: "Kontextwerkzeuge", undo offers redo ----
+
+    private fun drawn(view: View): android.graphics.Bitmap =
+        android.graphics.Bitmap.createBitmap(view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888).also { view.draw(android.graphics.Canvas(it)) }
+
+    @Test fun afterAnUndoTheUndoToolOffersRedoNothingMovesAndTheTextChangeTakesItAway() {
+        helium314.keyboard.agent.UndoOffer.reset()
+        setBar(listOf(AGENT, UNDO, CLIPBOARD, COPY, VOICE))
+        reload()
+        val h = build()
+        val undo = slots(h).first { it.tag == UNDO }
+        val places = slots(h).map { it.centreIn(h.root) }
+        val plain = drawn(undo)
+        assertFalse(FixedBar.isRedoOffered(undo))
+        val label = undo.contentDescription.toString()
+        // the tool run from the bar goes through the real key handling, which tells the offer (here the same call)
+        undo.performClick()
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        layout(h)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        assertTrue(undo.contentDescription.toString() != label && latinIME.getString(R.string.agent_bar_undo_offers_redo, label) == undo.contentDescription.toString())
+        // the slot shows it: the corner differs; the places of all tools and the size of the slot are the same
+        val offered = drawn(undo)
+        assertEquals(plain.width, offered.width)
+        var differing = 0
+        for (y in 0 until offered.height) for (x in 0 until offered.width) if (offered.getPixel(x, y) != plain.getPixel(x, y)) differing++
+        assertTrue(differing > 20, "the redo arrow is drawn ($differing pixels)")
+        assertEquals(places, slots(h).map { it.centreIn(h.root) })
+        // redo is the long press of the undo tool (as before) and keeps the offer; so does undo again
+        assertTrue(undo.performLongClick())
+        assertEquals(listOf(KeyCode.UNDO, KeyCode.REDO), h.codes)
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.REDO)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        // a screen reader gets the action
+        val action = undo.createAccessibilityNodeInfo().actionList.first { it.label?.toString() == latinIME.getString(R.string.agent_bar_action_redo) }
+        assertTrue(undo.performAccessibilityAction(action.id, null))
+        assertEquals(KeyCode.REDO, h.codes.last())
+        // typing ends it
+        helium314.keyboard.agent.UndoOffer.onCode('a'.code)
+        assertFalse(FixedBar.isRedoOffered(undo))
+        assertEquals(label, undo.contentDescription.toString())
+        // so does the keyboard going away and a new field
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        h.strip.onKeyboardHidden()
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        h.strip.onFieldStarted()
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        helium314.keyboard.agent.UndoOffer.reset()
+    }
+
+    @Test fun withRedoAsATooloftheBarNothingSpecialHappensAndTheCompactRowShowsItToo() {
+        helium314.keyboard.agent.UndoOffer.reset()
+        setBar(listOf(UNDO, REDO, CLIPBOARD))
+        reload()
+        var h = build()
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        assertTrue(undoActions(h).isEmpty())
+        // eight tools: the compact row offers it with the same arrow, nothing moves
+        setBar(listOf(AGENT, UNDO, CLIPBOARD, COPY, PASTE, CUT, EMOJI, SETTINGS))
+        reload()
+        h = build()
+        val places = slots(h).map { it.centreIn(h.root) }
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.REDO)
+        helium314.keyboard.agent.UndoOffer.reset()
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertTrue(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        assertEquals(places, slots(h).map { it.centreIn(h.root) })
+        helium314.keyboard.agent.UndoOffer.reset()
+    }
+
+    @Test fun everyWayTextComesInEndsTheRedoOfferThroughTheRealListenersAndTheStrip() {
+        setBar(listOf(AGENT, UNDO, CLIPBOARD))
+        reload()
+        val h = build()
+        fun offered() = FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO })
+        fun offer() { helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO); assertTrue(offered()) }
+        // text without a key code (emoji, several characters): the real listener of the keyboard
+        offer(); latinIME.mKeyboardActionListener.onTextInput("🙂"); assertFalse(offered(), "onTextInput")
+        // a gesture
+        offer(); latinIME.mKeyboardActionListener.onStartBatchInput(); assertFalse(offered(), "gesture typing")
+        // a chosen suggestion (the strip's word view)
+        offer()
+        h.strip.setSuggestions(words("hallo", "hallo!"), false)
+        layout(h)
+        val word = h.strip.findViewById<ViewGroup>(R.id.suggestions_strip).let { g -> (0 until g.childCount).map { g.getChildAt(it) }.first { it.tag is Int } }
+        word.performClick()
+        assertFalse(helium314.keyboard.agent.UndoOffer.active, "a chosen suggestion")
+        helium314.keyboard.agent.UndoOffer.reset()
+    }
+
+    private fun undoActions(h: Harness) = slots(h).first { it.tag == UNDO }.createAccessibilityNodeInfo().actionList
+        .filter { it.label?.toString() == latinIME.getString(R.string.agent_bar_action_redo) }
+
+    @Test fun aSwitchOfTheUserForAlwaysIncognitoSaysSoNotPrivateField() {
+        setBar(listOf(AGENT, UNDO))
+        prefs.edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        reload()
+        val h = build()
+        val agent = slots(h).first { it.tag == AGENT }
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, FixedBar.reasonOf(agent))
+        agent.performClick()
+        val hint = h.strip.findViewById<android.widget.TextView>(R.id.agent_bar_hint).text.toString()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_incognito), hint)
+        assertTrue(hint != latinIME.getString(R.string.agent_bar_hint_private))
+        leftKey(h).performClick()
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, h.grid.reason(AGENT))
+        // without the switch a password field is a private field
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, BarTools.unavailableReason(AGENT, true, false))
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, BarTools.unavailableReason(AGENT, true, false, alwaysIncognito = true))
+    }
+
+    @Test fun aLongToolNameShrinksInItsPillInsteadOfBeingCutOff() {
+        val h = build()
+        leftKey(h).performClick()
+        h.grid.listed.forEach {
+            val pill = h.grid.pill(it)!!
+            assertEquals(androidx.core.widget.TextViewCompat.AUTO_SIZE_TEXT_TYPE_UNIFORM, androidx.core.widget.TextViewCompat.getAutoSizeTextType(pill), it.name)
+            assertEquals(1, pill.maxLines)
+        }
+        assertTrue(androidx.core.widget.TextViewCompat.getAutoSizeMinTextSize(h.grid.pill(DICTATE)!!) < androidx.core.widget.TextViewCompat.getAutoSizeMaxTextSize(h.grid.pill(DICTATE)!!))
     }
 
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {
@@ -617,13 +847,13 @@ class FixedBarTest {
         setBar(listOf(PROMPTS, CHAR_ART, UNDO))
         reload()
         val h = build()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
         h.strip.numberLayoutProbe = { true }
         h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
-        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        assertEquals(listOf(PROMPTS), slots(h).filter { FixedBar.reasonOf(it) != null }.map { it.tag })
         leftKey(h).performClick()
-        assertFalse(h.grid.pill(PROMPTS)!!.isEnabled)
-        assertTrue(h.grid.pill(CHAR_ART)!!.isEnabled)
+        assertNotNull(h.grid.reason(PROMPTS))
+        assertNull(h.grid.reason(CHAR_ART))
         h.grid.pill(PROMPTS)!!.performClick()
         assertTrue(h.grid.isOpen); assertEquals(emptyList(), h.codes)
     }
@@ -646,13 +876,13 @@ class FixedBarTest {
         setBar(listOf(PROMPTS, CHAR_ART, UNDO))
         reload()
         val h = build()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
         h.strip.numberLayoutProbe = { true }
         h.strip.onKeyboardLayoutChanged() // no strip update in between
-        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        assertEquals(listOf(PROMPTS), slots(h).filter { FixedBar.reasonOf(it) != null }.map { it.tag })
         h.strip.numberLayoutProbe = { false }
         h.strip.onKeyboardLayoutChanged()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
     }
 
     private companion object {

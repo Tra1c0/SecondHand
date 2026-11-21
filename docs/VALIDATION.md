@@ -1,5 +1,76 @@
 # Prüfnachweise
 
+## Etappe 88 — Leiste v2: sichtbare Symbole, echtes Ziehen
+
+**Auslöser (Owner, Build 41, Xiaomi 15, eigenes dunkles Design):** „Die Leiste ist nicht gleichmäßig.“ Zwei Symbole (Textaktionen, Skill-Taste) waren nicht zu sehen; das Drag and Drop „funktioniert nicht
+zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zurück, und erst ein Tippen setzte sie irgendwohin. Dazu: Die Funktionen seien gut getestet, aber nicht durchdacht.
+
+**Was falsch war:**
+- **Schwarze Symbole:** Die Leiste färbt Symbole mit einer Farbliste im Modus MULTIPLY (`Colors.setColor(…, TOOL_BAR_KEY)`); die Symbole der Fork `ic_agent_actions` (Füllung `#FF000000`), `ic_skill_1…3` und `ic_agent_dictate`
+  (Strich `#FF000000`) waren schwarz, `ic_edit` (Zeichen-Kunst) grau: schwarz mal Farbe ist schwarz. Auf dunklem Grund sind sie Löcher. Die Mitten lagen schon gleichmäßig (175 bis 178 px, gemessen); das „ungleichmäßig“ war die Sichtbarkeit.
+  Es hat nie jemand ein Bild in einem dunklen Design angesehen; die Tests prüften Mitten, nicht Pixel.
+- **Systemziehen:** `startDragAndDrop` im Tastaturfenster (IME-Fenster: nicht fokussierbar, neben dem App-Fenster) lieferte auf dem Gerät kein Ablegen. Der Grund wurde nicht bewiesen (aus den Regeln der Plattform
+  abgeleitet, `docs/LEISTE-KONZEPT.md` → 6); die Entscheidung war, es nicht mehr zu verwenden. Die Tests von Etappe 86 simulierten `DragEvent`s und konnten das nicht finden.
+
+**Was jetzt geprüft ist (Tests, Robolectric, lokal):**
+- `BarIconVisibilityTest` (5): jedes `ToolbarKey` (alle angebotenen Werkzeuge) wird mit dem echten Anordnungscode in ein Bitmap gezeichnet und die Farbe der Kernpixel des Symbols gemessen, in fünf Designs (Farben des
+  Owners: Grund `#0A0001`, Mint `#C8FFEE`, Rosa, Dunkelrot; hell; fast unsichtbare Symbolfarbe; mittleres Grau; flacher Stil): normal mindestens 4,5:1, nicht verfügbar mindestens 2:1 und sichtbar blasser, Kreis mit Symbol
+  auf seiner Füllung, die früher schwarzen Symbole sind Mint. **Rot-Nachweis:** Mit den alten schwarzen `ic_agent_actions` und `ic_skill_1` schlugen 2 der 5 Tests fehl („owner AGENT: no icon is drawn at all“).
+- `FixedBarTest` (30): Mitten gleichmäßig für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil (je drei Mengen, mit und ohne Kreis am Ende), gleiche Symbolflächen und gleiche sichtbare Lücken zwischen gleich
+  großen Symbolen; nicht verfügbar nach Grund (privates Feld, Zahlenfeld; gesperrtes Gerät im Modell): Beschreibung, Zeile bei Tipp und Langdruck, Raster; Rückgängig-Angebot (Pfeil als echte Pixel, Plätze unverändert, Ende bei
+  Eingabe, Verstecken und neuem Feld, Aktion für Screenreader, nichts bei Wiederholen in der Leiste, kompakte Reihe).
+- `BarDragTest` (16, reine Logik mit falscher Uhr), `BarEditorTest` (inkl. Rückgängig, Zurücksetzen), `BarEditModeTest` (24, **echte `MotionEvent`s** an den Behälter, kein `DragEvent`): Pille halten und zwischen zwei Werkzeuge
+  ziehen (Lücke öffnet sich, Kopie unter dem Finger, Speichern erst beim Loslassen), jede Lücke 0 bis 4, Umordnen, Herausziehen nach unten, Abbruch, Tastatur mitten im Ziehen versteckt, voll (neuntes Werkzeug), leere Leiste,
+  zweiter Finger, senkrechter Zug scrollt, Tippen, Halten und auf der Stelle loslassen, rechts nach links, verstecktes Sprachwerkzeug. **Rot-Nachweise (Sabotage in `BarDrag`):** Ablegen fügt nie ein: 13 von 39 Tests rot;
+  „Halten auf der Stelle legt zurück“ entfernt: 2; ein zweiter Finger wird angenommen: 1.
+- `UndoOfferTest` (5).
+- **Emulator (Android 14, 1080 × 2400, 420 dpi, echte Berührungen mit `input motionevent`), `tools/devicetest/devicetest.py`:** sechs neue Szenarien, alle 31 Szenarien grün auf jedem Emulator, der startete:
+  `bar_icons_visible` (Kern-Pixel jedes Werkzeugs der Standard-Leiste gegen den Streifen, Tag- und Nachtlook: Kontrast 6,9 bzw. 10,4, der Kreis 4,6 bzw. 5,9, also über 3:1; das Symbol der Textaktionen, in Build 41 schwarz, ist dabei),
+  `bar_edit_drag_in` (Pille halten, zwischen zwei Werkzeuge ziehen: während der Finger unten ist, hat die Leiste einen Platz mehr und die Lücke liegt zwischen zwei Werkzeugen, nach dem Loslassen steht das Werkzeug dort,
+  die anderen in alter Reihenfolge, nach Verstecken und Öffnen der Tastatur unverändert), `bar_edit_reorder` (erstes Werkzeug ans Ende; während des Ziehens und danach, gespeichert), `bar_edit_drag_out` (nach unten ins Raster:
+  die Leiste rückt schon beim Ziehen zusammen, gespeichert), `bar_edit_undo` (Tippen hängt an, „Rückgängig“, Zurücksetzen mit „Nein“ und „Ja“) und `bar_shots` (8, 3 und 1 Werkzeug). Jedes endet mit dem Tippen von „ab“ (der
+  Kontrolllauf lässt das letzte Zeichen weg und lässt sie darum scheitern) und stellt die Standard-Leiste über die Oberfläche wieder her. Der erste Lauf dieser Szenarien scheiterte an den Szenarien, nicht an der Tastatur: nach dem
+  Öffnen der Tastatur zeigte die Leiste noch den Zwischenablage-Chip aus dem Szenario davor („Werkzeuge zeigen“ zuerst tippen, jetzt `ensure_tools`). Die Szenarien fanden sonst nichts; die Drag-Szenarien hatten in den Läufen
+  nach dieser Korrektur keinen Fehlschlag.
+- **Läufe auf GitHub (Zweig `claude/etappe-88-leiste`, Stand `d3a849b`):** „SecondHand Tests“ 44814865700: beim ersten Versuch rot durch `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` in `agent-core`
+  (ein Zeitbudget, das auf GitHub schon vorher in zwei von vier Läufen eines Tages scheiterte; `agent-core` ist in dieser Etappe unverändert), dadurch liefen die App-Tests in diesem Versuch nicht; beim einmaligen Wiederholen
+  der fehlgeschlagenen Jobs grün (alle vier Jobs). Zuvor auf `448a6fe` (App-Code derselbe): 44798815483 grün. „SecondHand Device Tests“: 44811097485 (ein Emulator, `58cbabc`): 31 von 31 grün; 44814865726 (Push, `d3a849b`):
+  30 von 31, rot allein durch `clipboard_pill` (altes Szenario: nach dem Zurück aus den Einstellungen kam die Test-App 20 s lang nicht nach vorn; die sechs neuen Szenarien grün; sonst in jedem anderen Lauf grün, nicht untersucht);
+  44818635598 (**fünf Emulatoren**, Hand): im ersten Versuch vier grün und ein Emulator ohne Start (das System-Image ließ sich nicht installieren, „Error on ZipFile unknown archive“; kein Szenario lief), im Wiederholen (alle fünf
+  Emulatoren neu gestartet) **alle fünf grün, je 31 von 31**; 44825244436 (**Kontrolllauf**, drei Emulatoren, `--control`): der Bau scheiterte zuerst am Netz („Could not find …“ bei Maven), nach dem Wiederholen alle drei Emulatoren
+  grün, das heißt hier: jedes Szenario, auch die sechs neuen, scheiterte am Vergleich, wie es soll.
+- **Bilder (durch das Job-Protokoll, `shots_from_log.py`; 270 × 175 px, Farben auf 4 Bit gekürzt):** Gesehen wurden: Standardleiste im Tag- und im Nachtlook (alle fünf Werkzeuge und der Raster-Knopf lesbar, gleichmäßig verteilt,
+  Mikrofon im Kreis rechts), der Anpassen-Modus (Plätze umrandet, Häkchen links, Hinweis, „Rückgängig“ ausgegraut, „Zurücksetzen“, markierte Pille „Textaktionen“), mitten im Ziehen (Kopie mit Ring am Finger über der Leiste,
+  zwischen Zahnrad und Zwischenablage), nach dem Ablegen (sechs Werkzeuge, „Rückgängig“ jetzt hell), acht Werkzeuge (kompakt, alle lesbar, gleichmäßig), drei Werkzeuge (weit, gleichmäßig) und eines (der Raster-Knopf ganz links,
+  das Werkzeug ganz rechts: so folgt es aus „Mitten von Rand zu Rand“, wirkt bei einem Werkzeug allein aber verloren; nicht geändert, Vorschlag mit Rückfrage). Nichts war abgeschnitten, keine Überlappung, kein Loch.
+  Die Pille „Diktieren (auf dem Gerät)“ ist in der halben Breite abgeschnitten (die Beschriftung läuft wie in allen Pillen; alt). **Nicht in seinem Design:** Der Emulator hat die Standardfarben; für die Farben des Owners (dunkel, Mint,
+  Dunkelrot, Rosa) gibt es nur den Test `BarIconVisibilityTest` mit seiner Palette (Farben aus seinem Bild geschätzt): ein eigenes Design lässt sich in der nicht debugbaren Tastatur nicht über `adb` setzen (kein `run-as`),
+  über die Oberfläche wäre es ein langer Weg; nicht gemacht.
+
+- Geänderte bestehende Erwartungen: `FixedBarTest` (nicht verfügbar ist kein `isEnabled=false`/Alpha mehr, sondern `FixedBar.reasonOf`; die Beschreibung nennt den Grund), `PromptsWindowTest` (dasselbe), alle `DragEvent`-Tests von
+  `BarEditModeTest` ersetzt, `EditListener.onDrag` und `dropListener` entfallen. Die Mitten-Erwartung der flachen Referenzbilder (`FlatStyleRenderTest`) ist unverändert: ich hatte erst gleiche Lücken statt gleicher Mitten gebaut, der Test
+  zeigte den Widerspruch zu den Referenzbildern des Owners, ich habe es zurückgenommen.
+
+### Prüferbefunde zu Stand 2006b1f und ihre Behebung (2026-11-20)
+
+- **HIGH, Ziehen nach dem Scrollen:** Nach einem senkrechten Zug auf einer Pille ging kein Ziehen mehr, bis der Anpassen-Modus verlassen wurde (der Behälter blieb in `SCROLLING`, der `ScrollView` hatte das Ende der Geste). Das ist genau die Klage des Owners („nur Antippen“), und sein Raster hat rund 25
+  Werkzeuge. **Behebung:** `BarDrag.kt` (Scroll geht sofort nach `IDLE`), `ToolGridView.kt` (`endTouch` bei jedem DOWN, Timer prüft `scrollY`, `onDetachedFromWindow`). **Tests:** `BarEditModeTest.afterScrollingTheGridAPillCanStillBeDraggedIntoTheBarAndThisRepeats` (drei Werkzeuge hintereinander nach je einem Scrollen),
+  `afterScrollingTheGridASlotCanStillBeReordered`, `aScrollThatTheContainerNeverSeesTheEndOfDoesNotBlockTheNextTouch`; **vorher rot** (alle drei auf dem alten Code: „the tool is picked up after the hold“, „actual value is null“, „a new touch is never blocked by an old one“). Gerätetest `bar_edit_scroll_then_drag` (Raster mit dem Finger
+  scrollen, ein Werkzeug von weit unten in die Leiste ziehen, danach ein zweites im selben Modus, gespeichert). **Rot-Beleg am Gerät:** Lauf 44831845249 auf dem Zweig `claude/etappe-88-oldcode` (alter App-Code 2006b1f mit dem neuen Skript): 31 von 32, allein `bar_edit_scroll_then_drag` rot („while the finger is down (Kopieren) the bar has one place more: expected 6, got 5“); auf 92f4058 (Lauf 44831815180) 32 von 32 grün.
+- **LOW 1, zweiter Finger auf einer zweiten Pille:** `ToolGridView` schaltet geteilte Berührungen aus. `aSecondFingerOnAnotherPillDuringTheFirstHundredAndEightyMsDoesNothing`; rot mit eingeschalteter Teilung (Assertion).
+- **LOW 2, Wiederholen-Angebot:** endet jetzt auch bei `onTextInput`, Gestenbeginn, gewähltem Vorschlag und Umschalt+Enter (`UndoOffer.onTextChange`, Hooks im Listener und in der Leiste). `UndoOfferTest`, `FixedBarTest.everyWayTextComesIn…`; rot ohne die Hooks („onTextInput“).
+- **LOW 3, falscher Grund:** eigener Grund `INCOGNITO_SWITCH` für den Schalter „Immer Inkognito“ (`BarTools.unavailableReason`, `SuggestionStripView.alwaysIncognito`). `FixedBarTest.aSwitchOfTheUserForAlwaysIncognitoSaysSoNotPrivateField`.
+- **LOW 4a, an/aus:** Test `BarIconVisibilityTest.aSwitchedOnToolStaysApartFromASwitchedOffOneAfterTheLift` zeigte bei einem Design mit dunklem Symbolgrau (an `#707070`, aus `#606060` über `#202020`) nach dem Anheben fast gleiche Farben (1,10:1); die Regel hält jetzt 1,25:1 zwischen beiden (`StripIconColors.guaranteed`);
+  rot ohne den Abschnitt. Die Farben des Owners (`AllColors`) kennen keinen Unterschied. **LOW 4b:** das Hintergrundbild des Designs wird von der Kontrastregel nicht berücksichtigt (nicht gebaut, P483).
+
+### Zusätze nach der Rückmeldung des Leads
+
+- **Owner-Bilder:** `BarIconVisibilityTest.theOwnerLikeBarsAreWrittenAsPicturesToLookAt` schreibt die Leiste in der Palette des Owners nach `app/build/owner-bars/` (1200 × 260 px, nicht versioniert; fünf, sechs, acht Werkzeuge, nicht verfügbar mit Schloss). Gesehen: alle Symbole in Mint gut lesbar und gleichmäßig verteilt,
+  das Mikrofon weiß auf Rosa; die Scheibe der linken Taste (Dunkelrot auf fast Schwarz) ist wie in seinem Design nur schwach zu sehen. Nicht verfügbare Werkzeuge: grünliches Grau, deutlich blasser als Mint, Form gut erkennbar, mit Schloss; nicht wie ein Loch. Schwächen: Das Schloss deckt einen Teil des Symbols (rechte Zacke des Funkens,
+  unteres Eck der „1“); im Kreis ist das Mikrofon blassrosa auf Rosa mit Schloss (gerade noch lesbar, 3:1). Erste Fassung: Das weiße Mikrofon auf Rosa war wegen der Regel (4,5:1; Weiß hat 4,35:1) schwarz geworden, ein Eingriff in sein Design; jetzt gilt für Symbole im Akzentkreis 3:1 und die Anhebung folgt der Richtung des Designs.
+- **Schmale Bildschirme:** `FixedBarTest.upToEightToolsFitOnNarrowScreensIn…` (360 dp und 320 dp, 0 bis 8 Werkzeuge, mit und ohne Mikrofonkreis, beide Stile): jede Zelle liegt im Bild, keine überlappt, die sichtbaren Flächen haben 3 dp Abstand zum Rand und 4 dp zueinander.
+- **Pille „Diktieren (auf dem Gerät)“:** Die Pillen verkleinern lange Namen bis 11 dp statt sie abzuschneiden (`TextViewCompat` Auto-Größe, einzeilig); kurze Namen bleiben bei 16 dp.
+
 ## Etappe 87b — Trackpad-Diagnose
 
 **Auslöser (Owner, 2026-11-20, Build 41 auf dem Telefon):** Der Cursor-Trackpad (Etappe 87) „funktioniert weder auf der Leertaste noch auf der Löschtaste“, „etwas fühlt sich glatter an“. Im Emulator mit den Standardeinstellungen funktioniert er. Vom Telefon sieht der Lead nichts; diese Etappe lässt die Tastatur sagen, was sie entschieden hat, und ändert **kein Verhalten** (weder `PointerTracker` noch `InputLogic` noch `RichInputConnection`). Etappe 87c fand die wahrscheinliche Ursache in seiner Belegung (← und → „Cursor bewegen“, ↑ und ↓ mit anderen Aktionen: nach der Regel von Stufe 87 kein Trackpad) und ersetzte die Regel; **87b ist auf die Regel von 87c umgestellt** (Zweig von 87c eingemischt, `spaceReason` ist die einzige Stelle der Regel). Ob das Trackpad jetzt am Telefon wirkt, ist damit nicht bewiesen; die Karte zeigt es.
