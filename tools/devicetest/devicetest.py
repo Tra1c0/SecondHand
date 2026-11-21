@@ -1045,6 +1045,198 @@ def language_switch(d):
     d.expect_equal("German layout again (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
 
 
+# ----------------------------------------------------------------------- investigation (autocorrect findings)
+# Round "Untersuchung Autokorrektur" (they run only with --only / the workflow input `only`): the owner reports (1) German corrections in English sentences, (2) a lost
+# apostrophe in "war's" / "I'm", (3) "i" never becoming "I", (4) a correct word turned into a non-word. These probes
+# type the words with real touches and write what the keyboard did to the log (lines "PROBE ..."): the correction the
+# space key announces BEFORE the space, the strip, and the field AFTER the space. They compare nothing about the
+# keyboard's choice (the first run only records); the checks are of the probe itself.
+
+def pending_correction(screen=None):
+    """What the space key announces ("Mit Leertaste wird "x" in "y" geändert."), or "-" without a pending correction."""
+    screen = screen or dump()
+    for node in screen.nodes:
+        if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc \
+                and any(p.match(node.desc) for p in AUTOCORRECT_WRAPPERS):
+            return node.desc[:140]
+    return "-"
+
+
+def _ensure_layout(d, language):
+    """Makes sure the keyboard shows the English ("en") or German ("de") layout: the command @lang offers the other
+    active languages, so if the wanted one is not offered, the keyboard is already on it."""
+    wanted = ("Englisch", "English") if language == "en" else ("Deutsch", "German")
+    d.start("probe_language")
+    d.focus("text")
+    d.type("@lang")
+    time.sleep(1.2)
+    try:
+        d.tap_in_strip(wanted)
+        time.sleep(1.5)
+    except CheckFailed:
+        pass  # not offered: already on that language
+    d.refresh_keys()
+    d.start("probe_language")
+    d.focus("text")
+    has_umlaut = "ü" in d.keymap or "Ü" in d.keymap
+    d.expect_equal("layout %s (umlaut key %s)" % (language, has_umlaut), has_umlaut, language == "de")
+
+
+def _probe_cases(d, name, prefix, cases, english=False):
+    """Each case in a fresh field: prefix, then the text of the case, the pending correction and the strip are read
+    before the final space, the field after it. The layout (English or German) is set first and German is restored
+    afterwards. Returns a list of (text, pending, strip, field)."""
+    rows = []
+    _ensure_layout(d, "en" if english else "de")
+    try:
+        for text in cases:
+            d.start(name)
+            d.focus("text")
+            d.type(prefix)
+            d.wait_for_suggestions()
+            d.type(" " + text)
+            time.sleep(1.2)
+            screen = dump()
+            pend = pending_correction(screen)
+            strip = [t for t in screen.strip_texts() if t not in STRIP_FIXED][:5]
+            d.type(" ")
+            time.sleep(1.0)
+            field = d.field("text")
+            rows.append((text, pend, strip, field))
+            log("PROBE %s | %s | typed %r | pending %s | strip %s | field after space %r" % (
+                name, "EN layout" if english else "DE layout", prefix + " " + text, pend, strip, field))
+            d.notes.append("%r -> %r" % (text, field))
+    finally:
+        if english:
+            try:
+                _ensure_layout(d, "de")
+            except (CheckFailed, DeviceError) as error:
+                log("PROBE could not restore the German layout: %s" % error)
+    d.expect_equal("probe ran %d cases" % len(rows), len(rows), len(cases))
+    return rows
+
+
+def _expect_fields(d, rows, expected):
+    """Compares the field after the space of each recorded case with what the keyboard does TODAY (the value is
+    documented here, it is not a statement that it is right)."""
+    got = {text: field for text, _pending, _strip, field in rows}
+    for text, field in expected.items():
+        d.expect_equal("%r gives" % text, got.get(text), field)
+
+
+def reported_finding_2_apostrophe_de(d):
+    """Reported finding 2, German layout, default settings, no history: words typed WITH an apostrophe stay as typed;
+    typed without it ("wars") the keyboard does not add one ("ward"), only the English dictionary has such pairs."""
+    rows = _probe_cases(d, "reported_finding_2_apostrophe_de", "und",
+                        ["war's", "geht's", "gibt's", "ist's", "wie's", "wars", "gibts", "nichtmal"])
+    _expect_fields(d, rows, {"war's": "Und war's ", "geht's": "Und geht's ", "gibt's": "Und gibt's ", "ist's": "Und ist's ",
+                             "wie's": "Und wie's ", "wars": "Und ward ", "gibts": "Und gibts ", "nichtmal": "Und nicht mal "})
+
+
+def reported_finding_2_apostrophe_en(d):
+    """Reported finding 2, English layout, default settings: the keyboard adds the apostrophe for "im", "cant", "ive"
+    (whitelist of the dictionary), keeps typed apostrophes, but turns "dont" into "font" and not into "don't"."""
+    rows = _probe_cases(d, "reported_finding_2_apostrophe_en", "and",
+                        ["i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
+    _expect_fields(d, rows, {"i'm": "And I'm ", "im": "And I'm ", "don't": "And don't ", "dont": "And font ", "it's": "And it's ",
+                             "its": "And its ", "that's": "And that's ", "cant": "And can't ", "ive": "And I've ", "war's": "And war's "})
+
+
+def reported_finding_3_capital_i(d):
+    """Reported finding 3, default settings: on the English layout "i" in the middle of a sentence becomes "I"; on the
+    German layout (no second language) it stays "i". (At the level Behutsam it also stays on the English layout, see
+    reported_finding_3_level_gentle.)"""
+    rows = _probe_cases(d, "reported_finding_3_capital_i_en", "and", ["i", "i think", "i am", "i'll"], english=True)
+    _expect_fields(d, rows, {"i": "And I ", "i think": "And I think ", "i am": "And I am ", "i'll": "And I'll "})
+    rows = _probe_cases(d, "reported_finding_3_capital_i_de", "und", ["i", "i think"])
+    _expect_fields(d, rows, {"i": "Und i ", "i think": "Und i think "})
+
+
+def reported_finding_1_english_sentences(d):
+    """Reported finding 1: English sentences stay English on the English layout; on the German layout without a second
+    language the German dictionary corrects English words ("name" -> "Name", "bank" -> "Bank", "new" -> "New")."""
+    rows = _probe_cases(d, "reported_finding_1_english_en", "and",
+                        ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine",
+                         "we should meet tomorrow", "thanks for the help"], english=True)
+    _expect_fields(d, rows, {"this is a test of the keyboard": "And this is a test of the keyboard ",
+                             "what is your name": "And what is your name ", "i went to the bank": "And I went to the bank ",
+                             "my new job is fine": "And my new job is fine ", "we should meet tomorrow": "And we should meet tomorrow ",
+                             "thanks for the help": "And thanks for the help "})
+    rows = _probe_cases(d, "reported_finding_1_english_de", "und",
+                        ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
+    _expect_fields(d, rows, {"this is a test of the keyboard": "Und this is a test of the keyboard ",
+                             "what is your name": "Und what is your Name ", "i went to the bank": "Und i went to the Bank ",
+                             "my new job is fine": "Und my New job is fine "})
+
+
+def _settings_fresh(d, path, wanted):
+    """Opens the keyboard's settings in a cleared task (they would come back where they were left), follows the menu
+    texts of the path and taps the first node whose text or description starts with `wanted` (any case)."""
+    shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.0)
+    for _ in range(2):
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
+    for label in path:
+        d.tap_text(label)
+    seen = []
+    for _ in range(7):
+        for node in dump().nodes:
+            label = node.text or node.desc
+            if node.visible and label and label.lower().startswith(wanted.lower()):
+                tap(*node.center)
+                time.sleep(1.0)
+                shell("input keyevent KEYCODE_HOME", check=False)
+                time.sleep(1.0)
+                return label
+        seen = [(n.text or n.desc)[:30] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+        shell("input swipe 540 1700 540 700 400", check=False)
+        time.sleep(0.8)
+    raise CheckFailed("no text starting with %r on the screen; texts: %s" % (wanted, seen[:25]))
+
+
+def _keep_typed(d, word, times):
+    """Types the word with a space `times` times the way the owner keeps a word: if the keyboard changed it,
+    one tap on delete takes the correction back, then the space again (as learning_not_in_password)."""
+    for _ in range(times):
+        d.type(word + " ")
+        time.sleep(1.0)
+        if not d.field("text").endswith(word + " "):
+            d.press("delete")
+            time.sleep(0.8)
+            if d.field("text").endswith(word):
+                d.press("space")
+
+
+def reported_finding_2_4_history_loop(d):
+    """Findings 2 and 4: with "Personalisierte Vorschläge" on, a typo the owner once kept ("nicbmal", "war'a") sits
+    in the typing history (German layout). Does the correct word ("nichtmal", "war's") then become that typo?"""
+    _settings_fresh(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"), "Personalisierte Vorschläge")
+    _ensure_layout(d, "de")
+    d.start("probe_history_loop")
+    d.focus("text")
+    d.type("und")
+    d.wait_for_suggestions()
+    d.type(" ")
+    for typo in ("nicbmal", "war'a"):
+        _keep_typed(d, typo, 2)
+    log("PROBE probe_history_loop | after keeping the typos twice: field %r" % d.field("text"))
+    rows = _probe_cases(d, "reported_finding_2_4_history_loop", "und", ["nichtmal", "war's", "nicbmal", "war'a"])
+    # today: the correct "war's" becomes the kept typo "war'a"; "nichtmal" becomes "nicht mal" (the history word "nicbmal"
+    # is offered in the strip but the engine's own two-word correction ranks first, with this little history)
+    _expect_fields(d, rows, {"war's": "Und war'a ", "nichtmal": "Und nicht mal ", "nicbmal": "Und nicbmal ", "war'a": "Und war'a "})
+
+
+def reported_finding_3_level_gentle(d):
+    """Reported finding 3 at the level "Behutsam" (Tippen & Korrektur, "Richtige Wörter nie ändern"): "i" in the middle
+    of a sentence stays "i" on the English layout, "cant" stays, "im" and "i'll" are still corrected."""
+    label = _settings_fresh(d, ("Tippen & Korrektur",), "Behutsam")
+    d.notes.append("tapped %r" % label)
+    rows = _probe_cases(d, "reported_finding_3_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
+    _expect_fields(d, rows, {"i": "And i ", "i'll": "And I'll ", "im": "And I'm ", "cant": "And cant ", "dont": "And font "})
+
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
     Inline autofill chips are remote surfaces whose text is probably not readable, so they are found by
@@ -2074,6 +2266,9 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
+PROBES = [reported_finding_2_apostrophe_de, reported_finding_2_apostrophe_en, reported_finding_3_capital_i,
+          reported_finding_1_english_sentences, reported_finding_2_4_history_loop, reported_finding_3_level_gentle]
+
 KNOWN_FINDINGS = {
     # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
 }
@@ -2273,11 +2468,17 @@ def main():
     parser.add_argument("--keyboard-apk", required=True)
     parser.add_argument("--test-apk", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--only", default="", help="comma-separated scenario names (also the investigation probes); default: all")
     parser.add_argument("--control", action="store_true",
                         help="control run: the last typed character is left out, every scenario must fail")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
+    scenarios = list(SCENARIOS)
+    if args.only:
+        wanted = [name.strip() for name in args.only.split(",") if name.strip()]
+        everything = {f.__name__: f for f in SCENARIOS + PROBES}
+        scenarios = [everything[name] for name in wanted]  # an unknown name is an error, not an empty run
     info, results, problems = {}, [], []
     recorder = None
     try:
@@ -2288,7 +2489,7 @@ def main():
         recorder.start()
         driver = Driver(args.out, args.control)
         device_errors = 0
-        for function in SCENARIOS:
+        for function in scenarios:
             result = run_scenario(function, driver)
             results.append(result)
             log("RESULT %s %s (%ss) %s" % (result["status"], result["name"], result["seconds"], result["detail"]))
@@ -2306,7 +2507,7 @@ def main():
         if recorder and not videos:
             problems.append("no screen recording")
         ran = {r["name"] for r in results}
-        missing = [f.__name__ for f in SCENARIOS if f.__name__ not in ran]
+        missing = [f.__name__ for f in scenarios if f.__name__ not in ran]
         if missing:
             problems.append("not run: " + ", ".join(missing))
         if args.control:
@@ -2318,7 +2519,7 @@ def main():
                 problems.append("CONTROL UNCLEAR, ended with an error instead of a failed comparison: "
                                 + ", ".join(wrong))
             failed = sum(1 for r in results if r["status"] == "FAIL")
-            log("CONTROL %d of %d scenarios failed on a real difference in the field" % (failed, len(SCENARIOS)))
+            log("CONTROL %d of %d scenarios failed on a real difference in the field" % (failed, len(scenarios)))
         # A normal run is good when every scenario passed; a control run when every scenario failed on
         # a comparison (not on the device), so that green always means "as it must be".
         if not args.control:
@@ -2330,7 +2531,7 @@ def main():
                 elif reason and result["status"] == "PASS":
                     problems.append("%s passes now: take it out of KNOWN_FINDINGS" % result["name"])
         wanted = ("FAIL",) if args.control else ("PASS", "KNOWN")
-        ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] in wanted for r in results)
+        ok = not problems and len(results) == len(scenarios) and all(r["status"] in wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
         if SHOTS:  # a file, which the workflow prints last (the end of the log is what can be read)
@@ -2344,7 +2545,7 @@ def main():
             if result["status"] == "KNOWN":
                 log("KNOWN %s: %s" % (result["name"], KNOWN_FINDINGS[result["name"]]))
         log("SUMMARY %s passed=%d failed=%d known=%d total=%d expected=%d videos=%d" % (
-            "OK" if ok else "FAILED", passed, len(results) - passed - known, known, len(results), len(SCENARIOS),
+            "OK" if ok else "FAILED", passed, len(results) - passed - known, known, len(results), len(scenarios),
             len(videos)))
     return 0 if ok else 1
 
