@@ -8,6 +8,68 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 ## Aktueller Stand
 
+### Nächste Sitzung: hier anfangen (Stand 2026-11-21, Build 44 beim Owner)
+
+Die Entwicklung ist nicht pausiert, nur unterbrochen (Kontingent des Owners). Sparsam arbeiten: wenige Agenten
+gleichzeitig, volle Tests nur auf GitHub. `main` = Arbeitsbranch = Build 44 (Code f898e9f). Alles Folgende liegt
+auf eigenen Zweigen und ist NICHT eingemischt.
+
+**Einrichtung des Owners (aus seiner Diagnose-Kopie von Build 44, 2026-11-21) – damit prüfen, nicht mit Standardwerten:**
+- Korrekturstufe Behutsam, „Richtige Wörter nie ändern“ an, Umlaut-Wörter behalten an, Buchstabendreher an,
+  satzbezogene Autokorrektur an.
+- Drei aktive Layouts: `de` (qwertz), `en-US` (qwertz), `es` (qwerty+). **Keines hat eine zweite Sprache.** Er tippt
+  Englisch nach eigener Aussage meist auf dem deutschen Layout: dort ist dann kein englisches Wörterbuch aktiv.
+- Personalisierte Vorschläge an, **„Automatisch zum persönlichen Wörterbuch hinzufügen“ an**, „Meine Tippfehler
+  lernen“ an (viele gelernte Paare), „Rückgängig gemachte Korrekturen merken“ an, Gedächtnis aus, Trefferzonen an,
+  Folgewort-Vorschläge an. Großer Tipp-Verlauf auf Deutsch.
+- Leertaste: ← und → Cursor bewegen, ↑ Rückgängig, ↓ Wiederholen, Halten = Alles auswählen; Trackpad-Schalter an,
+  Löschen durch Wischen an. Android 16, Xiaomi 15, Leiste 1200 px breit.
+- Design: Grund #090001 deckend, Symbole weiß, Akzent #DA3658, linke Scheibe #500C0D, Tastenfarbe etwa Weiß 50 %
+  (aus einem Screenshot gemessen, nicht aus den Einstellungen gelesen). In der Leiste: Einstellungen,
+  Zwischenablage, Rückgängig, Mikrofon-Kreis; rund 25 Werkzeuge im Raster.
+
+**Was die Diagnose für die offenen Befunde heißt:**
+- „Englisch wird zu Deutsch“, „i bleibt klein“, „I'm fehlt“: erwartbar, weil auf `de` kein Englisch aktiv ist.
+  Schritt 0 ohne Code (dem Owner gesagt, von ihm noch nicht bestätigt): beim deutschen Layout Englisch als zweite
+  Sprache eintragen (Sprachen & Layouts → Deutsch → „Mehrsprachiges Tippen“) oder für Englisch auf sein
+  `en-US`-Layout wechseln. Erst danach messen, was übrig bleibt.
+- „nichtmal → nicbmal“, „war's → war'a“: zwei mögliche Quellen bei ihm, beide an: Tipp-Verlauf UND das automatische
+  Kopieren behaltener Tippfehler ins persönliche Wörterbuch (dazu gelernte Tippfehler-Paare). Eine Regel nur für den
+  Verlauf reicht also nicht; siehe Kritik im Auftrag zu Etappe 90.
+- Trackpad: seit dem Start der Tastatur null Wische auf der Leertaste gezählt – er hat es in Build 44 noch nicht
+  ausprobiert; keine Aussage über 87c vom Telefon.
+- Autofill: 18 leere Antworten, 0 angenommen – der alte offene Punkt besteht weiter (nicht untersucht).
+- Die Karte „Leiste“ (Etappe 89) ist in Build 44 nicht enthalten; das Flackern beim Löschen ist auf dem Telefon
+  weiter ungeklärt.
+
+**Reihenfolge (jeweils: Konzept mit Abnahme-Zeilen → Kritiker → Bau → Prüfer → GitHub-Läufe → Bilder ansehen):**
+1. **Etappe 89 ruhige Leiste** (`claude/etappe-89-leiste-ruhe`, Konzept `docs/LEISTE-RUHE-KONZEPT.md`): letzter
+   Commit ist ein WIP, der nicht kompiliert (fehlende Klammer in `Diagnose.kt` bei `Part.BAR_CALM`). Zuerst reparieren,
+   dann die Prüferbefunde F1–F5 fertig (F1: Frist bei jeder Zeichen- und Rücktaste neu starten, sonst blitzt die
+   Mitte an jeder Wortgrenze leer auf; F2: „Feld leer“ nur bei erwarteter Cursorposition 0; F3: Testfall mit
+   Wiederaufnahme nach 300–400 ms und Ablese-Anleitung; F4/F5 Zähler und Abnahme-Zeile 7), Lead-Stand einmischen,
+   dann Stufe 2 (linke Taste und Mikrofon-Kreis stehen fest, nur die Mitte wechselt). Nie Stufe 1 ohne Stufe 2
+   ausliefern. Danach Build an den Owner mit der Bitte: zehn Rücktasten in der App, in der es flackert, Karte
+   „Leiste“ kopieren.
+2. **88c-Rest** (klein): `PillColors.inBar` gegen die fertige Normalfläche rechnen. Der unfertige Stand liegt als
+   WIP auf dem entfernten Zweig `wt-leiste-88` (nicht auf `claude/etappe-88-leiste`); im Zweifel von `main` neu.
+3. **Etappe 90 Autokorrektur** (`claude/etappe-90-autokorrektur`, Konzept `docs/AUTOKORREKTUR-KONZEPT.md`):
+   Behebungen 1–3 sind NICHT gebaut und das Konzept ist nach der Kritik noch nicht überarbeitet. Erst: Antwort des
+   Owners zu Schritt 0; Emulator-Szenario `reported_finding_multilingual_de_en` (Deutsch mit und ohne Englisch als
+   zweite Sprache, Behutsam; Eingaben stehen im Build-Log-Eintrag „Pausiert“ bzw. im Verlauf der Etappe) bauen und
+   messen; dann das Konzept überarbeiten: „i“ nur mit englischem Satzbeleg groß (sonst wird Dialekt „i hob“
+   beschädigt); gelernte Nicht-Wörter nur noch vorschlagen, aber Slang-Liste als bekanntes Ziel zählen und den Weg
+   über das persönliche Wörterbuch und die gelernten Paare mitbehandeln; deutsche Kurzformen automatisch mit
+   Apostroph (Wahl des Owners) nur aus fester Liste, nur nach deutschem Vorwort, nie bei @ oder Punkt, Formen
+   fremder Wörterbücher („wars“, „hats“) nur als Vorschlag. `InputLogic`/`RichInputConnection` bleiben unberührt.
+4. Offene Fragen an den Owner: Zwischenablage-Pille beim Schreiben nur einmal je Kopie? „cant/ill/id“ auf
+   Behutsam ändern? Welches Menü meint W8 (`docs/ROADMAP.md`)? Ältere offene Punkte stehen weiter unten.
+
+**Arbeitsweise, die sich in dieser Sitzung bewährt hat:** Skill `product-initiative` (Abnahme-Zeilen, Kritiker vor
+dem Bau, Tabelle „Aussage → Nachweis“). Zweimal hat der Kritiker einen Plan gekippt, bevor Code entstand; zweimal
+fand erst der Prüfer nach dem Bau, was ein Durchspielen des echten Ablaufs gezeigt hätte (Scrollen vor dem Ziehen,
+Raster im Design des Owners). Sichtbares immer in seinen gemessenen Farben rendern und ansehen.
+
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51` (2205ba7 plus Doku): **73 Emulator-Testlabor** fertig (22 Szenarien
   inkl. Autofill 73c; Lauf 40 dreimal 22/22, Kontrolllauf 43 dreimal alle rot), **74 Ablage**, **75 Buchstabendreher**, **76 Einträge
