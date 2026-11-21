@@ -11,6 +11,7 @@ import helium314.keyboard.agent.LockState
 import helium314.keyboard.agent.TypingPerf
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.suggestions.BarState
+import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.suggestions.SuggestionStripView
 import org.junit.After
 import org.junit.Before
@@ -189,6 +190,60 @@ class StripCalmLogTest {
         val rows = protocol("Hallo wie" + b + b, resumeAfterDelete = true)
         val firstDelete = rows.indexOfFirst { it.startsWith("<-|") }
         assertEquals(0, switchesFrom(rows, firstDelete + 1), rows.drop(firstDelete).toString())
+    }
+
+    private val wordViews: List<android.widget.TextView> get() =
+        @Suppress("UNCHECKED_CAST") (SuggestionStripView::class.java.getDeclaredField("wordViews").apply { isAccessible = true }.get(strip) as List<android.widget.TextView>)
+
+    /** Outdated words (a neutral update waits for the debounce) insert nothing when tapped. */
+    @Test fun aTapOnOutdatedWordsInsertsNothing() {
+        rig.predictions = emptyList()
+        rig.startField("", restarting = true, inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        helium314.keyboard.agent.BarCalmCounters.resetForTest()
+        rig.settle()
+        rig.type("Hallo"); rig.settle()
+        assertEquals("W", state())
+        val before = rig.text
+        rig.tapFast(','.code) // the neutral update: the words of "Hallo" stand for 250 ms, outdated
+        // a view without a width gets no text in a test: a word view of the strip is stood in for by a view with the tag the layout gives it
+        val view = android.widget.TextView(latinIME).apply { tag = 0 }
+        strip.onClick(view)
+        assertEquals(before + ",", rig.text, "nothing was picked")
+        assertEquals(1, helium314.keyboard.agent.BarCalmCounters.total.droppedTaps)
+        repeat(30) { rig.idle(10) } // the debounce is over
+        assertEquals("E", state())
+    }
+
+    /** "Leiste automatisch anzeigen" does not show the tools after Enter while the user writes; at the start of a field it still does. */
+    @Test fun autoShowDoesNotShowTheToolsAfterEnterInTheSession() {
+        latinIME.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_AUTO_SHOW_TOOLBAR, true).commit()
+        val multi = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        rig.startField("", inputType = multi, imeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        rig.settle()
+        assertEquals("T", state(), "a new field: the tools")
+        rig.play("Hallo wie"); rig.settle()
+        rig.tap('\n'.code); rig.settle()
+        assertTrue(state() != "T", "after Enter in the session: " + state())
+    }
+
+    /** A field that cannot show words keeps the tools (the rule does not apply). */
+    @Test fun aPasswordFieldKeepsTheTools() {
+        rig.startField("", inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        rig.settle()
+        rig.play("abc d"); rig.settle()
+        assertEquals("T", state())
+    }
+
+    /** The counters hold numbers only. */
+    @Test fun theCountersCountTheKindsAndTheDeletesWithoutText() {
+        helium314.keyboard.agent.BarCalmCounters.resetForTest()
+        rig.startField("", restarting = true)
+        rig.settle()
+        rig.play("Hallo wie" + b + b)
+        val total = helium314.keyboard.agent.BarCalmCounters.total
+        assertEquals(2, total.deletes.sum())
+        assertTrue(total.changes() >= 1, "the first key changed the bar from the tools: " + total.changesTo.toList())
+        assertTrue(total.changesTo[helium314.keyboard.agent.BarCalmCounters.Kind.TOOLS.ordinal] == 0, "the tools never came back: " + total.changesTo.toList())
     }
 
     @Test fun theProtocolSeesTheBar() {
