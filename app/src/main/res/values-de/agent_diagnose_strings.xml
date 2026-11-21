@@ -292,4 +292,5 @@
     <string name="agent_diagnose_corr_typo_pairs">Gelernte Tippfehler-Paare (Anzahl)</string>
     <string name="agent_diagnose_corr_field_pairs">Im Feld gelernte Korrekturen (Anzahl)</string>
     <string name="agent_diagnose_corr_rejected">Zurückgenommene Korrekturen (Anzahl)</string>
+    <string name="agent_diagnose_corr_active_layouts">Aktive Layouts (Anzahl)</string>
 </resources>

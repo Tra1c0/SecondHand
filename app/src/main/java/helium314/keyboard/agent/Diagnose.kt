@@ -729,6 +729,7 @@ object Diagnose {
         val selected = runCatching { SubtypeSettings.getSelectedSubtype(prefs) }.getOrNull()
         rows += Row(s(R.string.agent_diagnose_corr_layout), selected?.let { "${it.locale().toLanguageTag()} (${it.mainLayoutNameOrQwerty()})" } ?: s(R.string.agent_diagnose_field_unknown))
         val enabled = runCatching { SubtypeSettings.getEnabledSubtypes(true) }.getOrDefault(emptyList())
+        rows += Row(s(R.string.agent_diagnose_corr_active_layouts), if (enabled.isEmpty()) s(R.string.agent_diagnose_field_unknown) else enabled.size.toString())
         if (enabled.isEmpty()) rows += Row(s(R.string.agent_diagnose_corr_second), s(R.string.agent_diagnose_field_unknown))
         enabled.forEach { subtype ->
             val second = getSecondaryLocales(subtype.extraValue).joinToString(", ") { it.toLanguageTag() }

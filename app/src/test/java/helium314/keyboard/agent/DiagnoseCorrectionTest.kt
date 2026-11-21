@@ -76,6 +76,7 @@ class DiagnoseCorrectionTest {
         assertEquals("aus", r["Folgewort-Vorschläge"])
         assertTrue(r["Aktives Layout"]!!.isNotBlank(), "layout row: $r")
         assertTrue(r.keys.any { it.startsWith("Zweite Sprachen") }, "second languages are listed per active language: ${r.keys}")
+        assertTrue((r["Aktive Layouts (Anzahl)"] ?: "").isNotBlank(), "the number of active layouts: $r")
     }
 
     @Test fun showsOnlyCountsAndNoWordOfTheLearnedData() {
