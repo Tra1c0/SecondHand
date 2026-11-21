@@ -969,6 +969,16 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   und Übergänge, Textbearbeitung/Einhandmodus, Antwortvorschläge mit eigenem Schlüssel. Alles mit ML Kit oder
   AICore wartet auf die Entscheidung des Owners zu Google Play services.
 
+- **W8 Menü neu entwerfen und animieren (Wunsch des Owners, 2026-11-21, ausdrücklich nicht jetzt).** Das Menü ist
+  ihm zu unübersichtlich; er will es später neu entwerfen und animieren. Offen und vor dem Start zu klären: welches
+  Menü gemeint ist (Einstellungen der App, Raster der Werkzeuge oder Aktionspanel) und was ihn daran konkret stört.
+  Dafür sind die Gestaltungs-Skills seines Kontos vorgesehen (Design-Kritik, Abstände, Bewegung und reduzierte
+  Bewegung, Seitenmuster für Einstellungen, Frontend-Design; „UI/UX Pro Max“ als Nachschlagewerk, auch als
+  Offline-Suche in seinem Paket „Product Initiative Suite“): bei dieser Aufgabe an einem echten Bildschirm
+  ausprobieren, welche davon etwas beitragen, statt sie vorab festzulegen. Die Einstellungsseiten sind Compose, die
+  Tastaturfläche ist selbst gezeichnet; web-bezogene Regeln gelten dort nicht als Nachweis. Konzept mit
+  Abnahme-Zeilen und Kritiker vor dem Bau (`CLAUDE.md`). (Größe offen)
+
 ## Bewusst nicht im Umfang
 
 Vereinbart für dieses private Projekt: keine öffentliche Community, keine Konten, kein Backend,

@@ -1,0 +1,10 @@
+{
+  "quelle": "Synthetischer Auszug eines Designs ohne Zugriff auf den vollständigen Frame",
+  "dialog": "Tastaturprofil übertragen",
+  "sichtbare_zustaende": [
+    {"titel": "Profil übertragen", "aktionen": ["Schließen", "Datei auswählen"]},
+    {"titel": "Profil gefunden", "aktionen": ["Zurück", "Vorschau öffnen"]},
+    {"titel": "Vorschau", "aktionen": ["Abbrechen", "Übernehmen"]}
+  ],
+  "bisherige_regel": "Bestehende Gesten erst nach ausdrücklicher Bestätigung überschreiben."
+}

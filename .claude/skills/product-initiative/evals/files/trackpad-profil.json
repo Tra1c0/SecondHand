@@ -1,0 +1,9 @@
+{
+  "oberflaeche": "Leertaste",
+  "startbelegung": {
+    "links": "cursor",
+    "rechts": "cursor",
+    "oben": "zwischenablage",
+    "unten": "symbolseite"
+  }
+}

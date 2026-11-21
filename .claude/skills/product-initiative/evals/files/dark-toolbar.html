@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<title>Toolbar-Testfixture</title>
+<style>
+  body { font: 16px system-ui; background: #141414; color: #eee; }
+  .bar { display: flex; gap: 0; margin: 2rem; background: #202020; width: 12rem; }
+  button { flex: 1 1 0; box-sizing: border-box; border: 0; background: transparent;
+           color: #e7e7e7; padding: 0.75rem; font-size: 1.2rem; }
+  button:focus-visible { outline: 2px solid #75e2ff; }
+  body[data-theme="dark"] button[data-kind="search"],
+  body[data-theme="dark"] button[data-kind="redo"] { color: #202020; }
+</style>
+<body data-theme="dark">
+  <div class="bar" aria-label="Symbolleiste">
+    <button data-kind="undo" aria-label="Rückgängig">↶</button>
+    <button data-kind="search" aria-label="Suche">⌕</button>
+    <button data-kind="snippets" aria-label="Textbausteine">≡</button>
+    <button data-kind="redo" aria-label="Wiederholen">↷</button>
+  </div>
+  <output id="result"></output>
+  <script>
+    if (new URLSearchParams(location.search).has("selftest")) {
+      const buttons = [...document.querySelectorAll("button")];
+      const background = getComputedStyle(document.querySelector(".bar")).backgroundColor;
+      const colors = buttons.map(button => getComputedStyle(button).color);
+      const widths = buttons.map(button => button.getBoundingClientRect().width);
+      const invisible = buttons.filter((button, index) => colors[index] === background)
+        .map(button => button.dataset.kind);
+      const equalWidths = widths.every(width => width === widths[0]);
+      document.querySelector("#result").textContent =
+        JSON.stringify({ equalWidths, invisible });
+    }
+  </script>
+</body>
+</html>

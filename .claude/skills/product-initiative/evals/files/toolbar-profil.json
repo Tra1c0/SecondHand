@@ -1,0 +1,13 @@
+{
+  "toolbar": [
+    {"position": 1, "aktion": "zwischenablage"},
+    {"position": 2, "aktion": "suche"},
+    {"position": 3, "aktion": "snippets"},
+    {"position": 4, "aktion": "frei"}
+  ],
+  "historie": {
+    "undo": true,
+    "redo": true,
+    "neue_eingabe_verwirft_redo": true
+  }
+}
