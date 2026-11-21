@@ -1045,6 +1045,87 @@ def language_switch(d):
     d.expect_equal("German layout again (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
 
 
+# ----------------------------------------------------------------------- investigation (autocorrect findings)
+# Round "Untersuchung Autokorrektur": the owner reports (1) German corrections in English sentences, (2) a lost
+# apostrophe in "war's" / "I'm", (3) "i" never becoming "I", (4) a correct word turned into a non-word. These probes
+# type the words with real touches and write what the keyboard did to the log (lines "PROBE ..."): the correction the
+# space key announces BEFORE the space, the strip, and the field AFTER the space. They compare nothing about the
+# keyboard's choice (the first run only records); the checks are of the probe itself.
+
+def pending_correction(screen=None):
+    """What the space key announces ("Mit Leertaste wird "x" in "y" geändert."), or "-" without a pending correction."""
+    screen = screen or dump()
+    for node in screen.nodes:
+        if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc \
+                and any(p.match(node.desc) for p in AUTOCORRECT_WRAPPERS):
+            return node.desc[:140]
+    return "-"
+
+
+def _probe_cases(d, name, prefix, cases, english=False):
+    """Each case in a fresh field: prefix, then the text of the case, the pending correction and the strip are read
+    before the final space, the field after it. Returns a list of (text, pending, strip, field)."""
+    rows = []
+    for text in cases:
+        d.start(name)
+        d.focus("text")
+        if english:
+            d.type("@lang")
+            d.tap_in_strip(("Englisch", "English"))
+            time.sleep(1.5)
+            d.refresh_keys()
+        d.type(prefix)
+        d.wait_for_suggestions()
+        d.type(" " + text)
+        time.sleep(1.2)
+        screen = dump()
+        pend = pending_correction(screen)
+        strip = [t for t in screen.strip_texts() if t not in STRIP_FIXED][:5]
+        d.type(" ")
+        time.sleep(1.0)
+        field = d.field("text")
+        rows.append((text, pend, strip, field))
+        log("PROBE %s | %s | typed %r | pending %s | strip %s | field after space %r" % (
+            name, "EN layout" if english else "DE layout", prefix + " " + text, pend, strip, field))
+        d.notes.append("%r -> %r" % (text, field))
+        if english:  # back to German for the scenarios after this one
+            d.start(name)
+            d.focus("text")
+            d.type("@lang")
+            d.tap_in_strip(("Deutsch", "German"))
+            time.sleep(1.5)
+            d.refresh_keys()
+    d.expect_equal("probe ran %d cases" % len(rows), len(rows), len(cases))
+    return rows
+
+
+def probe_apostrophe_de(d):
+    """Finding 2 on the German layout: dialect contractions with an apostrophe, and the same without it."""
+    _probe_cases(d, "probe_apostrophe_de", "und",
+                 ["war's", "geht's", "gibt's", "ist's", "wie's", "wars", "gibts", "nichtmal"])
+
+
+def probe_apostrophe_en(d):
+    """Finding 2 on the English layout: contractions with and without the apostrophe, and "war's" for comparison."""
+    _probe_cases(d, "probe_apostrophe_en", "and",
+                 ["I'm", "i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
+
+
+def probe_capital_i(d):
+    """Finding 3: a lower-case "i" in the middle of a sentence, on the English and the German layout."""
+    _probe_cases(d, "probe_capital_i_en", "and", ["i", "i think", "i am", "i'll"], english=True)
+    _probe_cases(d, "probe_capital_i_de", "und", ["i", "i think"])
+
+
+def probe_english_sentences(d):
+    """Finding 1: whole English sentences, on the English layout (own layout) and on the German layout."""
+    _probe_cases(d, "probe_english_en", "and",
+                 ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine",
+                  "we should meet tomorrow", "thanks for the help"], english=True)
+    _probe_cases(d, "probe_english_de", "und",
+                 ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
+
+
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
     Inline autofill chips are remote surfaces whose text is probably not readable, so they are found by
@@ -2074,6 +2155,8 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
+PROBES = [probe_apostrophe_de, probe_apostrophe_en, probe_capital_i, probe_english_sentences]
+
 KNOWN_FINDINGS = {
     # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
 }
@@ -2273,11 +2356,17 @@ def main():
     parser.add_argument("--keyboard-apk", required=True)
     parser.add_argument("--test-apk", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--only", default="", help="comma-separated scenario names (also the investigation probes); default: all")
     parser.add_argument("--control", action="store_true",
                         help="control run: the last typed character is left out, every scenario must fail")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
+    scenarios = list(SCENARIOS)
+    if args.only:
+        wanted = [name.strip() for name in args.only.split(",") if name.strip()]
+        everything = {f.__name__: f for f in SCENARIOS + PROBES}
+        scenarios = [everything[name] for name in wanted]  # an unknown name is an error, not an empty run
     info, results, problems = {}, [], []
     recorder = None
     try:
@@ -2288,7 +2377,7 @@ def main():
         recorder.start()
         driver = Driver(args.out, args.control)
         device_errors = 0
-        for function in SCENARIOS:
+        for function in scenarios:
             result = run_scenario(function, driver)
             results.append(result)
             log("RESULT %s %s (%ss) %s" % (result["status"], result["name"], result["seconds"], result["detail"]))
@@ -2306,7 +2395,7 @@ def main():
         if recorder and not videos:
             problems.append("no screen recording")
         ran = {r["name"] for r in results}
-        missing = [f.__name__ for f in SCENARIOS if f.__name__ not in ran]
+        missing = [f.__name__ for f in scenarios if f.__name__ not in ran]
         if missing:
             problems.append("not run: " + ", ".join(missing))
         if args.control:
@@ -2318,7 +2407,7 @@ def main():
                 problems.append("CONTROL UNCLEAR, ended with an error instead of a failed comparison: "
                                 + ", ".join(wrong))
             failed = sum(1 for r in results if r["status"] == "FAIL")
-            log("CONTROL %d of %d scenarios failed on a real difference in the field" % (failed, len(SCENARIOS)))
+            log("CONTROL %d of %d scenarios failed on a real difference in the field" % (failed, len(scenarios)))
         # A normal run is good when every scenario passed; a control run when every scenario failed on
         # a comparison (not on the device), so that green always means "as it must be".
         if not args.control:
@@ -2330,7 +2419,7 @@ def main():
                 elif reason and result["status"] == "PASS":
                     problems.append("%s passes now: take it out of KNOWN_FINDINGS" % result["name"])
         wanted = ("FAIL",) if args.control else ("PASS", "KNOWN")
-        ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] in wanted for r in results)
+        ok = not problems and len(results) == len(scenarios) and all(r["status"] in wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
         if SHOTS:  # a file, which the workflow prints last (the end of the log is what can be read)
@@ -2344,7 +2433,7 @@ def main():
             if result["status"] == "KNOWN":
                 log("KNOWN %s: %s" % (result["name"], KNOWN_FINDINGS[result["name"]]))
         log("SUMMARY %s passed=%d failed=%d known=%d total=%d expected=%d videos=%d" % (
-            "OK" if ok else "FAILED", passed, len(results) - passed - known, known, len(results), len(SCENARIOS),
+            "OK" if ok else "FAILED", passed, len(results) - passed - known, known, len(results), len(scenarios),
             len(videos)))
     return 0 if ok else 1
 
