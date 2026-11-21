@@ -551,10 +551,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         button.maxLines = 2
         button.ellipsize = android.text.TextUtils.TruncateAt.END
         // the display breaks lines by the same rule as fitText measures with: simple, no hyphenation (a TextView's defaults differ by version)
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
-            button.breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
-            button.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
-        }
+        simpleBreaks(button)
         button.addOnLayoutChangeListener { v, l, _, r, _, ol, _, or, _ -> if (r - l != or - ol || (v as Button).textSize == 0f) fitText(v as Button) }
         button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
         button.isSoundEffectsEnabled = false
@@ -599,7 +596,16 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         if (button.textSize != px) button.setTextSize(TypedValue.COMPLEX_UNIT_PX, px)
     }
 
+    /** Simple line breaking, no hyphenation. (Layout.BREAK_STRATEGY_SIMPLE and LineBreaker.BREAK_STRATEGY_SIMPLE are both 0; lint only knows the second, API 29.) */
+    @android.annotation.SuppressLint("WrongConstant")
+    private fun simpleBreaks(button: Button) {
+        if (android.os.Build.VERSION.SDK_INT < 23) return // before: simple anyway
+        button.breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
+        button.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
+    }
+
     /** The layout the button itself will make for its text at [paint]'s size in [room] px: the same break rule as the display (see pillButton). */
+    @android.annotation.SuppressLint("WrongConstant") // Layout.BREAK_STRATEGY_SIMPLE == LineBreaker.BREAK_STRATEGY_SIMPLE (0), see simpleBreaks
     private fun layoutOf(button: Button, paint: android.text.TextPaint, room: Int): android.text.StaticLayout {
         val text = button.text
         if (android.os.Build.VERSION.SDK_INT >= 23) {
