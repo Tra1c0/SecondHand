@@ -6643,6 +6643,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P486** Grund bei „Immer Inkognito“ (88): `BarTools.unavailableReason(…, alwaysIncognito)`: Ist der Schalter `PREF_ALWAYS_INCOGNITO_MODE` an, heißt der Grund `INCOGNITO_SWITCH` („Nicht verfügbar: „Immer Inkognito“ ist eingeschaltet“), nicht „privates Feld“, auch wenn das Feld selbst privat ist.
 - **P487** An/aus bei Umschalt-Werkzeugen (88, dreimal überarbeitet): `StripIconColors.guaranteed` in drei Schritten: (1) jeder Zustand bekommt den Mindestkontrast (`ensureContrast`, 4,5:1, die Richtung folgt dem Design), das gewinnt immer; (2) zeigt das Design ein eingeschaltetes Werkzeug (`activated`) anders als ein ausgeschaltetes, geht das eingeschaltete
   auf der Seite seiner angehobenen Farbe weiter vom Grund weg (sein Kontrast wächst dabei nur), bis es nicht das schwächere ist und `MIN_STATE_STEP` (1,25:1) Abstand hat, höchstens bis Weiß/Schwarz; ist „an“ dort und noch nicht 1,25:1 von „aus“ entfernt (oder noch das schwächere), kommt „aus“ zum Grund hin zurück, höchstens bis 4,5:1 (sonst würden beide am Extrem gleich); (3) zuletzt `hard`: kein Zustand unter 3:1. Es gibt keine Seitenwahl aus den Originalfarben mehr (beides war die Quelle von Fehlern: ein eingeschaltetes Symbol konnte quer durch die Grundfarbe laufen und auf 1,1:1 fallen). Designs ohne Unterschied (alle eigenen Designs über `AllColors`) bleiben unverändert (Pixelvergleich der Owner-Bilder). Ein Symbol im Akzentkreis braucht 3:1 (weiß auf Rosa bleibt weiß). Absicherung: `BarIconVisibilityTest.theRuleHoldsOverAGridOfGroundsAndColours` (rund 6000 Kombinationen aus Grund, an und aus).
+- **P488** Pillen im Raster (88c): Die Farben einer Pille werden gegen die **gezeichnete** Fläche gerechnet, nicht gegen `KEY_BACKGROUND`: Die Tastenfarbe eines Designs ist oft durchscheinend (beim Owner Weiß, ~47 %), `ensureContrast` kennt keinen Alphakanal. `PillColors.surface` legt sie über den Grund des Rasters (`MAIN_BACKGROUND`); Text, Symbol, gedrückt, „nicht verfügbar“ und „in der Leiste“ kommen aus `PillColors` (eine Stelle). Kein `View.alpha` zum Dimmen (außer `LIFTED_ALPHA` für die Pille des gehaltenen Werkzeugs): das nimmt auch dem Text die Deckkraft. Wer eine Farbregel für Text auf einer Fläche baut, rechnet mit dem Ergebnis der Mischung, nicht mit der Eingabe; der Pixeltest `GridPillsTest` misst gegen das Gezeichnete. Namen: `ToolGridView.fitText` (16 dp bis 10 dp, höchstens zwei Zeilen; die Auto-Größe des Systems greift neben einem Compound-Symbol nicht, und ohne Fenster läuft sie nie); die Zeilen des Rasters haben `isBaselineAligned = false`, sonst schiebt eine zweizeilige Pille sich aus der Zeile. Ein `Button(context, null, 0)` hat keine Schwerkraft „Mitte“: setzen. Im Test (ohne Fenster) lösen relative Compound-Symbole erst mit `layoutDirection` auf, und die Textgröße von `fitText` gilt erst im zweiten Layout (`GridPillsTest.show` macht beides).
 - **P410** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
   Schnelltipp-Sperre. Ein Listener, der nichts weiß (Mock = 0, `Adapter`), ergibt `TRACK_OFF` und damit den alten Code
   Zeile für Zeile (`CursorGestureTrackerTest`, alter Fixture-Teil). Wer den Hook vor die Schnelltipp-Sperre zöge, ließe Tipps beim
@@ -6727,7 +6728,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (763 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (765 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6738,7 +6739,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (98): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (99): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -6748,13 +6749,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   ForeignWords, FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
-  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
-  RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
-  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
-  ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
-  TypingPerf, TypoMemory, UndoOffer, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  MyDesigns, OnDeviceSpeechEngine, PillColors, PlaceCommand, PromptStore, RgbKeyPainter,
+  RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
+  SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel,
+  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
+  SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
+  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6766,7 +6768,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (128): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (129): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
   BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
@@ -6777,7 +6779,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
   FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
   FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
-  ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
+  ForkUpgradeTest, FormatGuardChipsTest, GridPillsTest, HapticChainTest, HardeningClipHistoryTest,
   InformalWordsStoreTest, InlineAutofillCardTest, InlineAutofillGenerationTest,
   InlineAutofillResponseTest, InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest,

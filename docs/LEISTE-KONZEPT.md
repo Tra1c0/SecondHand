@@ -45,6 +45,12 @@ echte Farbe aus 50 % der normalen Symbolfarbe über dem Grund gemischt (kein Alp
 Grund; dazu ein kleines Schloss unten rechts am Symbol (zweites Merkmal, nicht nur Farbe). Größe und Platz bleiben
 gleich. Der linke Knopf und der Kreis (Sprache) folgen derselben Kontrastregel.
 
+**Pillen im Raster (88c, Owner-Rückmeldung zu Build 43):** Text und Symbol jeder Pille sind mindestens 4,5:1 gegen die
+**gezeichnete** Fläche der Pille (Tastenfarbe über dem Grund des Rasters; die Tastenfarbe eines Designs ist oft
+durchscheinend und wird nie als deckend gerechnet), „nicht verfügbar“ mindestens 3:1 und erkennbar blasser. „In der
+Leiste“ ist eine dumpfere, deckende Fläche mit dünnem Rand (kein Alpha). Namen werden kleiner (bis 10 dp), dann zweizeilig,
+nie abgeschnitten. Die Farben des Designs bleiben, wo sie schon reichen. Rechnung: `PillColors`; Nachweis: `GridPillsTest`.
+
 **Tipp auf ein nicht verfügbares Werkzeug:** kein toter Tipp. In der Leiste erscheint 2,5 s eine Zeile (anstelle der
 Werkzeuge, nicht blockierend, nächste Berührung räumt sie weg) mit dem echten Grund, aus derselben Stelle wie die
 Sperre (`BarTools.unavailableReason`): „In diesem Feld nicht verfügbar: privates Feld“ (Passwortfeld, Inkognito,

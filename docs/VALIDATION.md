@@ -1,5 +1,31 @@
 # Prüfnachweise
 
+## Etappe 88c — Pillen im Raster lesbar (Owner, Build 43, 2026-11-21)
+
+**Auslöser (Owner, Build 43, Xiaomi, 1200 px breit, eigenes dunkles Design):** Im geöffneten Raster und im Anpassen-Modus sind die Pillen „praktisch nicht lesbar“, „das war auch nicht immer so“.
+Beleg: sein Bildschirmfoto (grünlichgrauer Text auf grauer Pille) und der Ausschnitt `raster-build43-ausschnitt.png`.
+
+**Ursache (gelesen und gemessen, nicht geraten):**
+- `ToolGridView.pillButton`/`applyMark` (Stand vor 88c: Zeilen 507–508, der Hilfsknopf Zeile 478) färbten Text und Symbol mit `StripIconColors.ensureContrast(textColor, pillColor)`, **seit 7d1bc25 (Etappe 88 A)**. `pillColor` ist `KEY_BACKGROUND` des Designs. Sein Wert ist **durchscheinend** (Weiß mit etwa 47 % Deckkraft): sichtbar ist die Pille als Mischung mit dem Grund des Rasters (`#7B7C76` über `#090001`). `ensureContrast` rechnet mit dem Alphakanal nicht; es nahm die Farbe als fast Weiß und machte den Text dunkelgrau (gemessen `#707070`), auf der echten Fläche `#7B7C76` ist das **1,2:1**. Vor 88 (`31d0787`) setzte `pillButton` nur `setTextColor(textColor)` (keine Regel).
+- Dazu verdoppelte `pill.alpha = MARKED_ALPHA` (0,5) bei Werkzeugen, die schon in der Leiste sind, den Verlust: Text und Symbol wurden mit der Pille durchscheinend.
+- Zwei Folgen, die erst die Bilder zeigten: Lange Namen wurden abgeschnitten („Diktieren (auf dem Gerät)“ → „Dictate (on devic“; die Auto-Größe des Systems greift neben einem Symbol nicht), und nach dem Verkleinern auf zwei Zeilen schob die **Grundlinien-Ausrichtung der Zeile** die Pille nach unten aus der Zeile (unten abgeschnitten). Die Knöpfe „Rückgängig“/„Zurücksetzen“ hatten den Text oben (Knopf ohne Stil: Schwerkraft oben).
+
+**Behebung:**
+- `PillColors` (neu): Fläche = Tastenfarbe über dem Grund des Rasters (`RgbColors.over`), Text und Symbol mindestens 4,5:1 gegen **diese** Fläche (`StripIconColors.ensureContrast`); erreicht die Richtung des Designs das nicht, rückt die Fläche zum Grund hin (bleibt mindestens 1,3:1 vom Grund). „Nicht verfügbar“: Text und Symbol bei 3:1, erkennbar blasser. „In der Leiste“: eine **dumpfere, deckende** Fläche mit dünnem Rand in der Textfarbe statt `alpha` 0,5 (lesbar, aber vom Rest zu unterscheiden). Die Farben des Owners bleiben, wo sie schon reichen.
+- `ToolGridView`: eigene `fitText` (16 dp bis 10 dp, dann zwei Zeilen; nie „…“ darüber), Zeilen ohne Grundlinien-Ausrichtung, Text von Rückgängig/Zurücksetzen mittig. Nur die Pille des gehaltenen Werkzeugs bleibt durchscheinend (`LIFTED_ALPHA`).
+
+**Bilder** (`app/build/owner-bars/raster-*.png`, 1200 px bei 440 dpi = Xiaomi, 945 px bei 360 dp, 1200 px bei 520 dpi; Palette des Owners **gemessen**: Grund `#090001`, Symbole `#FFFFFF`, Pille `#7B7C76` über dem Grund; angesehen):
+- *Vorher* (`raster-vorher-*`): grünlichgrauer Text auf grauer Pille, kaum zu erkennen; „Dictate (on devic“ abgeschnitten; „Clipboard“, „Voice input“ (in der Leiste, `alpha` 0,5) fast unsichtbar. Das Bild reproduziert sein Foto. (Die Symbole fehlen im Vorher-Bild, weil das Prüfgerüst damals die Anfangssymbole ohne Fenster nicht auflöste: ein Mangel des Bildes, nicht gemessen am Gerät.)
+- *Nachher* (`raster-nachher-*`): weißer Text und weiße Symbole auf grauen Pillen, klar lesbar, alle acht Namen vollständig; „Dictate (on device)“ in zwei Zeilen innerhalb der Pille; bei 360 dp brechen „Store (prompts)“ und „Character art“ in zwei Zeilen um, nichts wird abgeschnitten; „Clipboard“ und „Voice input“ (in der Leiste): dunklere Fläche mit hellem Rand, Text weiß; „Rückgängig“ (ausgegraut, weil nichts zu tun ist) ist blass, aber erkennbar; „Nicht verfügbar“: Text und Symbol sichtbar blasser. Nicht in den Bildern: ein zweiter Fund beim Ansehen, die Leiste „Anpassen“ im offenen Raster ist über die ganze Breite gezogen (so war es schon vor 88c, nicht angefasst).
+
+**Tests:**
+- `GridPillsTest` (+ `GridPillsNarrowTest` 945 px/360 dp, `GridPillsOwnerPhoneTest` 1200 px/440 dpi), echte Pixel (NATIVE-Grafik): `everyPillIsReadableOnItsOwnSurfaceInEveryStateAndDesign` misst je Zustand (normal, Anpassen außen/in der Leiste, nicht verfügbar, gedrückt) Text und Symbol gegen die **gezeichnete** Fläche der Pille, Designs: Owner (gemessen, weiß), Owner deckend, Owner mint (die frühere Schätzung), dunkel, hell, Flach, „blass“, Mittelgrau; `anInBarPillCanBeToldFromAnOutsidePillAndBothFromTheGround`; `noLabelIsCutOff` (keine Auslassungspunkte, keine Zeile breiter als der Platz, Text nicht höher als die Pille, **Pille liegt in ihrer Zeile**).
+- **Rot (Zustand vor 88c, `ToolGridView` aus 458c509 mit nur dem Prüfhaken `colorsOverride`):** 3 von 4 rot: „owner normal AGENT: no text is drawn (… colour #707070 …)“ (Text praktisch gleich der Fläche), „owner DICTATE: line 0 is 371.7 px wide, the room is 316 px“, dazu die Unterscheidung in der Leiste. Zusätzlich vor der Behebung der Grundlinien-Ausrichtung: `noLabelIsCutOff` rot in allen drei Breiten („the pill lies at 26..158 in a row of 132 px, its lower part is cut off“).
+- **Owner-Palette in allen Tests umgestellt** auf die gemessenen Werte (Grund `#090001`, Symbole `#FFFFFF`, Akzent `#DA3658`, linke Scheibe `#500C0D`): `BarIconVisibilityTest.owner`, `GridPillsTest.owner`. Die frühere Schätzung hatte mintfarbene Symbole (`#C8FFEE`). Ergebnis: alle Prüfungen von `BarIconVisibilityTest` (11) bleiben grün; keine sagte vorher etwas anderes (die Regeltests mit Mint sind allgemeine Farbfälle, nicht die Palette des Owners); die Owner-Bilder der Leiste (`owner-*.png`) zeigen jetzt weiße statt mintfarbener Symbole, das ist gewollt. Eine Annahme, die beim Umstellen kippte: keine.
+- Ältere Tests auf die neuen Merkmale umgestellt, nicht abgeschwächt: `FixedBarTest.aLongToolNameShrinksInItsPillInsteadOfBeingCutOff` (jetzt: zwei Zeilen, `ellipsize` am Ende, keine Auto-Größe des Systems; die Größe messen die Pixeltests), `BarEditModeTest` („in der Leiste“ ist die Markierung `contentDescription`/Fläche statt `alpha` 0,5; `alpha` ist überall 1, außer bei der Pille des gehaltenen Werkzeugs).
+
+**Nicht geprüft:** auf dem Telefon des Owners (sein echtes Design, seine Schrift, `Settings.getValues().mColors`); nur Robolectric mit der Palette aus seinem Foto. Die Fläche der Pille `#7B7C76` ist aus dem Foto abgeleitet, nicht aus seinen Einstellungen gelesen.
+
 ## Etappe 88 — Leiste v2: sichtbare Symbole, echtes Ziehen
 
 **Auslöser (Owner, Build 41, Xiaomi 15, eigenes dunkles Design):** „Die Leiste ist nicht gleichmäßig.“ Zwei Symbole (Textaktionen, Skill-Taste) waren nicht zu sehen; das Drag and Drop „funktioniert nicht
@@ -72,7 +98,7 @@ zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zur�
   das Mikrofon weiß auf Rosa; die Scheibe der linken Taste (Dunkelrot auf fast Schwarz) ist wie in seinem Design nur schwach zu sehen. Nicht verfügbare Werkzeuge: grünliches Grau, deutlich blasser als Mint, Form gut erkennbar, mit Schloss; nicht wie ein Loch. Schwächen: Das Schloss deckt einen Teil des Symbols (rechte Zacke des Funkens,
   unteres Eck der „1“); im Kreis ist das Mikrofon blassrosa auf Rosa mit Schloss (gerade noch lesbar, 3:1). Erste Fassung: Das weiße Mikrofon auf Rosa war wegen der Regel (4,5:1; Weiß hat 4,35:1) schwarz geworden, ein Eingriff in sein Design; jetzt gilt für Symbole im Akzentkreis 3:1 und die Anhebung folgt der Richtung des Designs.
 - **Schmale Bildschirme:** `FixedBarTest.upToEightToolsFitOnNarrowScreensIn…` (360 dp und 320 dp, 0 bis 8 Werkzeuge, mit und ohne Mikrofonkreis, beide Stile): jede Zelle liegt im Bild, keine überlappt, die sichtbaren Flächen haben 3 dp Abstand zum Rand und 4 dp zueinander.
-- **Pille „Diktieren (auf dem Gerät)“:** Die Pillen verkleinern lange Namen bis 11 dp statt sie abzuschneiden (`TextViewCompat` Auto-Größe, einzeilig); kurze Namen bleiben bei 16 dp.
+- **Pille „Diktieren (auf dem Gerät)“ (ersetzt in 88c, siehe oben: eigene `fitText` mit zwei Zeilen):** Die Pillen verkleinern lange Namen bis 11 dp statt sie abzuschneiden (`TextViewCompat` Auto-Größe, einzeilig); kurze Namen bleiben bei 16 dp.
 
 ## Etappe 87b — Trackpad-Diagnose
 
