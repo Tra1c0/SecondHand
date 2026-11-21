@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import dev.agentkeyboard.core.RgbColors
+import dev.agentkeyboard.core.Seen
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Colors
 
@@ -35,14 +36,29 @@ internal object StripIconColors {
     private val ACTIVATED = intArrayOf(android.R.attr.state_activated)
     private val NONE = intArrayOf()
 
-    /** The colour behind the icons: the strip colour laid over the keyboard background; opaque. */
-    fun background(colors: Colors): Int {
-        val main = colors.get(ColorType.MAIN_BACKGROUND) or RgbColors.BLACK
-        return RgbColors.over(colors.get(ColorType.STRIP_BACKGROUND), main)
+    /** What is really behind the icons: the strip colour laid over the keyboard background (each may be translucent; the keyboard background over black). */
+    fun seenBackground(colors: Colors): Seen = Seen.over(colors.get(ColorType.STRIP_BACKGROUND), Seen.of(colors.get(ColorType.MAIN_BACKGROUND)))
+
+    /**
+     * What is really behind the icon of the left key: the disc (the flat style paints the functional key colour as an oval over the strip,
+     * and the colour may be translucent), or the strip. In the other styles the expand key's background colour over the strip.
+     */
+    fun leftKeySurface(colors: Colors, flatStyle: Boolean, circle: Boolean): Seen {
+        val strip = seenBackground(colors)
+        return if (flatStyle) { if (circle) Seen.over(colors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND), strip) else strip }
+        else Seen.over(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), strip)
     }
 
-    /** [fg] moved towards white or black (the nearer way to more contrast; the hue stays as long as possible) until it has [target] against [bg]. Opaque. */
-    fun ensureContrast(fg: Int, bg: Int, target: Double = NORMAL_CONTRAST): Int {
+    /** The same as an opaque colour int (for tags and colour arithmetic). */
+    fun background(colors: Colors): Int = seenBackground(colors).argb
+
+    /**
+     * [fg] moved towards white or black (the nearer way to more contrast; the hue stays as long as possible) until it has [target] against
+     * [surface]. Opaque. The background is a [Seen] colour on purpose (stage 88c): a translucent design colour cannot be passed as a
+     * background, it has to be laid over what is behind it first ([Seen.over]); the contrast is that of what is drawn.
+     */
+    fun ensureContrast(fg: Int, surface: Seen, target: Double = NORMAL_CONTRAST): Int {
+        val bg = surface.argb
         val solid = RgbColors.over(fg, bg)
         if (RgbColors.contrast(solid, bg) >= target) return solid
         // keep the direction the design chose (a lighter icon on a darker ground gets lighter), the other one only if that cannot reach the contrast
@@ -59,7 +75,8 @@ internal object StripIconColors {
     }
 
     /** The "off" colour of an icon with the normal colour [normal]: half of it over [bg], lifted to [OFF_CONTRAST] if that is too faint. */
-    fun off(normal: Int, bg: Int, minContrast: Double = OFF_CONTRAST): Int {
+    fun off(normal: Int, surface: Seen, minContrast: Double = OFF_CONTRAST): Int {
+        val bg = surface.argb
         var t = OFF_MIX
         var result = RgbColors.lerp(bg or RgbColors.BLACK, normal or RgbColors.BLACK, t)
         while (t < 1f && RgbColors.contrast(result, bg) < minContrast) {
@@ -82,11 +99,12 @@ internal object StripIconColors {
     fun guaranteed(colors: Colors, context: Context): ColorStateList = guaranteed(colors, themeTint(colors, context))
 
     fun guaranteed(colors: Colors, theme: ColorStateList?): ColorStateList {
-        val bg = background(colors)
+        val seen = seenBackground(colors)
+        val bg = seen.argb
         val fallback = colors.get(ColorType.TOOL_BAR_KEY)
         fun original(state: IntArray) = theme?.getColorForState(state, theme.defaultColor) ?: fallback
         // 1. the minimum contrast for every state: this is what wins over everything below
-        fun of(state: IntArray) = ensureContrast(original(state), bg)
+        fun of(state: IntArray) = ensureContrast(original(state), seen)
         var on = of(ACTIVATED)
         var off = of(NONE)
         // 2. a theme that shows a switched-on tool differently from a switched-off one keeps the difference: the switched-on colour goes
@@ -112,7 +130,7 @@ internal object StripIconColors {
             }
         }
         // 3. the hard rule, last: no state leaves here below the floor
-        fun hard(c: Int) = if (RgbColors.contrast(c, bg) < MIN_CONTRAST) ensureContrast(c, bg) else c
+        fun hard(c: Int) = if (RgbColors.contrast(c, bg) < MIN_CONTRAST) ensureContrast(c, seen) else c
         return ColorStateList(arrayOf(PRESSED_ACTIVATED, PRESSED, ACTIVATED, NONE),
             intArrayOf(hard(of(PRESSED_ACTIVATED)), hard(of(PRESSED)), hard(on), hard(off)))
     }

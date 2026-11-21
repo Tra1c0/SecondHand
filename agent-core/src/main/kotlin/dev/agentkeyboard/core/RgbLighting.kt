@@ -335,6 +335,23 @@ data class RgbSettings(
     }
 }
 
+/**
+ * Stage 88c: a colour as it is REALLY SEEN, never translucent. The only thing the contrast functions ([RgbColors.readable],
+ * [RgbColors.label], `StripIconColors.ensureContrast`/`off`, `PillColors`) accept as a background, so that a translucent design colour
+ * (the owner's key colour is white at about half) cannot be judged as if it were opaque, which made every pill label 1.1:1 in build 43.
+ * There are two ways in, and both say what is behind: [over] (a colour painted over a ground that is itself seen) and [of] (a colour with
+ * nothing known behind it: a translucent one is laid over black, an opaque one stays as it is). The constructor is private.
+ */
+@JvmInline
+value class Seen private constructor(val argb: Int) {
+    companion object {
+        /** [colour] when nothing else is behind it (the first ground of a screen); a translucent colour is laid over black. */
+        fun of(colour: Int): Seen = Seen(RgbColors.over(colour, RgbColors.BLACK))
+        /** [colour] as it looks painted over [ground]. */
+        fun over(colour: Int, ground: Seen): Seen = Seen(RgbColors.over(colour, ground.argb))
+    }
+}
+
 /** Pure ARGB colour arithmetic (no android.graphics). */
 object RgbColors {
     const val WHITE = 0xFFFFFFFF.toInt()
@@ -396,8 +413,11 @@ object RgbColors {
 
     private fun finite(x: Float) = if (x.isFinite()) x else 0f
 
-    /** [top] painted over an opaque [bottom]; the result is opaque. */
-    fun over(top: Int, bottom: Int): Int = lerp(bottom or BLACK, top or BLACK, alpha(top) / 255f)
+    /** [top] painted over [bottom]; the result is opaque. A translucent [bottom] counts as it looks over black (its alpha is not dropped). */
+    fun over(top: Int, bottom: Int): Int = lerp(solid(bottom), top or BLACK, alpha(top) / 255f)
+
+    /** [c] as it looks over black: opaque. */
+    private fun solid(c: Int): Int = if (alpha(c) == 255) c else lerp(BLACK, c or BLACK, alpha(c) / 255f)
 
     /**
      * A light value from [RgbEngine.light] (alpha = strength) applied on top of a theme colour.
@@ -429,13 +449,13 @@ object RgbColors {
 
     /**
      * [fg] moved towards black or white (whichever contrasts more with [bg]) just far enough to
-     * reach [minContrast] against the opaque [bg]. Alpha of [fg] is kept, and the contrast is that
+     * reach [minContrast] against [bg] (a [Seen] colour: opaque by its type). Alpha of [fg] is kept, and the contrast is that
      * of the colour actually seen: [fg] with its alpha painted over [bg]. A fully transparent [fg]
      * is returned unchanged; one so transparent that even black or white cannot reach
      * [minContrast] becomes black or white (the best possible with that alpha).
      */
-    fun readable(fg: Int, bg: Int, minContrast: Double = MIN_LABEL_CONTRAST): Int {
-        val back = bg or BLACK
+    fun readable(fg: Int, bg: Seen, minContrast: Double = MIN_LABEL_CONTRAST): Int {
+        val back = bg.argb
         if (alpha(fg) == 0) return fg
         fun seen(rgb: Int) = over((rgb and 0xFFFFFF) or (fg and BLACK), back)
         if (contrast(seen(fg), back) >= minContrast) return fg
@@ -450,10 +470,10 @@ object RgbColors {
     }
 
     /**
-     * Colour of a label (or icon) in front of the opaque [behind]: lit with [light] when labels are
+     * Colour of a label (or icon) in front of [behind] (what is really seen): lit with [light] when labels are
      * a layer ([labelLayer]), then made readable as seen with its alpha. Alpha of [theme] is kept.
      */
-    fun label(theme: Int, light: Int, labelLayer: Boolean, behind: Int): Int {
+    fun label(theme: Int, light: Int, labelLayer: Boolean, behind: Seen): Int {
         val color = if (labelLayer) applyLight(theme or BLACK, light) else theme or BLACK
         return readable((color and 0xFFFFFF) or (theme and BLACK), behind)
     }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.suggestions
 
+import dev.agentkeyboard.core.RgbColors
+import dev.agentkeyboard.core.Seen
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Paint
@@ -197,11 +199,14 @@ internal object FixedBar {
     private fun circle(button: ImageButton, flat: Boolean, colors: Colors, s: Sizes, tint: ColorStateList) {
         val fill = if (flat) FlatStyle.STRIP_CIRCLE else colors.get(ColorType.ACTION_KEY_BACKGROUND)
         // an icon on the accent circle is a large graphic object: 3:1 is the rule here (the design's white on a pink accent stays white)
-        val icon = StripIconColors.ensureContrast(if (flat) FlatStyle.STRIP_CIRCLE_ICON else colors.get(ColorType.ACTION_KEY_ICON), fill, StripIconColors.MIN_CONTRAST)
+        // the badge paints its colour OPAQUE (its paint alpha is forced to 0xFF, see CircleBadge): what is seen is the RGB of the colour, whatever
+        // alpha the design gave it (checked against pixels in BarIconVisibilityTest, stage 88c review B)
+        val drawn = fill or RgbColors.BLACK
+        val icon = StripIconColors.ensureContrast(if (flat) FlatStyle.STRIP_CIRCLE_ICON else colors.get(ColorType.ACTION_KEY_ICON), Seen.of(drawn), StripIconColors.MIN_CONTRAST)
         button.background = CircleBadge(fill, s.circle)
         button.setTag(R.id.agent_bar_circle, s.circle)
         button.setTag(R.id.agent_bar_tint, ColorStateList.valueOf(icon))
-        button.setTag(R.id.agent_bar_icon_bg, fill)
+        button.setTag(R.id.agent_bar_icon_bg, drawn)
     }
 
     /** Whether the slot is drawn as the circle at the right end. */
@@ -213,7 +218,7 @@ internal object FixedBar {
         val tint = button.getTag(R.id.agent_bar_tint) as? ColorStateList ?: return
         val bg = button.getTag(R.id.agent_bar_icon_bg) as? Int ?: return
         val off = button.getTag(R.id.agent_bar_off) != null
-        val offColor = StripIconColors.off(StripIconColors.normalOf(tint), bg)
+        val offColor = StripIconColors.off(StripIconColors.normalOf(tint), Seen.of(bg)) // the tag holds an opaque colour (strip background or a drawn circle)
         if (isCircle(button)) {
             drawable.setTintList(null)
             drawable.colorFilter = PorterDuffColorFilter(if (off) offColor else StripIconColors.normalOf(tint), PorterDuff.Mode.SRC_IN)
@@ -253,7 +258,7 @@ internal object FixedBar {
             container.addView(this, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
         hint.setBackgroundColor(background)
-        hint.setTextColor(StripIconColors.ensureContrast(colors.get(ColorType.TOOL_BAR_KEY), background))
+        hint.setTextColor(StripIconColors.ensureContrast(colors.get(ColorType.TOOL_BAR_KEY), StripIconColors.seenBackground(colors)))
         hint.show(text)
     }
 

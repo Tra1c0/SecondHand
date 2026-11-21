@@ -252,7 +252,7 @@ class RgbKeyPainter {
      * layer, and always readable against the (possibly lit) key background. Alpha of [themeColor] is kept.
      */
     fun labelColor(themeColor: Int): Int = guarded(themeColor) {
-        if (!lit) themeColor else RgbColors.label(themeColor, labelLight, labelLit, behind)
+        if (!lit) themeColor else RgbColors.label(themeColor, labelLight, labelLit, dev.agentkeyboard.core.Seen.of(behind))
     }
 
     /**

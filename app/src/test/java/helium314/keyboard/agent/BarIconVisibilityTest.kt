@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import dev.agentkeyboard.core.RgbColors
+import dev.agentkeyboard.core.Seen
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
 import helium314.keyboard.keyboard.FlatStyle
@@ -97,7 +98,7 @@ class BarIconVisibilityTest {
                 assertTrue(RgbColors.contrast(c, bg) >= StripIconColors.NORMAL_CONTRAST - 0.05, "$name ${state.toList()} contrast ${RgbColors.contrast(c, bg)}")
             }
             val normal = StripIconColors.normalOf(tint)
-            val off = StripIconColors.off(normal, bg)
+            val off = StripIconColors.off(normal, Seen.of(bg))
             assertTrue(RgbColors.contrast(off, bg) >= StripIconColors.OFF_CONTRAST - 0.05, "$name off contrast ${RgbColors.contrast(off, bg)}")
             assertTrue(RgbColors.contrast(off, bg) < RgbColors.contrast(normal, bg), "$name: off is fainter than normal")
         }
@@ -106,14 +107,14 @@ class BarIconVisibilityTest {
     @Test fun aGoodColourIsLeftAloneAndAFaintOneKeepsItsHueWhereItCan() {
         val bg = 0xFF0A0001.toInt()
         val mint = 0xFFC8FFEE.toInt()
-        assertEquals(mint, StripIconColors.ensureContrast(mint, bg))
+        assertEquals(mint, StripIconColors.ensureContrast(mint, Seen.of(bg)))
         val dark = 0xFF1A2A24.toInt()
-        val lifted = StripIconColors.ensureContrast(dark, bg)
+        val lifted = StripIconColors.ensureContrast(dark, Seen.of(bg))
         assertTrue(RgbColors.contrast(lifted, bg) >= 4.5)
         assertTrue(RgbColors.green(lifted) > RgbColors.red(lifted), "still greenish")
         // black on black becomes light, white on white becomes dark
-        assertTrue(RgbColors.luminance(StripIconColors.ensureContrast(Color.BLACK, bg)) > 0.15)
-        assertTrue(RgbColors.luminance(StripIconColors.ensureContrast(Color.WHITE, 0xFFFFFFFF.toInt())) < 0.2)
+        assertTrue(RgbColors.luminance(StripIconColors.ensureContrast(Color.BLACK, Seen.of(bg))) > 0.15)
+        assertTrue(RgbColors.luminance(StripIconColors.ensureContrast(Color.WHITE, Seen.of(0xFFFFFFFF.toInt()))) < 0.2)
     }
 
     // ---- real pixels ----
@@ -218,6 +219,34 @@ class BarIconVisibilityTest {
         }
     }
 
+    private fun accentOf(colors: Colors) = colors.get(ColorType.ACTION_KEY_BACKGROUND)
+
+    /**
+     * Stage 88c, review B (FixedBar): a translucent accent colour: the icon is judged against the circle as it is DRAWN. The reviewer
+     * suspected the contrast was computed against the raw colour; the badge paints its colour opaque, so raw and drawn agree. This test
+     * guards exactly that (it does not fail on the old code; it would fail if the badge ever started to paint the alpha).
+     */
+    @Test fun theMicrophoneCircleWithATranslucentAccentColourIsReadableAgainstWhatIsDrawn() {
+        val translucent = listOf("dark red 25 % on light" to design(0xFFF4F4F4.toInt(), 0xFF202020.toInt(), 0xFFFFFFFF.toInt(), 0xFFDDDDDD.toInt(), 0x40800020, accentIcon = Color.WHITE),
+            "pink 40 % on light" to design(0xFFF4F4F4.toInt(), 0xFF202020.toInt(), 0xFFFFFFFF.toInt(), 0xFFDDDDDD.toInt(), 0x66F0145A.toInt(), accentIcon = Color.WHITE))
+        for ((name, colors) in translucent) for (key in listOf(ToolbarKey.VOICE, ToolbarKey.DICTATE)) {
+            val row = row(listOf(ToolbarKey.UNDO, key), colors)
+            val button = row.buttons.last()
+            assertTrue(FixedBar.isCircle(button))
+            val picture = render(row)
+            val offset = (row.toolbar.parent as View).left + row.toolbar.left
+            val whole = android.graphics.Rect(button.left + offset, button.top, button.right + offset, button.bottom)
+            // the circle as drawn: the most frequent colour in the button that is not the strip
+            val counts = HashMap<Int, Int>()
+            for (y in whole.top until whole.bottom) for (x in whole.left until whole.right) picture.getPixel(x, y).let { if (it != row.bg) counts.merge(it, 1, Int::plus) }
+            val drawn = counts.maxByOrNull { it.value }?.key ?: throw AssertionError("$name $key: no circle is drawn")
+            val ink = inkColour(picture, glyphRect(row, button), drawn) ?: throw AssertionError("$name $key: no icon on the circle")
+            // (CircleBadge paints the colour opaque: the circle as drawn is the RGB of the accent colour, whatever alpha the design gave it)
+            assertEquals(accentOf(colors) or RgbColors.BLACK, drawn, "$name $key: the circle is drawn opaque")
+            assertTrue(RgbColors.contrast(ink.first, drawn) >= StripIconColors.MIN_CONTRAST - 0.2, "$name $key: icon ${Integer.toHexString(ink.first)} on the drawn circle ${Integer.toHexString(drawn)}: ${RgbColors.contrast(ink.first, drawn)}")
+        }
+    }
+
     @Test fun aSwitchedOnToolStaysApartFromASwitchedOffOneAfterTheLift() {
         // themes that tell the two apart: the flat preset (grey on, darker grey off) and the default colours (light and dark)
         val dark = helium314.keyboard.latin.common.DefaultColors("Material", true, 0xFF8AB4F8.toInt(), 0xFF101010.toInt(), 0xFF303030.toInt(), 0xFF404040.toInt(), 0xFF303030.toInt(), 0xFFE0E0E0.toInt(), 0xFFB0B0B0.toInt())
@@ -293,7 +322,7 @@ class BarIconVisibilityTest {
                 checked++
             }
             // an icon on an accent circle: 3:1 against the circle, whatever the colour
-            for (icon in colourSet) assertTrue(RgbColors.contrast(StripIconColors.ensureContrast(icon, ground, StripIconColors.MIN_CONTRAST), ground) >= StripIconColors.MIN_CONTRAST - 0.02, "circle icon ${Integer.toHexString(icon)} on ${Integer.toHexString(ground)}")
+            for (icon in colourSet) assertTrue(RgbColors.contrast(StripIconColors.ensureContrast(icon, Seen.of(ground), StripIconColors.MIN_CONTRAST), ground) >= StripIconColors.MIN_CONTRAST - 0.02, "circle icon ${Integer.toHexString(icon)} on ${Integer.toHexString(ground)}")
         }
         assertTrue(checked > 5000)
     }
@@ -334,7 +363,7 @@ class BarIconVisibilityTest {
         expand.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.sym_keyboard_grid_flat)!!.mutate())
         expand.scaleType = android.widget.ImageView.ScaleType.CENTER
         val behind = RgbColors.over(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), bg)
-        expand.colorFilter = android.graphics.PorterDuffColorFilter(StripIconColors.ensureContrast(colors.get(ColorType.TOOL_BAR_EXPAND_KEY), behind), android.graphics.PorterDuff.Mode.SRC_IN)
+        expand.colorFilter = android.graphics.PorterDuffColorFilter(StripIconColors.ensureContrast(colors.get(ColorType.TOOL_BAR_EXPAND_KEY), Seen.of(behind)), android.graphics.PorterDuff.Mode.SRC_IN)
         row.buttons.forEachIndexed { i, b -> if (keys[i] in off) FixedBar.setAvailable(b, BarTools.Reason.PRIVATE_FIELD, false, keys[i].name) { it } }
         layout(row)
         val strip = render(row)
