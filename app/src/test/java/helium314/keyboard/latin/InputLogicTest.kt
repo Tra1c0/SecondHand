@@ -2,6 +2,7 @@
 package helium314.keyboard.latin
 
 import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.Diagnose
 import helium314.keyboard.agent.SpaceAction
 import helium314.keyboard.agent.SpaceGesture
 import helium314.keyboard.keyboard.internal.LayoutDirective
@@ -1427,6 +1428,240 @@ class InputLogicTest {
         assertEquals(TRACK_ACTIVE, spaceTrack(-30.0, 0.0)) // left: to the start of the selection, then two clusters on
         assertEquals("hello world", text)
         assertEquals(0, cursor)
+    }
+
+    // ------- stage 87b: what the trackpad decided is counted (numbers, enum names and flags; never a text) -------
+
+    private fun trackSnapshot() = helium314.keyboard.agent.CursorTrackCounters.shared.snapshot()
+    private fun trackCard() = Diagnose.trackpad(latinIME, latinIME.prefs(), trackSnapshot())
+    private fun trackRow(label: Int) = trackCard().rows.first { it.label == latinIME.getString(label) }.value
+
+    @Test fun cursor87bAClaimedSpaceSwipeIsCountedWithItsStepsAndTheFieldFlags() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        setText("hello world foo")
+        setCursorPosition(0)
+        assertEquals(TRACK_ACTIVE, spaceTrack(42.0, 0.0))
+        val space = trackSnapshot().space
+        assertEquals(1, space.touches); assertEquals(1, space.active); assertEquals(3, space.steps)
+        assertEquals(true, space.lastClassText); assertEquals(true, space.lastMultiLine)
+        assertEquals(helium314.keyboard.agent.CursorTrackCounters.Decision.ACTIVE, space.lastDecision)
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).startsWith("trackpad, 3 steps"))
+        assertFalse(trackRow(R.string.agent_trackdiag_row_space_last).contains("single-line"))
+    }
+
+    @Test fun cursor87bEveryReasonForNotStartingIsCountedAndRendered() {
+        val diag = helium314.keyboard.agent.CursorTrackCounters.shared
+        val reasons = helium314.keyboard.agent.CursorTrackCounters.OffReason.entries.associateBy { it.name }
+        diag.reset()
+        setText("hello")
+        // the switch is off
+        latinIME.prefs().edit { putBoolean(AgentPreferences.CURSOR_TRACKPAD, false) }
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(1, trackSnapshot().space.off[reasons.getValue("SWITCH").ordinal])
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("the switch is off"))
+        assertEquals(TRACK_OFF, trackDrag(KeyCode.DELETE, -42.0, 0.0))
+        assertEquals(1, trackSnapshot().delete.off[reasons.getValue("SWITCH").ordinal])
+        latinIME.prefs().edit { putBoolean(AgentPreferences.CURSOR_TRACKPAD, true) }
+        // a panel (or a cursor refresh) blocks the input
+        org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", true)
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", false)
+        assertEquals(1, trackSnapshot().space.off[reasons.getValue("BLOCKED").ordinal])
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("blocked"))
+        // no direction of the space bar is the cursor
+        for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) setSpaceGesture(g, SpaceAction.NONE)
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(1, trackSnapshot().space.off[reasons.getValue("NO_CURSOR_DIRECTION").ordinal])
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("no direction is set to"))
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_decisions).startsWith("trackpad 0, action instead of the trackpad 0, off 3 (switch 1, input blocked 1, no cursor direction 1)"))
+        assertEquals(3, trackSnapshot().space.touches)
+    }
+
+    @Test fun cursor87bAStartInAnActionDirectionIsADecisionNotAFailure() {
+        val diag = helium314.keyboard.agent.CursorTrackCounters.shared
+        diag.reset()
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.UNDO)
+        setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.REDO)
+        setText("hello")
+        assertEquals(TRACK_OFF, spaceTrack(0.0, -42.0)) // the start is up: its own action runs, no trackpad
+        val space = trackSnapshot().space
+        assertEquals(1, space.actions); assertEquals(0, space.active)
+        assertEquals(SpaceGesture.SWIPE_UP, space.lastActionGesture); assertEquals(SpaceAction.UNDO, space.lastActionAction)
+        assertEquals(helium314.keyboard.agent.CursorTrackCounters.Decision.ACTION, space.lastDecision)
+        val last = trackRow(R.string.agent_trackdiag_row_space_last)
+        assertEquals("start ↑: action “Undo” (SWIPE_UP = UNDO), no trackpad – as configured", last)
+        assertFalse(last.contains("not started")); assertFalse(last.contains("bindings"))
+        assertEquals("↑ Undo (SWIPE_UP = UNDO)", trackRow(R.string.agent_trackdiag_row_space_action))
+        // a start to the left is the trackpad of the same bar
+        assertEquals(TRACK_ACTIVE, spaceTrack(-42.0, 0.0))
+        assertEquals(1, trackSnapshot().space.active)
+    }
+
+    @Test fun cursor87bASelectionTheTrackpadCollapsesIsCountedAsAFlagOnly() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setText("hello world")
+        setCursorPosition(2, 5)
+        assertEquals(TRACK_ACTIVE, spaceTrack(-42.0, 0.0))
+        val space = trackSnapshot().space
+        assertEquals(1, space.collapsed); assertEquals(true, space.lastCollapsed)
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("a selection was collapsed"))
+        assertEquals("once, last time yes", trackRow(R.string.agent_trackdiag_row_space_collapsed))
+    }
+
+    @Test fun cursor87bASecondFingerWhileAnotherRunsAnActionIsRefusedForThatReason() = withSpyRig { rig, _ ->
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.SWITCH_LANGUAGE)
+        setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0); putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE)
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y)
+        rig.down(1, SPACE_X + 60f, SPACE_Y)
+        rig.slide(1, SPACE_X + 60f, SPACE_Y - 20f, 600f) // B starts upwards: the language action
+        rig.slide(0, SPACE_X - 60f, SPACE_Y, 600f) // A starts sideways, but B is running an action
+        rig.up(1); rig.up(0)
+        val space = trackSnapshot().space
+        assertEquals(1, space.refusedBy[helium314.keyboard.agent.CursorTrackCounters.RefusedWhy.OTHER_ACTION.ordinal])
+        assertEquals(1, space.actions)
+        assertEquals(helium314.keyboard.agent.CursorTrackCounters.Decision.REFUSED, space.lastDecision)
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("running a space bar action"))
+    }
+
+    @Test fun cursor87bARefusedFingerAndAFingerLiftedTooEarlyAreCounted() {
+        val diag = helium314.keyboard.agent.CursorTrackCounters.shared
+        diag.reset()
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false, pointer = 0))
+        assertEquals(TRACK_REFUSED_DRAG, trackDrag(Constants.CODE_SPACE, -60.0, 0.0, lift = false, pointer = 1))
+        assertEquals(1, trackSnapshot().space.refused)
+        assertEquals(1, trackSnapshot().space.refusedBy[helium314.keyboard.agent.CursorTrackCounters.RefusedWhy.OTHER_OWNER.ordinal])
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("another finger was moving the cursor"))
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(1)
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        setText("Hallo Welt") // the slide left a selection
+        assertEquals(TRACK_PENDING, spaceTrack(6.0, 3.0)) // lifted before the claim distance
+        assertEquals(1, trackSnapshot().space.neverClaimed)
+        assertEquals(helium314.keyboard.agent.CursorTrackCounters.Decision.NEVER_CLAIMED, trackSnapshot().space.lastDecision)
+        assertEquals(TRACK_PENDING, trackDrag(KeyCode.DELETE, 5.0, 40.0))
+        assertEquals(1, trackSnapshot().delete.neverClaimed)
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("never took over"))
+    }
+
+    @Test fun cursor87bAVerticalSwipeInASingleLineFieldCountsSuppressedArrowsAndSendsNone() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setInputType(InputType.TYPE_CLASS_TEXT)
+        setText("one\ntwo\nthree")
+        setCursorPosition(4)
+        assertEquals(TRACK_ACTIVE, spaceTrack(0.0, 80.0))
+        val space = trackSnapshot().space
+        assertEquals(0, space.verticalArrows)
+        assertTrue(space.suppressedArrows >= 2, "suppressed ${space.suppressedArrows}")
+        assertEquals(true, space.lastClassText); assertEquals(false, space.lastMultiLine)
+        assertTrue(ShadowInputMethodService.keyDownCodes.isEmpty())
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_last).contains("single-line"))
+        assertTrue(trackRow(R.string.agent_trackdiag_row_space_steps).contains("vertical arrows suppressed (single-line field)"))
+        // the same swipe in a multi-line field sends the arrow and suppresses none
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        setText("one\ntwo\nthree")
+        setCursorPosition(4)
+        spaceTrack(0.0, 30.0)
+        assertEquals(1, trackSnapshot().space.verticalArrows); assertEquals(0, trackSnapshot().space.suppressedArrows)
+    }
+
+    @Test fun cursor87bADeleteSlideCountsItsLiftTheSelectedCharactersAndTheDeletion() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false))
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        handleMessages()
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        val delete = trackSnapshot().delete
+        assertEquals(1, delete.active); assertEquals(1, delete.lifts); assertEquals(1, delete.liftsDeleted); assertEquals(4, delete.lastSelectedChars)
+        assertTrue(delete.steps > 0)
+        assertTrue(trackRow(R.string.agent_trackdiag_row_delete_last).contains("4 characters selected at the lift, deleted"))
+        // a slide the trackpad did not take is no lift of the counters
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        assertEquals(1, trackSnapshot().delete.lifts)
+    }
+
+    @Test fun cursor87bTheCardHoldsNoTextOfTheFieldAndNoPackageName() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        val marker = "GEHEIMMARKER4711"
+        val pkg = "com.example.secretapp"
+        ShadowInputMethodService.currentPackageName = pkg // a real package name for the field (review L-3: the old assertion compared with null)
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        setText("$marker and more text")
+        setCursorPosition(0)
+        assertEquals(pkg, Settings.getValues().mInputAttributes.mTargetApplicationPackageName, "the precondition: the field carries a package name")
+        assertEquals(TRACK_ACTIVE, spaceTrack(42.0, 0.0))
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false))
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        assertEquals(1, trackSnapshot().delete.lifts)
+        val rendered = Diagnose.text(latinIME, listOf(trackCard()))
+        assertTrue(rendered.contains("Cursor trackpad"))
+        assertFalse(rendered.contains(marker)); assertFalse(rendered.contains("more text"))
+        assertFalse(rendered.contains(pkg)); assertFalse(rendered.contains("secretapp")); assertFalse(rendered.contains(latinIME.packageName))
+    }
+
+    @Test fun cursor87bAProtectedFieldRecordsNoSelectionLengthAndNoDetents() {
+        for (protection in listOf("password", "incognito", "locked")) {
+            helium314.keyboard.agent.LockState.resetForTest()
+            helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+            latinIME.prefs().edit { clear() }
+            if (protection == "password") setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            else if (protection == "incognito") { setInputType(InputType.TYPE_CLASS_TEXT); latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) } }
+            else { setInputType(InputType.TYPE_CLASS_TEXT); helium314.keyboard.agent.LockState.normal.read = { true } } // the live lock question says: locked
+            setText("geheim 1234 abc")
+            // a first, unprotected-looking length must not survive: record one, then slide again
+            assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false), protection)
+            latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+            handleMessages()
+            latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+            val delete = trackSnapshot().delete
+            assertEquals(1, delete.lifts, protection)
+            assertEquals(-1, delete.lastSelectedChars, protection); assertTrue(delete.lastLiftProtected, protection)
+            assertEquals(0, delete.detents, protection); assertEquals(0, delete.steps, protection); assertEquals(0, delete.lastSteps, protection)
+            assertEquals("1; last time not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_delete_lifts), protection)
+            assertEquals("trackpad – movement not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_delete_last), protection)
+            assertEquals("0 steps, 0 detents", trackRow(R.string.agent_trackdiag_row_delete_steps), protection)
+            // the space bar in the same field: the decision is counted, no movement value
+            setText("geheim 1234 abc"); setCursorPosition(0)
+            assertEquals(TRACK_ACTIVE, spaceTrack(42.0, 0.0), protection)
+            val space = trackSnapshot().space
+            assertEquals(1, space.active, protection); assertEquals(0, space.steps, protection); assertEquals(0, space.lastSteps, protection)
+            assertEquals("trackpad – movement not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_space_last), protection)
+        }
+    }
+
+    @Test fun cursor87bAFieldChangeLeavesNoClaimForTheNextFieldsSelection() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false))
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(-1) // a new field starts
+        setText("another field with a selection")
+        setCursorPosition(0, 7)
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive() // the old finger lifts in the new field
+        handleMessages()
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        assertEquals(0, trackSnapshot().delete.lifts, "the new field's selection is not a lift of this slide")
+        assertEquals(-1, trackSnapshot().delete.lastSelectedChars)
+    }
+
+    @Test fun cursor87bARefusedSecondDeleteFingerThatLiftsFirstDoesNotLoseTheFirstLift() {
+        helium314.keyboard.agent.CursorTrackCounters.shared.reset()
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false, pointer = 0))
+        assertEquals(TRACK_REFUSED_DRAG, trackDrag(KeyCode.DELETE, -60.0, 0.0, lift = false, pointer = 1))
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(1) // the refused finger lifts first
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive() // then the first one
+        handleMessages()
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        assertEquals(1, trackSnapshot().delete.lifts)
+        assertEquals(4, trackSnapshot().delete.lastSelectedChars)
     }
 
     @Test fun cursor87ATapOrASmallWiggleIsNoSwipe() {

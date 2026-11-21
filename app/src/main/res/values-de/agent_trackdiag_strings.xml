@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Stage 87b: the card "Cursor-Trackpad" of the diagnose page and the status lines of the gestures page. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_trackdiag_title">Cursor-Trackpad (Zahlen und Namen, kein Text)</string>
+    <string name="agent_trackdiag_row_switch">Trackpad – Schalter „Cursor als Trackpad“</string>
+    <string name="agent_trackdiag_row_horizontal">Trackpad – Leertaste ← und →</string>
+    <string name="agent_trackdiag_row_vertical">Trackpad – Leertaste ↑ und ↓</string>
+    <string name="agent_trackdiag_row_space_now">Trackpad – Leertaste jetzt</string>
+    <string name="agent_trackdiag_row_delete_swipe">Trackpad – Löschen durch Wischen</string>
+    <string name="agent_trackdiag_row_delete_now">Trackpad – Löschtaste jetzt</string>
+    <string name="agent_trackdiag_pair">%1$s %2$s, %3$s %4$s</string>
+    <string name="agent_trackdiag_now_active">Trackpad aktiv</string>
+    <string name="agent_trackdiag_now_inactive">nicht aktiv, weil %1$s</string>
+    <string name="agent_trackdiag_why_delete_swipe">„Löschen durch Wischen“ aus ist</string>
+    <string name="agent_trackdiag_row_space_touches">Leertaste – Wische seit dem Start der Tastatur</string>
+    <string name="agent_trackdiag_row_space_decisions">Leertaste – Entscheidungen</string>
+    <string name="agent_trackdiag_row_space_steps">Leertaste – Bewegung</string>
+    <string name="agent_trackdiag_row_space_field">Leertaste – Feld des letzten Trackpad-Wischs</string>
+    <string name="agent_trackdiag_row_space_last">Letzter Wisch auf der Leertaste</string>
+    <string name="agent_trackdiag_row_delete_touches">Löschtaste – Wische seit dem Start der Tastatur</string>
+    <string name="agent_trackdiag_row_delete_decisions">Löschtaste – Entscheidungen</string>
+    <string name="agent_trackdiag_row_delete_steps">Löschtaste – Bewegung</string>
+    <string name="agent_trackdiag_row_delete_lifts">Löschwisch – Loslassen</string>
+    <string name="agent_trackdiag_row_delete_last">Letzter Wisch auf der Löschtaste</string>
+    <string name="agent_trackdiag_decisions_delete">Trackpad %1$d, aus %2$d (Schalter %3$d, Eingabe gesperrt %4$d), abgewiesen %5$d, vor der Wischstrecke gehoben %6$d</string>
+    <string name="agent_trackdiag_blocker">%1$s = %2$s</string>
+    <string name="agent_trackdiag_steps">%1$d Schritte waagerecht, %2$d Pfeile senkrecht gesendet, etwa %3$d Pfeile senkrecht unterdrückt (Feld einzeilig), %4$d Rasten</string>
+    <string name="agent_trackdiag_steps_delete">%1$d Schritte, %2$d Rasten</string>
+    <string name="agent_trackdiag_field">Textklasse %1$s, Mehrzeilig-Flag %2$s</string>
+    <string name="agent_trackdiag_field_none">noch kein Trackpad-Wisch</string>
+    <string name="agent_trackdiag_lifts">%1$d, davon %2$d mit Löschen; zuletzt %3$d Zeichen markiert</string>
+    <string name="agent_trackdiag_lifts_none">noch keins</string>
+    <string name="agent_trackdiag_last_none">noch keiner seit dem Start</string>
+    <string name="agent_trackdiag_last_active">Trackpad, %1$d Schritte</string>
+    <string name="agent_trackdiag_last_vertical">, %1$d Zeilen senkrecht</string>
+    <string name="agent_trackdiag_last_single_line">, senkrecht nicht möglich, weil das Feld einzeilig gemeldet ist</string>
+    <string name="agent_trackdiag_last_lift">, beim Loslassen %1$d Zeichen markiert, %2$s</string>
+    <string name="agent_trackdiag_last_deleted">gelöscht</string>
+    <string name="agent_trackdiag_last_kept">nichts gelöscht</string>
+    <string name="agent_trackdiag_last_off">Trackpad nicht gestartet, weil %1$s</string>
+    <string name="agent_trackdiag_off_switch">der Schalter aus ist</string>
+    <string name="agent_trackdiag_off_blocked">die Eingabe gesperrt war (ein Panel ist offen)</string>
+    <string name="agent_trackdiag_last_refused">abgewiesen, weil ein anderer Finger den Cursor führte</string>
+    <string name="agent_trackdiag_last_never">Finger gehoben, bevor die Wischstrecke erreicht war; das Trackpad hat nie übernommen</string>
+    <string name="agent_trackdiag_line_delete_active">Löschtaste: aktiv</string>
+    <string name="agent_trackdiag_line_delete_swipe">Löschtaste: nicht aktiv – „Löschen durch Wischen“ ist aus</string>
+    <string name="agent_trackdiag_or">" oder "</string>
+    <string name="agent_trackdiag_start_decides">Start nach %1$s bewegt den Cursor frei%2$s</string>
+    <string name="agent_trackdiag_start_first">; Start nach %1$s löst „%2$s“ aus</string>
+    <string name="agent_trackdiag_start_next">, nach %1$s „%2$s“</string>
+    <string name="agent_trackdiag_detail_all">jeder Wisch bewegt den Cursor frei (↑ oder ↓ nur in mehrzeiligen Feldern)</string>
+    <string name="agent_trackdiag_detail_none">keine Richtung steht auf „Cursor bewegen“; lege unter „Leertaste“ eine Richtung (zum Beispiel links) darauf</string>
+    <string name="agent_trackdiag_line_space_active">Leertaste: aktiv – %1$s</string>
+    <string name="agent_trackdiag_line_space_inactive">Leertaste: nicht aktiv – %1$s</string>
+    <string name="agent_trackdiag_now_active_detail">Trackpad aktiv – %1$s</string>
+    <string name="agent_trackdiag_now_inactive_detail">nicht aktiv – %1$s</string>
+    <string name="agent_trackdiag_row_space_action">Leertaste – zuletzt Aktion statt Trackpad</string>
+    <string name="agent_trackdiag_row_space_collapsed">Leertaste – Markierung zusammengezogen</string>
+    <string name="agent_trackdiag_collapsed">%1$d mal, zuletzt %2$s</string>
+    <string name="agent_trackdiag_collapsed_none">noch nie</string>
+    <string name="agent_trackdiag_decisions">Trackpad %1$d, Aktion statt Trackpad %2$d, aus %3$d (Schalter %4$d, Eingabe gesperrt %5$d, keine Cursor-Richtung %6$d), abgewiesen %7$d (anderer Finger führt den Cursor %8$d, anderer Finger führt eine Aktion aus %9$d), vor der Wischstrecke gehoben %10$d</string>
+    <string name="agent_trackdiag_last_collapsed">, eine Markierung wurde zusammengezogen</string>
+    <string name="agent_trackdiag_last_action">Start nach %1$s: Aktion „%2$s“ (%3$s), kein Trackpad – so ist es eingestellt</string>
+    <string name="agent_trackdiag_last_nothing">Start nach %1$s: nichts (%2$s), kein Trackpad – die Richtung ist in diesem Feld ohne Wirkung</string>
+    <string name="agent_trackdiag_off_no_direction">keine Richtung auf „Cursor bewegen“ steht</string>
+    <string name="agent_trackdiag_last_refused_action">abgewiesen, weil ein anderer Finger gerade eine Aktion der Leertaste ausführte</string>
+    <string name="agent_trackdiag_multiline_only">" (%1$s nur in mehrzeiligen Feldern)"</string>
+    <string name="agent_trackdiag_off_both">Aus: Leertaste und Löschtaste arbeiten wie bisher (ohne Trackpad).</string>
+    <string name="agent_trackdiag_now_switch_off">aus – wie bisher, ohne Trackpad</string>
+    <string name="agent_trackdiag_action_none">noch keine</string>
+    <string name="agent_trackdiag_action_value">%1$s %2$s (%3$s)</string>
+    <string name="agent_trackdiag_collapsed_once">einmal, zuletzt %1$s</string>
+    <string name="agent_trackdiag_lifts_protected">%1$d; zuletzt nicht erfasst (geschütztes Feld)</string>
+    <string name="agent_trackdiag_last_protected">Trackpad – Bewegung nicht erfasst (geschütztes Feld)</string>
+</resources>
