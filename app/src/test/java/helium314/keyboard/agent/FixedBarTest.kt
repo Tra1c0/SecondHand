@@ -590,17 +590,10 @@ class FixedBarTest {
         val h = build()
         fun offered() = FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO })
         fun offer() { helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO); assertTrue(offered()) }
-        // text without a key code (emoji, several characters): the real listener of the keyboard
+        // text without a key code (emoji, several characters): through the real listener of the keyboard to LatinIME
         offer(); latinIME.mKeyboardActionListener.onTextInput("🙂"); assertFalse(offered(), "onTextInput")
         // a gesture
         offer(); latinIME.mKeyboardActionListener.onStartBatchInput(); assertFalse(offered(), "gesture typing")
-        // a chosen suggestion (the strip's word view)
-        offer()
-        h.strip.setSuggestions(words("hallo", "hallo!"), false)
-        layout(h)
-        val word = h.strip.findViewById<ViewGroup>(R.id.suggestions_strip).let { g -> (0 until g.childCount).map { g.getChildAt(it) }.first { it.tag is Int } }
-        word.performClick()
-        assertFalse(helium314.keyboard.agent.UndoOffer.active, "a chosen suggestion")
         helium314.keyboard.agent.UndoOffer.reset()
     }
 

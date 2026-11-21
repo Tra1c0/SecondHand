@@ -233,7 +233,6 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onTextInput(text: String?) {
-        helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: emoji and other text change the text like a typed key
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
         latinIME.onTextInput(text)
     }
@@ -245,6 +244,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onContent(content: InputContentInfoCompat) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: a sticker or GIF is new content
         latinIME.invalidateAgentEditor()
         val editorInfo = latinIME.currentInputEditorInfo
         val editorMimeTypes = EditorInfoCompat.getContentMimeTypes(editorInfo)

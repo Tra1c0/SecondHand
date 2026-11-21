@@ -6631,13 +6631,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P483** Hintergrundbild (88): Die Kontrastregel der Leistensymbole (`StripIconColors.background`) rechnet mit `STRIP_BACKGROUND` über `MAIN_BACKGROUND`. Hat das Design ein Hintergrundbild der Tastatur, kennt die Regel das Bild nicht: Der Kontrast gilt gegen die Farbe,
   nicht gegen das Bild (ein heller Bildstreifen hinter einem hellen Symbol wird nicht erkannt). Nicht gebaut, nicht geprüft; wer es baut, misst den mittleren Bildwert hinter der Leiste.
 - **P484** Eine Berührung hängt nie an einem alten Zustand (88, Prüferbefund): Gibt der Behälter eine senkrechte Geste an den `ScrollView` ab, ruft dieser `requestDisallowInterceptTouchEvent(true)`, und der Behälter sieht weder weitere Moves noch das Ende. Darum geht `BarDrag` bei `Event.Scroll` sofort in `IDLE`,
-  jedes neue `ACTION_DOWN` ruft `endTouch` (alter Zustand weg, ein laufendes Ziehen wird wie Abbruch zurückgegeben), der Timer der Haltezeit prüft `scroll.scrollY` und nimmt nichts auf, wenn das Raster sich bewegt hat, `onDetachedFromWindow` bricht ab. Im Raster sind geteilte Berührungen ausgeschaltet
-  (`isMotionEventSplittingEnabled = false`): ein zweiter Finger auf einer anderen Pille tut nichts. Tests: `BarEditModeTest` (`afterScrolling…`, `aScrollThatTheContainerNeverSeesTheEndOf…`, `aSecondFinger…`), Gerätetest `bar_edit_scroll_then_drag`.
-- **P485** Wiederholen-Angebot endet bei jeder Texteingabe (88): zusätzlich zu den Tastencodes `UndoOffer.onTextChange()` aus `KeyboardActionListenerImpl.onTextInput` (Emoji, mehrere Zeichen), `onStartBatchInput` (Gestentippen) und dem Wählen eines Vorschlags in `SuggestionStripView.onClick`; `SHIFT_ENTER` steht nicht mehr in der Liste der folgenlosen Codes.
-  Nichts davon berührt `InputLogic` oder `RichInputConnection`.
+  jedes neue `ACTION_DOWN` ruft `endTouch` (alter Zustand weg, ein laufendes Ziehen wird wie Abbruch zurückgegeben), `requestDisallowInterceptTouchEvent(true)` (jede Übernahme der Geste durch ein Kind: Scrollen, Anhalten eines Flings mit einem Finger) beendet eine noch nicht ziehende Berührung sofort, damit der Timer der Haltezeit unter einem Finger, der nur das Raster anhält, nichts aufnimmt (eine Prüfung von `scrollY` wäre damit überflüssig und entfiel), `onDetachedFromWindow` bricht ab. Im Raster sind geteilte Berührungen ausgeschaltet
+  (`isMotionEventSplittingEnabled = false`): ein zweiter Finger auf einer anderen Pille tut nichts. Tests: `BarEditModeTest` (`afterScrolling…`, `aScrollThatTheContainerNeverSeesTheEndOf…`, `aTouchThatStopsAFlingPicksNothingUp…`, `aSecondFinger…`), Gerätetest `bar_edit_scroll_then_drag`.
+- **P485** Wiederholen-Angebot endet bei jeder Texteingabe (88): zusätzlich zu den Tastencodes (`KeyboardActionListenerImpl.onCodeInput`) ruft `UndoOffer.onTextChange()` an den **gemeinsamen Stellen** in `LatinIME.java`: `onTextInput` (Emoji, mehrere Zeichen, Chips), `onPrivateTextInput` und `pickSuggestionManually` (Leiste, erweiterte Vorschläge `MoreSuggestionsView`, Chips wie `pickPrediction`),
+  dazu `KeyboardActionListenerImpl.onStartBatchInput` (Gestentippen) und `onContent` (Sticker, GIF); `SHIFT_ENTER` steht nicht mehr in der Liste der folgenlosen Codes. Nichts davon berührt `InputLogic` oder `RichInputConnection`. Test je Weg: `UndoOfferHooksTest` (echte `LatinIME`).
 - **P486** Grund bei „Immer Inkognito“ (88): `BarTools.unavailableReason(…, alwaysIncognito)`: Ist der Schalter `PREF_ALWAYS_INCOGNITO_MODE` an, heißt der Grund `INCOGNITO_SWITCH` („Nicht verfügbar: „Immer Inkognito“ ist eingeschaltet“), nicht „privates Feld“, auch wenn das Feld selbst privat ist.
-- **P487** An/aus bei Umschalt-Werkzeugen (88): Zeigt ein Design ein eingeschaltetes Werkzeug (`activated`) anders als ein ausgeschaltetes, hebt `StripIconColors.guaranteed` beide auf den Kontrast und stellt danach einen Mindestabstand `MIN_STATE_STEP` (1,25:1) zwischen beiden her (zuerst nach außen, dann die ausgeschaltete
-  Farbe zurück bis höchstens zur Untergrenze 3:1). Designs ohne Unterschied (alle eigenen Designs über `AllColors`) haben keinen zu erhalten. Die Richtung der Anhebung folgt der des Designs (ein helles Symbol wird heller); ein Symbol im Akzentkreis braucht 3:1 (weiß auf Rosa bleibt weiß).
+- **P487** An/aus bei Umschalt-Werkzeugen (88, dreimal überarbeitet): `StripIconColors.guaranteed` in drei Schritten: (1) jeder Zustand bekommt den Mindestkontrast (`ensureContrast`, 4,5:1, die Richtung folgt dem Design), das gewinnt immer; (2) zeigt das Design ein eingeschaltetes Werkzeug (`activated`) anders als ein ausgeschaltetes, geht das eingeschaltete
+  auf der Seite seiner angehobenen Farbe weiter vom Grund weg (sein Kontrast wächst dabei nur), bis es nicht das schwächere ist und `MIN_STATE_STEP` (1,25:1) Abstand hat, höchstens bis Weiß/Schwarz; (3) zuletzt `hard`: kein Zustand unter 3:1. Es gibt keinen Rückzug der ausgeschalteten Farbe und keine Seitenwahl aus den Originalfarben mehr (beides war die Quelle von Fehlern: ein eingeschaltetes Symbol konnte quer durch die Grundfarbe laufen und auf 1,1:1 fallen). Designs ohne Unterschied (alle eigenen Designs über `AllColors`) bleiben unverändert (Pixelvergleich der Owner-Bilder). Ein Symbol im Akzentkreis braucht 3:1 (weiß auf Rosa bleibt weiß). Absicherung: `BarIconVisibilityTest.theRuleHoldsOverAGridOfGroundsAndColours` (rund 6000 Kombinationen aus Grund, an und aus).
 - **P410** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
   Schnelltipp-Sperre. Ein Listener, der nichts weiß (Mock = 0, `Adapter`), ergibt `TRACK_OFF` und damit den alten Code
   Zeile für Zeile (`CursorGestureTrackerTest`, alter Fixture-Teil). Wer den Hook vor die Schnelltipp-Sperre zöge, ließe Tipps beim
@@ -6722,7 +6722,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (757 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (758 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6758,7 +6758,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (127): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (128): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
   BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
@@ -6784,9 +6784,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
   StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
   ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UndoOfferTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
-  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest,
+  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest

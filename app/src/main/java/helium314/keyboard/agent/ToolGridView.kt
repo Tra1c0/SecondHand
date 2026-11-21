@@ -168,6 +168,17 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         onClosed?.invoke()
     }
 
+    /**
+     * A child takes the gesture (the scroll view catching a fling with a touch, or scrolling) and asks not to be intercepted: from then on
+     * this container sees neither moves nor the end of it. So the touch is over for the edit mode at once, before the hold timer
+     * could pick a tool up under a finger that is only stopping the panel (stage 88, review).
+     */
+    override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+        val logic = dragLogic
+        if (disallowIntercept && logic != null && logic.phase == BarDrag.Phase.PRESSED) endTouch(logic)
+        super.requestDisallowInterceptTouchEvent(disallowIntercept)
+    }
+
     override fun onDetachedFromWindow() {
         cancelTouch()
         super.onDetachedFromWindow()
@@ -183,11 +194,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var trackedPointer = -1
     private var floating: ImageView? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var downScrollY = 0
     private val holdTimer = Runnable {
+        // (no check of the scroll position here: every way a child takes the gesture goes through requestDisallowInterceptTouchEvent, see there)
         val logic = dragLogic ?: return@Runnable
-        // the panel moved under the finger: the scroll view has the gesture (it may never tell the container), no pick-up
-        if (scroll.scrollY != downScrollY) { endTouch(logic); return@Runnable }
         handle(logic.tick(SystemClock.uptimeMillis()))
     }
 
@@ -242,7 +251,6 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
             MotionEvent.ACTION_DOWN -> {
                 // a new gesture never fails on an old state: the end of the last one may have gone to the scroll view or a child
                 endTouch(logic)
-                downScrollY = scroll.scrollY
                 val on = targetAt(ev.x, ev.y) ?: return false
                 if (!logic.down(ev.getPointerId(0), ev.x, ev.y, ev.eventTime, on)) return false
                 trackedPointer = ev.getPointerId(0)
