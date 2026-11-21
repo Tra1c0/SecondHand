@@ -6573,6 +6573,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Wiederaufnahme der Vorschläge) zuerst beantwortet wird, und wechselten bei ausgelastetem Rechner; der Emoji-Tabellen-Thread (`EmojiSuggestions`) füllt die Leiste mit Emojis, wenn er fertig
   ist (`TypingRig.setUp` schaltet ihn aus). Verglichen wird dort nur der Editor. Wer Folgen ergänzt: `strip=` nur für Folgen ohne Rücktaste.
 
+- Ruhige Leiste (Etappe 89, Teil 1 = Analyse, Messung, Konzept; noch kein Umbau): `docs/LEISTE-RUHE-KONZEPT.md` (Ursache mit Aufrufketten, Regel „Schreibsitzung“, Abnahme-Zeilen).
+  `StripCalmLogTest` (`T/latin/`) tippt über `TypingRig` einen Satz, einen Absatz und zehn Rücktasten und protokolliert den Zustand von `BarState` (`show`, `hasContent`) nach jeder Taste, nach den wartenden
+  Aufgaben und bei jedem Aufruf in den Editor; die Folge von heute steht in `src/test/resources/stage89/strip-protocol-*.txt` und wird beim Umbau durch die erwartete Folge ersetzt (der Test schreibt die tatsächliche nach `app/build/`).
+  `TypingRig` hat dafür `predictions` (Folgewörter des Stub-Wörterbuchs) und `startField(…, imeOptions)` (ohne `IME_FLAG_NO_ENTER_ACTION` sendet Enter die Editor-Aktion statt eines Absatzes).
 - **P380** Feste Leiste, nur ein Ort setzt Sichtbarkeiten (85): `SuggestionStripView.applyBarState` setzt Werkzeuge, Vorschlagsleiste, angeheftete Tasten, Verfügbarkeit und linke Taste
   zusammen aus `BarState` (und dem offenen Raster). Alte Wege, die `suggestionsStrip.isVisible` oder `toolbarContainer.isVisible` selbst setzen (`clear`, `removeSuggestion`,
   `onVisibilityChanged`, `setToolbarVisibility`), sind für die feste Leiste umgeleitet oder gesperrt; wer einen neuen setzt, zeigt Wörter neben den Werkzeugen. Eigene Sichtbarkeit nie
@@ -6925,8 +6929,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (6): InputLogicTest, SuggestTest, SymbolLatencyTest,
+- `app/src/test/java/helium314/keyboard/latin/` (7): InputLogicTest, StripCalmLogTest, SuggestTest, SymbolLatencyTest,
   TypingEquivalenceTest, TypingRig, WordListDictionaries
+- `app/src/test/resources/stage89/` (3): strip-protocol-no-predictions, strip-protocol-with-predictions, strip-protocol-slow-connection
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `app/src/test/java/helium314/keyboard/latin/suggestions/` (3): BarDragTest, BarEditorTest,
   BarStateTest
