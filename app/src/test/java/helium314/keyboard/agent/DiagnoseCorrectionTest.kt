@@ -34,7 +34,7 @@ class DiagnoseCorrectionTest {
     private val none = Diagnose.CorrectionCounts(emptyMap(), 0, 0, 0)
 
     @Before fun setUp() { app.prefs().edit { clear() }; LastField.clear() }
-    @After fun tearDown() { app.prefs().edit { clear() }; LastField.clear() }
+    @After fun tearDown() { TypoMemory.clear(app); app.prefs().edit { clear() }; LastField.clear() }
 
     private fun rows(counts: Diagnose.CorrectionCounts = none) = Diagnose.correction(app, counts).rows.associate { it.label to it.value }
 
@@ -81,6 +81,7 @@ class DiagnoseCorrectionTest {
     @Test fun showsOnlyCountsAndNoWordOfTheLearnedData() {
         val typo = "GEHEIMTIPPFEHLER"; val meant = "GEHEIMZIELWORT"; val history = "GEHEIMVERLAUFSWORT"
         app.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        Settings.getInstance().loadSettings(app, java.util.Locale.GERMANY, helium314.keyboard.latin.InputAttributes(android.view.inputmethod.EditorInfo(), false, app.packageName))
         val settings = Settings.getValues()
         repeat(3) { TypoMemory.confirm(app, typo, meant, null, settings) }
         val counts = Diagnose.CorrectionCounts(mapOf("de" to 12, "en" to 3), TypoMemory.all(app).size, 2, 5)

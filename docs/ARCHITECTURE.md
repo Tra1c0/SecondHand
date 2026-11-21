@@ -362,6 +362,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `InputLogicTest.kt` („revert swapped letters autocorrect on delete“).
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - Untersuchung Autokorrektur (2026-11-21, keine Produktänderung): `AutocorrectReportTest.kt` hält mit festen Engine-Ergebnissen fest, was `Suggest`/`CorrectionGuard` heute tun (Ziel „nicbmal“ aus dem Verlauf ohne Wörterbuch-Prüfung, „i“ → „I“ bei „Richtige Wörter nie ändern“ blockiert, englischer Tippfehler im englischen Satz → deutsches Wort); Namen „reported finding N“. `tools/devicetest/devicetest.py`: Szenarien `reported_finding_*` (nur mit `--only` bzw. Workflow-Eingabe `only`) tippen mit echten Berührungen, schreiben Zeilen `PROBE …` ins Log und halten das heutige Verhalten fest (dokumentiert, nicht gutgeheißen).
+- Diagnose „Korrektur & Sprache“ (Etappe 90a): `Diagnose.correction` (Part `CORRECTION`, Karte direkt nach „Letztes Feld“ in `AgentDiagnoseScreen`) liest nur Einstellungen (`TypingAutocorrect.current`, Schalter, Layout und zweite Sprachen je aktivem Subtyp) und Zahlen aus `Diagnose.correctionCounts` (Hintergrund-Thread, `runCatching`, nicht lesbar = null = „unbekannt"): Verlaufswörter je Sprache, `TypoMemory`, `FieldCorrectionMemory`, `RejectedCorrections`. Kein Wort. Test `AT/DiagnoseCorrectionTest.kt`; Texte `agent_diagnose_corr_*` in `agent_diagnose_strings.xml`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -6728,7 +6729,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (763 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (764 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6767,36 +6768,37 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (128): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (129): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
   BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
   ClipCachesTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, CursorGestureTrackerTest, CursorTrackDiagTest,
   CursorTrackpadReasonTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
-  DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
-  EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
-  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
-  ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
-  InformalWordsStoreTest, InlineAutofillCardTest, InlineAutofillGenerationTest,
-  InlineAutofillResponseTest, InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
-  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest,
-  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  DesignTilesTest, DiagnoseCorrectionTest, DiagnoseScreenTest, DictationSessionTest,
+  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
+  InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
+  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest, UpdateChipTest,
+  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest

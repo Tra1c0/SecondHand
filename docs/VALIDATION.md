@@ -7289,3 +7289,8 @@ Zwei unabhängige Prüfer lasen den Branch gegen `main` (Build 29): der eine die
 - Keine Verarbeitung in Passwort-, Inkognito- oder gesperrten Zuständen.
 - Keine Netzwerkanfragen durch normales Tippen oder lokale Aktionen.
 - Neues Profil anwenden und zum vorherigen funktionierenden Zustand zurückkehren.
+
+
+## Etappe 90a: Diagnose-Karte „Korrektur & Sprache“
+
+- `DiagnoseCorrectionTest` (4 Tests) und `DiagnoseScreenTest` grün (Robolectric): Stufe (eigene/Behutsam/Mutig/Aus), Schalter, Lernen, Zahlen, kein Wort aus gelernten Daten im kopierten Text, nicht lesbar = „unbekannt“, Karte auf der Seite. Nicht auf einem Gerät gesehen.
