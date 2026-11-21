@@ -6644,6 +6644,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P487** An/aus bei Umschalt-Werkzeugen (88, dreimal überarbeitet): `StripIconColors.guaranteed` in drei Schritten: (1) jeder Zustand bekommt den Mindestkontrast (`ensureContrast`, 4,5:1, die Richtung folgt dem Design), das gewinnt immer; (2) zeigt das Design ein eingeschaltetes Werkzeug (`activated`) anders als ein ausgeschaltetes, geht das eingeschaltete
   auf der Seite seiner angehobenen Farbe weiter vom Grund weg (sein Kontrast wächst dabei nur), bis es nicht das schwächere ist und `MIN_STATE_STEP` (1,25:1) Abstand hat, höchstens bis Weiß/Schwarz; ist „an“ dort und noch nicht 1,25:1 von „aus“ entfernt (oder noch das schwächere), kommt „aus“ zum Grund hin zurück, höchstens bis 4,5:1 (sonst würden beide am Extrem gleich); (3) zuletzt `hard`: kein Zustand unter 3:1. Es gibt keine Seitenwahl aus den Originalfarben mehr (beides war die Quelle von Fehlern: ein eingeschaltetes Symbol konnte quer durch die Grundfarbe laufen und auf 1,1:1 fallen). Designs ohne Unterschied (alle eigenen Designs über `AllColors`) bleiben unverändert (Pixelvergleich der Owner-Bilder). Ein Symbol im Akzentkreis braucht 3:1 (weiß auf Rosa bleibt weiß). Absicherung: `BarIconVisibilityTest.theRuleHoldsOverAGridOfGroundsAndColours` (rund 6000 Kombinationen aus Grund, an und aus).
 - **P488** Pillen im Raster (88c): Die Farben einer Pille werden gegen die **gezeichnete** Fläche gerechnet, nicht gegen `KEY_BACKGROUND`: Die Tastenfarbe eines Designs ist oft durchscheinend (beim Owner Weiß, ~47 %), `ensureContrast` kennt keinen Alphakanal. `PillColors.surface` legt sie über den Grund des Rasters (`MAIN_BACKGROUND`); Text, Symbol, gedrückt, „nicht verfügbar“ und „in der Leiste“ kommen aus `PillColors` (eine Stelle). Kein `View.alpha` zum Dimmen (außer `LIFTED_ALPHA` für die Pille des gehaltenen Werkzeugs): das nimmt auch dem Text die Deckkraft. Wer eine Farbregel für Text auf einer Fläche baut, rechnet mit dem Ergebnis der Mischung, nicht mit der Eingabe; der Pixeltest `GridPillsTest` misst gegen das Gezeichnete. Namen: `ToolGridView.fitText` (16 dp bis 10 dp, höchstens zwei Zeilen; die Auto-Größe des Systems greift neben einem Compound-Symbol nicht, und ohne Fenster läuft sie nie); die Zeilen des Rasters haben `isBaselineAligned = false`, sonst schiebt eine zweizeilige Pille sich aus der Zeile. Ein `Button(context, null, 0)` hat keine Schwerkraft „Mitte“: setzen. Im Test (ohne Fenster) lösen relative Compound-Symbole erst mit `layoutDirection` auf, und die Textgröße von `fitText` gilt erst im zweiten Layout (`GridPillsTest.show` macht beides).
+- **P489** Kontrast nur gegen die tatsächlich sichtbare, deckende Fläche (88c, Prüferbefund): Eine Kontrastfunktion bekommt als Hintergrund nur ein `Seen` (agent-core `RgbLighting.kt`), gebaut mit `Seen.over(farbe, grund)` oder `Seen.of(farbe)`; `StripIconColors.ensureContrast`/`off`, `PillColors.*`, `RgbColors.readable`/`label` haben keinen `Int`-Hintergrund mehr (Test `SeenSurfaceTest`). Wer eine neue Farbregel baut, fragt zuerst: **was wird dahinter wirklich gemalt?** (der Streifen über dem Tastaturhintergrund, die deckende Fläche der Pille, ein Kreis, dessen Pinsel die Deckkraft ignoriert wie `CircleBadge`) und rechnet gegen das. `RgbColors.over(oben, unten)` legt einen durchscheinenden unteren Wert zuerst über Schwarz (vorher wurde seine Deckkraft verworfen, `StripIconColors.background` hielt eine durchscheinende `MAIN_BACKGROUND` für deckend). Das Raster malt seinen Grund deckend (`ToolGridView.build`), darauf stehen Pillen, Hinweis, Frage und die schwebende Kopie. Beim Ändern einer Beschriftungsfarbe auf dem Raster: Text auf der **Pille** gegen `PillColors`, Text auf dem **Grund** (Hinweis, Frage) gegen `Seen.of(Grund)`. Die Systemschrift-Größe wirkt auf die Pillen nicht (`fitText` setzt die Größe in Pixeln, 16 dp bis 10 dp): das ist so gewollt, ein Owner mit großer Systemschrift sieht dieselbe Größe. `fitText` und die Anzeige brechen nach derselben Regel um (`BREAK_STRATEGY_SIMPLE`, keine Silbentrennung, `layoutOf`): ändert man eins, das andere mit.
 - **P410** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
   Schnelltipp-Sperre. Ein Listener, der nichts weiß (Mock = 0, `Adapter`), ergibt `TRACK_OFF` und damit den alten Code
   Zeile für Zeile (`CursorGestureTrackerTest`, alter Fixture-Teil). Wer den Hook vor die Schnelltipp-Sperre zöge, ließe Tipps beim
@@ -6728,7 +6729,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (765 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (766 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6768,7 +6769,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (129): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (130): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
   BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
@@ -6787,15 +6788,15 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
   MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
   PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest,
-  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SeenSurfaceTest,
+  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest,
+  SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest,
+  SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest,
+  TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest,
+  TypedWordFirstTest, TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest,
+  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
