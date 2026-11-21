@@ -76,8 +76,8 @@ class BarIconVisibilityTest {
         return AllColors(map, "Material", true, null)
     }
 
-    /** The design of the owner's phone as far as the screenshot shows it. */
-    private val owner = design(0xFF0A0001.toInt(), 0xFFC8FFEE.toInt(), 0xFFA4A9A1.toInt(), 0xFF4A0006.toInt(), 0xFFF0145A.toInt())
+    /** The design of the owner's phone, measured on his build-43 screenshot (88c): ground #090001, symbols white, accent #DA3658, left disc #500C0D. */
+    private val owner = design(0xFF090001.toInt(), 0xFFFFFFFF.toInt(), 0xFFA4A9A1.toInt(), 0xFF500C0D.toInt(), 0xFFDA3658.toInt())
     private val light = design(0xFFF4F4F4.toInt(), 0xFF202020.toInt(), 0xFFFFFFFF.toInt(), 0xFFDDDDDD.toInt(), 0xFF3366CC.toInt())
     /** A design whose icon colour is almost the background: the rule must lift it. */
     private val faint = design(0xFF0A0001.toInt(), 0xFF141414.toInt(), 0xFF202020.toInt(), 0xFF303030.toInt(), 0xFF404040.toInt())

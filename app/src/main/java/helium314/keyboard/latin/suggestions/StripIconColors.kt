@@ -59,10 +59,10 @@ internal object StripIconColors {
     }
 
     /** The "off" colour of an icon with the normal colour [normal]: half of it over [bg], lifted to [OFF_CONTRAST] if that is too faint. */
-    fun off(normal: Int, bg: Int): Int {
+    fun off(normal: Int, bg: Int, minContrast: Double = OFF_CONTRAST): Int {
         var t = OFF_MIX
         var result = RgbColors.lerp(bg or RgbColors.BLACK, normal or RgbColors.BLACK, t)
-        while (t < 1f && RgbColors.contrast(result, bg) < OFF_CONTRAST) {
+        while (t < 1f && RgbColors.contrast(result, bg) < minContrast) {
             t += 0.05f
             result = RgbColors.lerp(bg or RgbColors.BLACK, normal or RgbColors.BLACK, t)
         }

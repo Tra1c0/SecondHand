@@ -85,6 +85,13 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var marked = emptySet<ToolbarKey>()
     private var lastTools = emptyList<Tool>()
     private var pillBackground = 0
+    private var gridGround = 0
+    private var liftedKey: ToolbarKey? = null
+    private var keyColour = 0
+    private var keyText = 0
+    private var keyIcon = 0
+    /** Tests draw the panel in the colours of a design that is not the current one. */
+    internal var colorsOverride: helium314.keyboard.latin.common.Colors? = null
     private val reasons = HashMap<ToolbarKey, helium314.keyboard.latin.utils.BarTools.Reason?>()
     /** Called whenever the panel goes away, for whatever reason. */
     var onClosed: (() -> Unit)? = null
@@ -312,7 +319,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     private fun startFloating(key: ToolbarKey, fromBar: Boolean) {
         removeFloating()
-        val colors = Settings.getValues()?.mColors
+        val colors = colorsOverride ?: Settings.getValues()?.mColors
         val disc = colors?.get(ColorType.KEY_BACKGROUND) ?: FlatStyle.KEY
         val ring = colors?.get(ColorType.ACTION_KEY_BACKGROUND) ?: FlatStyle.ACCENT
         val icon = StripIconColors.ensureContrast(colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL, disc)
@@ -331,6 +338,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         addView(view, LayoutParams(floatingSize, floatingSize))
         floating = view
         view.tag = key
+        liftedKey = key
         pills[key]?.alpha = LIFTED_ALPHA // the pill of the tool being dragged stays as an empty place
         moveFloating(dragLogic?.x ?: 0f, dragLogic?.y ?: 0f)
     }
@@ -347,6 +355,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private fun endFloating(key: ToolbarKey, toBar: Boolean) {
         val view = floating ?: return
         floating = null
+        liftedKey = null
         pills[key]?.let { applyMark(key, it) } // the pill's look follows the bar again
         val half = floatingSize / 2f
         val target = (if (toBar) slotCentre?.invoke(key) else pillCentre(key))
@@ -361,6 +370,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         floating = null
         view.animate().cancel()
         removeView(view)
+        liftedKey = null
         (view.tag as? ToolbarKey)?.let { key -> pills[key]?.let { applyMark(key, it) } }
     }
 
@@ -382,19 +392,24 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         content.removeAllViews()
         pills.clear()
         reasons.clear()
-        val colors = Settings.getValues()?.mColors
+        val colors = colorsOverride ?: Settings.getValues()?.mColors
         val background = colors?.get(ColorType.MAIN_BACKGROUND) ?: FlatStyle.BACKGROUND
         val pill = colors?.get(ColorType.KEY_BACKGROUND) ?: FlatStyle.KEY
         val text = colors?.get(ColorType.KEY_TEXT) ?: FlatStyle.LABEL
         val icon = colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL
         pillBackground = pill
+        // the pills are computed against the surface they really have (the key colour may be translucent), see PillColors
+        gridGround = background
+        keyColour = pill; keyText = text; keyIcon = icon
+        val look = PillColors.normal(pill, background, text, icon)
 
         scroll.setBackgroundColor(background)
         content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP))
-        content.addView(header(text, icon, pill), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        content.addView(header(look.text, look.icon, look.fill), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = dp(GAP_DP) })
         tools.chunked(COLUMNS).forEachIndexed { rowIndex, rowTools ->
-            val row = LinearLayout(context).apply { isMotionEventSplittingEnabled = false }
+            // no baseline alignment: a pill with a two-line name has a lower first baseline and would be pushed down, out of its row (88c)
+            val row = LinearLayout(context).apply { isMotionEventSplittingEnabled = false; isBaselineAligned = false }
             rowTools.forEachIndexed { column, tool ->
                 val params = LinearLayout.LayoutParams(0, dp(PILL_HEIGHT_DP), 1f)
                 if (column > 0) params.marginStart = dp(GAP_DP)
@@ -478,6 +493,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         setTextColor(StripIconColors.ensureContrast(textColor, pillColor))
         setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         typeface = FlatStyle.labelTypeface
+        gravity = Gravity.CENTER // a button without a style has its text at the top
         isSoundEffectsEnabled = false
         background = roundedBackground(pillColor, dp(EDIT_HEIGHT_DP) / 2f)
         minimumWidth = 0; minimumHeight = 0
@@ -494,35 +510,40 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private fun applyMark(key: ToolbarKey, pill: Button) {
         val label = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)
         val inBar = key in marked
-        pill.alpha = if (inBar) MARKED_ALPHA else 1f
+        // a tool in the bar has a duller pill (not an alpha: the text stays readable)
+        stylePill(pill, key, if (inBar) PillColors.inBar(keyColour, gridGround, keyText, keyIcon) else PillColors.normal(keyColour, gridGround, keyText, keyIcon), outlined = inBar)
+        pill.alpha = if (key == liftedKey) LIFTED_ALPHA else 1f // the pill of the tool in the hand stays an empty place
         pill.contentDescription = if (inBar) context.getString(R.string.agent_bar_in_bar, label) else label
+    }
+
+    /** Surface, text and icon of a pill (the icon is rebuilt: its tint cannot be changed from outside). */
+    private fun stylePill(button: Button, key: ToolbarKey, look: PillColors.Look, outlined: Boolean = false) {
+        button.setTextColor(look.text)
+        button.background = roundedBackground(look.fill, dp(PILL_HEIGHT_DP) / 2f, look.pressed, if (outlined) look.text else 0)
+        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(look.icon) }
+            ?.let { InsetDrawable(it, 0, 0, dp(ICON_GAP_DP), 0) }
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, null, null)
     }
 
     private fun pillButton(tool: Tool, pillColor: Int, textColor: Int, iconColor: Int): Button {
         val key = tool.key
         val button = Button(context, null, 0) // no default style: no shadow, no minimum size, no caps
         val label = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)
-        // the text and the icon have the guaranteed contrast against the pill; an unavailable tool gets the "off" colour (a real colour, not an alpha)
         val off = !tool.available && editListener == null
-        val text = StripIconColors.ensureContrast(textColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
-        val iconTint = StripIconColors.ensureContrast(iconColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
         button.tag = key
         button.text = label
         button.isAllCaps = false
-        button.setTextColor(text)
         button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         button.typeface = FlatStyle.labelTypeface
-        FlatStyle.scrollWhenTooLong(button)
-        // a long name ("Diktieren (auf dem Gerät)") shrinks to fit the pill instead of being cut off; short names keep the full size
-        button.maxLines = 1
-        androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(button, 11, TEXT_DP.toInt(), 1, TypedValue.COMPLEX_UNIT_DIP)
+        // a long name ("Diktieren (auf dem Gerät)") is never cut off: it shrinks (down to 10 dp) and may take two lines
+        button.maxLines = 2
+        button.ellipsize = android.text.TextUtils.TruncateAt.END
+        button.addOnLayoutChangeListener { v, l, _, r, _, ol, _, or, _ -> if (r - l != or - ol || (v as Button).textSize == 0f) fitText(v as Button) }
         button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
         button.isSoundEffectsEnabled = false
-        button.background = roundedBackground(pillColor, dp(PILL_HEIGHT_DP) / 2f)
-        button.setPadding(dp(ICON_START_DP), 0, dp(ICON_START_DP), 0)
-        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(iconTint) }
-            ?.let { InsetDrawable(it, 0, 0, dp(ICON_GAP_DP), 0) }
-        button.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, null, null)
+        button.setPadding(dp(ICON_START_DP), 0, dp(TEXT_END_DP), 0)
+        button.compoundDrawablePadding = 0
+        stylePill(button, key, PillColors.normal(pillColor, gridGround, textColor, iconColor).let { if (off) PillColors.unavailable(it) else it })
         val editing = editListener
         if (editing != null) {
             // customizing is about the layout of the bar: also a tool the field does not allow can be moved
@@ -540,15 +561,38 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         return button
     }
 
+    /**
+     * The name always fits: the largest size from [TEXT_DP] down to [MIN_TEXT_DP] at which it takes one or two lines in the room that
+     * is left beside the icon; only below that it is shortened with "…". (The framework's auto size does not do this reliably for a text
+     * beside a compound drawable, and a view without a window never runs it.)
+     */
+    private fun fitText(button: Button) {
+        val room = button.width - button.paddingLeft - button.paddingRight - (button.compoundDrawablesRelative[0]?.intrinsicWidth ?: 0)
+        if (room <= 0) return
+        val paint = android.text.TextPaint(button.paint)
+        var dpSize = TEXT_DP
+        var fitting = MIN_TEXT_DP
+        while (dpSize >= MIN_TEXT_DP) {
+            paint.textSize = dpSize * resources.displayMetrics.density
+            val layout = android.text.StaticLayout.Builder.obtain(button.text, 0, button.text.length, paint, room).setMaxLines(3).build()
+            if (layout.lineCount <= 2 && (0 until layout.lineCount).all { layout.getLineWidth(it) <= room }) { fitting = dpSize; break }
+            dpSize -= 0.5f
+        }
+        val px = fitting * resources.displayMetrics.density
+        if (button.textSize != px) button.setTextSize(TypedValue.COMPLEX_UNIT_PX, px)
+    }
+
     private fun act(key: ToolbarKey) {
         if (key in reasons && reasons[key] != null) { onUnavailable?.invoke(key, reasons[key]); return } // "off": say why, stay open
         close()
         onTool?.invoke(key)
     }
 
-    private fun roundedBackground(color: Int, radius: Float) = GradientDrawable().apply {
+    private fun roundedBackground(color: Int, radius: Float, pressedColor: Int = ColorUtils.blendARGB(color, Color.WHITE, 0.15f), outline: Int = 0) = GradientDrawable().apply {
         cornerRadius = radius
-        val pressed = ColorUtils.blendARGB(color, Color.WHITE, 0.15f)
+        // a tool that is in the bar has a thin outline in the colour of its text (a second cue besides the duller surface)
+        if (outline != 0) setStroke(dp(1.5f), ColorUtils.setAlphaComponent(outline, 0x99))
+        val pressed = pressedColor
         setColor(ColorStateList(arrayOf(intArrayOf(android.R.attr.state_pressed), intArrayOf()), intArrayOf(pressed, color)))
     }
 
@@ -558,9 +602,10 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         private const val GAP_DP = 8f
         private const val PILL_HEIGHT_DP = 48f
         private const val TEXT_DP = 16f
-        private const val ICON_START_DP = 18f
-        private const val ICON_GAP_DP = 15f
-        private const val MARKED_ALPHA = 0.5f
+        private const val MIN_TEXT_DP = 10f
+        private const val ICON_START_DP = 14f
+        private const val TEXT_END_DP = 10f
+        private const val ICON_GAP_DP = 10f
         private const val EDIT_HEIGHT_DP = 40f
         private const val FLOAT_DP = 52f
         private const val SCALE = 1.15f
