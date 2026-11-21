@@ -88,16 +88,28 @@ internal object StripIconColors {
         // 1. the minimum contrast for every state: this is what wins over everything below
         fun of(state: IntArray) = ensureContrast(original(state), bg)
         var on = of(ACTIVATED)
-        val off = of(NONE)
+        var off = of(NONE)
         // 2. a theme that shows a switched-on tool differently from a switched-off one keeps the difference: the switched-on colour goes
         //    further away from the ground (on ITS side, so its contrast only grows) until it is not the weaker of the two and 1.25:1 apart;
-        //    where even white or black is not enough, it stays at that
+        //    where even white or black is not enough, it stays at that. If "on" is at that end and still not apart (the switched-off colour is
+        //    itself at the end), the switched-off colour comes back towards the ground, but never below the minimum contrast
         if (original(ACTIVATED) != original(NONE)) {
             fun apart() = RgbColors.contrast(on, bg) >= RgbColors.contrast(off, bg) && RgbColors.contrast(on, off) >= MIN_STATE_STEP
             val extreme = if (RgbColors.luminance(on) >= RgbColors.luminance(bg)) RgbColors.WHITE else RgbColors.BLACK
             val start = on
             var t = 0f
             while (t < 1f && !apart()) { t = (t + 0.05f).coerceAtMost(1f); on = RgbColors.lerp(start, extreme, t) }
+            fun tooClose() = RgbColors.contrast(on, off) < MIN_STATE_STEP || RgbColors.contrast(on, bg) < RgbColors.contrast(off, bg)
+            if (tooClose()) {
+                val offStart = off
+                var u = 0f
+                while (u < 1f && tooClose()) {
+                    u = (u + 0.004f).coerceAtMost(1f)
+                    val next = RgbColors.lerp(offStart, bg or RgbColors.BLACK, u)
+                    if (RgbColors.contrast(next, bg) < NORMAL_CONTRAST) break
+                    off = next
+                }
+            }
         }
         // 3. the hard rule, last: no state leaves here below the floor
         fun hard(c: Int) = if (RgbColors.contrast(c, bg) < MIN_CONTRAST) ensureContrast(c, bg) else c
