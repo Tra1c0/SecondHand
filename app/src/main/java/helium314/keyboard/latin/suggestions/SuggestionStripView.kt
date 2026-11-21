@@ -859,12 +859,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val circle = grid || editor != null
         // stage 88: the icon of the left key has the guaranteed contrast against what is behind it (its disc, or the strip)
         val colors = Settings.getValues().mColors
-        val behind = if (flatStyle) { if (circle) colors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND) else StripIconColors.background(colors) }
-            else dev.agentkeyboard.core.RgbColors.over(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), StripIconColors.background(colors))
+        val behind = StripIconColors.leftKeySurface(colors, flatStyle, circle)
         val base = colors.get(ColorType.TOOL_BAR_EXPAND_KEY)
-        if (base != leftKeyIconBase || behind != leftKeyIconBehind || toolbarExpandKey.colorFilter == null) {
+        if (base != leftKeyIconBase || behind.argb != leftKeyIconBehind || toolbarExpandKey.colorFilter == null) {
             leftKeyIconBase = base
-            leftKeyIconBehind = behind
+            leftKeyIconBehind = behind.argb
             toolbarExpandKey.colorFilter = android.graphics.PorterDuffColorFilter(StripIconColors.ensureContrast(base, behind), android.graphics.PorterDuff.Mode.SRC_IN)
         }
         if (flatStyle && circle != leftKeyCircle) {

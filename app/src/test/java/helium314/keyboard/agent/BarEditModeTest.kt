@@ -125,6 +125,8 @@ class BarEditModeTest {
     private fun leftKey(h: Harness) = h.strip.findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
     private fun slots(h: Harness) = FixedBar.slots(toolbar(h))
     private fun tags(h: Harness) = slots(h).map { it.tag }
+    /** The pill of the tool is marked as "in the bar" (its announcement says so; the look is checked on pixels in GridPillsTest). */
+    private fun inBarMark(h: Harness, key: ToolbarKey) = h.grid.pill(key)!!.let { it.contentDescription == latinIME.getString(R.string.agent_bar_in_bar, it.text.toString()) }
     private fun View.centreIn(root: View): Float = generateSequence(this) { it.parent as? View }.takeWhile { it !== root }.sumOf { it.left } + width / 2f
     private fun centres(h: Harness) = slots(h).map { it.centreIn(h.root) }
 
@@ -215,9 +217,10 @@ class BarEditModeTest {
             if (!FixedBar.isCircle(it)) assertTrue(it.background is GradientDrawable, "outline of ${it.tag}")
             assertEquals(1f, it.alpha)
         }
-        // the tools that are in the bar are dimmed in the grid, the others are not
-        listOf(UNDO, REDO, COPY, DICTATE).forEach { assertTrue(h.grid.pill(it)!!.alpha < 1f, it.name) }
-        listOf(PASTE, CUT, AGENT).forEach { assertEquals(1f, h.grid.pill(it)!!.alpha, it.name) }
+        // the tools that are in the bar are marked in the grid (a duller outlined pill, announced as "in the bar"), the others are not;
+        // none is dimmed by a view alpha any more (88c: that made the text unreadable on a translucent pill)
+        listOf(UNDO, REDO, COPY, DICTATE).forEach { assertTrue(inBarMark(h, it), it.name); assertEquals(1f, h.grid.pill(it)!!.alpha, it.name) }
+        listOf(PASTE, CUT, AGENT).forEach { assertTrue(!inBarMark(h, it), it.name); assertEquals(1f, h.grid.pill(it)!!.alpha, it.name) }
         // nothing was written by looking
         assertUnsaved()
 
@@ -314,7 +317,8 @@ class BarEditModeTest {
         assertEquals(listOf(PASTE, UNDO, REDO, COPY, CUT), tags(h))
         assertNull(h.grid.floatingCopy)
         assertEquals(1, 1)
-        assertEquals(0.5f, h.grid.pill(PASTE)!!.alpha) // marked: it is in the bar now
+        assertTrue(inBarMark(h, PASTE)) // marked: it is in the bar now
+        assertEquals(1f, h.grid.pill(PASTE)!!.alpha) // and not dimmed (the pill of a tool in the hand is, while it is held)
         assertEquals(255, slots(h)[0].imageAlpha)
         assertEquals(emptyList(), h.codes) // arranging never runs a tool
     }
