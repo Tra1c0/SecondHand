@@ -482,7 +482,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 return
             }
             val wordInfo = suggestedWords.getInfo(tag)
-            helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: a chosen suggestion changes the text
             listener.pickSuggestionManually(wordInfo)
         }
     }

@@ -1686,6 +1686,7 @@ public class LatinIME extends InputMethodService implements
     public void onTextInput(@Nullable String rawText) {
         if (mAgentEditorController.isBlockingInput()) return;
         if (rawText == null) return;
+        helium314.keyboard.agent.UndoOffer.onTextChange(); // stage 88: emoji and other text change the text like a typed key
         // TODO: have the keyboard pass the correct key code when we need it.
         Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
         InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
@@ -1703,6 +1704,7 @@ public class LatinIME extends InputMethodService implements
     public void onPrivateTextInput(@Nullable String rawText) {
         if (mAgentEditorController.isBlockingInput()) return;
         if (rawText == null) return;
+        helium314.keyboard.agent.UndoOffer.onTextChange(); // stage 88
         Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
         InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
             event, mKeyboardSwitcher.getKeyboardCapsMode(), mHandler);
@@ -1837,6 +1839,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void pickSuggestionManually(final SuggestedWordInfo suggestionInfo) {
         if (mAgentEditorController.isBlockingInput()) return;
+        helium314.keyboard.agent.UndoOffer.onTextChange(); // stage 88: every chosen suggestion (strip, more suggestions, chips) changes the text
         helium314.keyboard.agent.SymbolDrawing.beforeSuggestionPick(mInputLogic.hasActiveComposition()); // stage 31: drawn symbol keeps its place
         final InputTransaction completeInputTransaction = mInputLogic.onPickSuggestionManually(
                 mSettings.getCurrent(), suggestionInfo,
