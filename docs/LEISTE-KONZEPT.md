@@ -30,8 +30,13 @@ das Symbol ein Loch. `ic_edit` (Zeichen-Kunst) hat eine graue Füllung (`@color/
 Behebung: alle Symbole der Leiste sind weiß gefüllt; zusätzlich gilt die Kontrastregel unten.
 
 **Kontrastregel (jedes Design):** Der Grund ist die Streifenfarbe (`STRIP_BACKGROUND`, über `MAIN_BACKGROUND`
-gelegt). Jede Farbe der Farbliste der Symbole (normal, gedrückt, aktiviert) wird so verschoben (zu Weiß oder Schwarz, der
-Farbton bleibt, solange es geht), dass der WCAG-Kontrast mindestens 4,5:1 beträgt; nie unter 3:1. Die Rechnung nutzt
+gelegt). Jede Farbe der Farbliste der Symbole (normal, gedrückt, aktiviert) wird so verschoben, dass der WCAG-Kontrast
+mindestens 4,5:1 beträgt; nie unter 3:1. Die Richtung folgt dem Design (ein helleres Symbol als der Grund wird heller, ein
+dunkleres dunkler; nur wenn das den Kontrast nicht erreicht, geht es zur anderen Seite; der Farbton bleibt, solange es geht).
+Ein Symbol im Akzentkreis (Mikrofon) braucht 3:1 gegen den Kreis (weiß auf Rosa bleibt weiß). Zeigt ein Design ein
+eingeschaltetes Werkzeug anders als ein ausgeschaltetes, bleibt der Unterschied (mindestens 1,25:1 zwischen beiden), das
+eingeschaltete bleibt auf der Seite des Grundes, auf die das Design es gelegt hat (Seite aus den Originalfarben), und ist nie das
+schwächere; reicht das Anheben nicht, geht die ausgeschaltete Farbe bis zur Untergrenze 3:1 zurück. Die Rechnung nutzt
 `RgbColors.contrast` (dieselbe wie die Beschriftungen der RGB-Beleuchtung), und die RGB-Beleuchtung der Leistenknöpfe
 nimmt dieselbe Farbliste als Grundlage (`RgbStrip.tintOf`).
 

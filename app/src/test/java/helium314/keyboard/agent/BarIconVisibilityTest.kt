@@ -240,6 +240,24 @@ class BarIconVisibilityTest {
         assertEquals(a.getColorForState(intArrayOf(android.R.attr.state_activated), 0), StripIconColors.normalOf(a))
     }
 
+    @Test fun theSwitchedOnToolIsNeverTheWeakerOneAndKeepsItsSide() {
+        val cases = listOf(Triple(0xFFF2F2F2.toInt(), 0xFF989898.toInt(), 0xFFA0A0A0.toInt()), Triple(0xFF777777.toInt(), 0xFF7A7A7A.toInt(), 0xFF808080.toInt()),
+            Triple(0xFF0A0001.toInt(), 0xFF202020.toInt(), 0xFF1A1A1A.toInt()), Triple(0xFF0A0001.toInt(), 0xFFC8FFEE.toInt(), 0xFF4D4D4D.toInt()))
+        for ((ground, onColour, offColour) in cases) {
+            val colors = design(ground, onColour, ground, ground, ground)
+            val theme = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_activated), intArrayOf()), intArrayOf(onColour, offColour))
+            val list = StripIconColors.guaranteed(colors, theme)
+            val on = list.getColorForState(intArrayOf(android.R.attr.state_activated), 0)
+            val off = StripIconColors.normalOf(list)
+            val label = "ground ${Integer.toHexString(ground)} on ${Integer.toHexString(onColour)} off ${Integer.toHexString(offColour)} -> on ${Integer.toHexString(on)} off ${Integer.toHexString(off)}"
+            assertTrue(RgbColors.contrast(on, ground) >= RgbColors.contrast(off, ground) - 0.01, "on is not the weaker: $label")
+            assertTrue(RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02, "on and off differ: $label")
+            assertTrue(RgbColors.contrast(on, ground) >= StripIconColors.MIN_CONTRAST - 0.05 && RgbColors.contrast(off, ground) >= StripIconColors.MIN_CONTRAST - 0.05, "floor: $label")
+            // on stays on the side of the ground where the design put it
+            assertEquals(RgbColors.luminance(onColour) >= RgbColors.luminance(ground), RgbColors.luminance(on) >= RgbColors.luminance(ground), "side: $label")
+        }
+    }
+
     // ---- pictures to look at (not versioned: app/build/owner-bars/*.png) ----
 
     /** The strip as it is drawn in the owner-like design: the bar with the left key (disc and grid icon), at 3.25 px per dp, 1200 px wide, twice as high as the strip for a margin. */

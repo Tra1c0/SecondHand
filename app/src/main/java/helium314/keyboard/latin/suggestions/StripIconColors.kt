@@ -88,23 +88,25 @@ internal object StripIconColors {
         fun of(state: IntArray) = ensureContrast(original(state), bg)
         var on = of(ACTIVATED)
         var off = of(NONE)
-        // a theme that shows a switched-on tool (activated) differently from a switched-off one keeps that difference: lifting both
-        // to the contrast must not make them equal
-        if (original(ACTIVATED) != original(NONE) && RgbColors.contrast(on, off) < MIN_STATE_STEP) {
-            val lighter = RgbColors.luminance(on) >= RgbColors.luminance(off)
-            val extreme = if (lighter) RgbColors.WHITE else RgbColors.BLACK
+        // A theme that shows a switched-on tool (activated) differently from a switched-off one keeps that difference: lifting both to
+        // the contrast must not make them equal, and the switched-on one stays on the side of the ground where the design put it and
+        // is not the weaker of the two. The side comes from the ORIGINAL colours (the lifted ones may be nearly equal).
+        if (original(ACTIVATED) != original(NONE)) {
+            fun strength(c: Int) = RgbColors.contrast(c, bg)
+            fun apart() = strength(on) >= strength(off) && RgbColors.contrast(on, off) >= MIN_STATE_STEP
+            val extreme = if (RgbColors.luminance(RgbColors.over(original(ACTIVATED), bg)) >= RgbColors.luminance(bg)) RgbColors.WHITE else RgbColors.BLACK
+            val onStart = on
             var t = 0f
-            while (t < 1f && RgbColors.contrast(on, off) < MIN_STATE_STEP) { t += 0.05f; on = RgbColors.lerp(of(ACTIVATED), extreme, t) }
-            // the extreme was not enough (the switched-off colour is itself near it): the off colour goes back towards the ground, to the floor
+            while (t < 1f && !apart()) { t = (t + 0.05f).coerceAtMost(1f); on = RgbColors.lerp(onStart, extreme, t) }
+            // the extreme was not enough: the switched-off colour goes back towards the ground, down to the floor
+            val offStart = off
             t = 0f
-            var floor = off
-            while (t < 1f && RgbColors.contrast(on, floor) < MIN_STATE_STEP) {
-                t += 0.05f
-                val next = RgbColors.lerp(of(NONE), bg or RgbColors.BLACK, t)
-                if (RgbColors.contrast(next, bg) < MIN_CONTRAST) break
-                floor = next
+            while (t < 1f && !apart()) {
+                t = (t + 0.05f).coerceAtMost(1f)
+                val next = RgbColors.lerp(offStart, bg or RgbColors.BLACK, t)
+                if (strength(next) < MIN_CONTRAST) break
+                off = next
             }
-            off = floor
         }
         return ColorStateList(arrayOf(PRESSED_ACTIVATED, PRESSED, ACTIVATED, NONE),
             intArrayOf(of(PRESSED_ACTIVATED), of(PRESSED), on, off))
