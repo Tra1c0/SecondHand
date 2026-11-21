@@ -2127,8 +2127,11 @@ def bar_calm_typing(d):
     d.type("a")
     time.sleep(0.6)
     d.expect_equal("the next typed key brings the words area back", _strip_kind(dump()) != "T", True)
-    d.focus("text")
-    _typed_still_works(d)
+    # the field holds the sentence: the keyboard still types after it (not _typed_still_works, which expects an empty field)
+    now = d.field("text")
+    d.refresh_keys()
+    d.type("ab")
+    d.expect_field("text", now + "ab")
 
 
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
