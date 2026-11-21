@@ -170,7 +170,16 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (!fixedBar) return
         updateCalm()
         barState.onTyped()
+        // the words that wait for the next list get their time from the last key, not from the neutral update: at a normal typing pace the
+        // bar does not blink empty between two words, only in a real pause
+        if (staleWords) {
+            calmHandler.removeCallbacks(releaseWords)
+            calmHandler.postDelayed(releaseWords, BarState.CALM_DEBOUNCE_MS)
+        }
     }
+
+    /** An emptied field ends the writing session (see `LatinIME.setSuggestedWords`). */
+    fun endSession() { barState.endSession() }
 
     private fun cancelHeldWords() {
         staleWords = false

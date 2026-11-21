@@ -6738,6 +6738,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P494** Leeres Feld (89): Nur „Cursor am Anfang und nichts davor“ (`getCodePointBeforeCursor() == NOT_A_CODE`), und nur gelesen, solange die Sitzung läuft (der Wert kommt aus dem Zwischenspeicher, keine Leseanfrage an die App). Pos1 in einem gefüllten Feld zeigt damit die Werkzeuge. `hasTextAfterCursor` wäre eine Leseanfrage und gehört nicht in den Tastendruck (Etappe 84).
 - **P495** Diagnose „Leiste“ (89): `BarCalmCounters` zählt nichts in Passwortfeld, Inkognito und gesperrtem Gerät (`onShown`, `onDelete`, `onFieldStart` bekommen `protectedField`); die Beschriftungen der Zeilen enthalten kein „: “ (P454). Die Messung im Test (`StripCalmLogTest.visible`) zählt jeden sichtbaren Wechsel einschließlich „leer“; Werkzeuge gegen Inhalt allein sähe „Wörter, leer, Wörter“ nicht.
 
+- **P496** Frist ab dem letzten Zeichen (89, Prüferbefund F1): `SuggestionStripView.onTyped` startet `releaseWords` neu, solange `staleWords` gilt. Wer einen weiteren Weg einbaut, der Zeichen schreibt, ruft `onAgentTyped`; sonst blinkt die Mitte zwischen zwei Wörtern leer. Eine Antwort, die später kommt als `CALM_DEBOUNCE_MS`, bleibt als kurze leere Phase sichtbar (Test `aResumeThatAnswersAfterTheDebounceShowsAShortEmptyBlink`).
+- **P497** „Feld leer“ (89, F2/F5): `LatinIME.isAgentFieldEmpty()` verlangt erwartete Cursorposition 0 und nichts davor; unlesbarer Text (-1, leerer Zwischenspeicher) zählt nicht. Er wird auf dem neutralen und auf dem Weg mit Inhalt geprüft (`setNeutralSuggestionStrip`, `setSuggestedWords`) und nur, solange eine Sitzung läuft.
+- **P498** Zähler und Feldstart (89, F4): `BarCalmCounters.onFieldStart` wird in `onStartInputViewInternal` nach dem Laden der Einstellungen gerufen (Passwort, Inkognito, gesperrt: nichts), nicht in `onStartInput`; ein neues Feld setzt `last` zurück.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.

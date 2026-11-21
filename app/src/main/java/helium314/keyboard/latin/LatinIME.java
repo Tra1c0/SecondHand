@@ -925,10 +925,6 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onStartInput(final EditorInfo editorInfo, final boolean restarting) {
         mAgentEditorController.startEditor(editorInfo);
-        // fork, stage 89: numbers only, nothing for a password field or a locked device
-        helium314.keyboard.agent.BarCalmCounters.INSTANCE.onFieldStart(restarting,
-                helium314.keyboard.latin.utils.InputTypeUtils.isPasswordInputType(editorInfo.inputType)
-                        || helium314.keyboard.agent.LockState.INSTANCE.isLocked(this));
         if (!restarting) mInputLogic.onFreshEditorSession();
         mHandler.onStartInput(editorInfo, restarting);
     }
@@ -1071,6 +1067,10 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
+        // fork, stage 89: numbers only; nothing for a password field, incognito (settings of this field, just loaded) or a locked device
+        helium314.keyboard.agent.BarCalmCounters.INSTANCE.onFieldStart(restarting,
+                currentSettingsValues.mInputAttributes.mIsPasswordField || currentSettingsValues.mIncognitoModeEnabled
+                        || helium314.keyboard.agent.LockState.INSTANCE.isLocked(this));
 
         if (editorInfo == null) {
             Log.e(TAG, "Null EditorInfo in onStartInputView()");
@@ -1768,6 +1768,16 @@ public class LatinIME extends InputMethodService implements
                 dismissGestureFloatingPreviewText /* dismissDelayed */);
     }
 
+    /**
+     * Fork, stage 89: the field is empty before the cursor: the expected cursor position is 0 and nothing is before it. Both are needed:
+     * when the app does not answer the read of the text, the cache is empty and the position is unknown (-1), which is no empty field.
+     * Only reads what the keyboard knows (no request to the app).
+     */
+    private boolean isAgentFieldEmpty() {
+        return mInputLogic.mConnection.getExpectedSelectionStart() == 0
+                && mInputLogic.mConnection.getCodePointBeforeCursor() == Constants.NOT_A_CODE;
+    }
+
     /** Fork, stage 89: a character key, a wipe or a delete went to the field (see {@link SuggestionStripView#onTyped}). */
     public void onAgentTyped() {
         if (hasSuggestionStripView()) mSuggestionStripView.onTyped();
@@ -1811,6 +1821,9 @@ public class LatinIME extends InputMethodService implements
                 || currentSettingsValues.mInputAttributes.mApplicationSpecifiedCompletionOn
                 // We should clear the contextual strip if there is no suggestion from dictionaries.
                 || noSuggestionsFromDictionaries) {
+            // fork, stage 89: an emptied field ends the writing session also when the dictionary offers words there (next-word predictions
+            // at the start): the words stay (they are content), but a later neutral update shows the tools again
+            if (mSuggestionStripView.isWritingSession() && isAgentFieldEmpty()) mSuggestionStripView.endSession();
             mSuggestionStripView.setSuggestions(suggestedWords,
                     mRichImm.getCurrentSubtype().isRtlSubtype());
             // Auto hide the toolbar if dictionary suggestions are available
@@ -1924,8 +1937,7 @@ public class LatinIME extends InputMethodService implements
         // fork, stage 89: in a writing session an emptied field (nothing before the cursor) ends it, and the strip is told before the update
         final boolean writingSession = hasSuggestionStripView() && mSuggestionStripView.isWritingSession();
         if (hasSuggestionStripView())
-            mSuggestionStripView.setFieldEmpty(writingSession
-                    && mInputLogic.mConnection.getCodePointBeforeCursor() == Constants.NOT_A_CODE);
+            mSuggestionStripView.setFieldEmpty(writingSession && isAgentFieldEmpty());
         setSuggestedWords(neutralSuggestions);
         if (hasSuggestionStripView() && currentSettings.mAutoShowToolbar) {
             final int codePointBeforeCursor = mInputLogic.mConnection.getCodePointBeforeCursor();

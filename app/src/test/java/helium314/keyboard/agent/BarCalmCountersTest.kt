@@ -41,6 +41,18 @@ class BarCalmCountersTest {
         assertEquals(2, c.total.fieldStarts)
     }
 
+    @Test fun aNewFieldsFirstKindIsNoChange() {
+        val c = BarCalmCounters
+        c.onFieldStart(false, false)
+        c.onShown(BarCalmCounters.Kind.TOOLS, false); c.onShown(BarCalmCounters.Kind.WORDS, false) // one change
+        c.onFieldStart(false, false)
+        c.onShown(BarCalmCounters.Kind.TOOLS, false) // the new field starts on the tools: no change
+        assertEquals(1, c.total.changes())
+        c.onFieldStart(true, false) // a restart in the same field keeps the last kind
+        c.onShown(BarCalmCounters.Kind.TOOLS, false)
+        assertEquals(1, c.total.changes())
+    }
+
     @Test fun aProtectedFieldCountsNothing() {
         val c = BarCalmCounters
         c.onFieldStart(false, true)

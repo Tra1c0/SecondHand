@@ -192,6 +192,107 @@ class StripCalmLogTest {
         assertEquals(0, switchesFrom(rows, firstDelete + 1), rows.drop(firstDelete).toString())
     }
 
+    /**
+     * Types [script] with [paceMs] (fake clock) between the keys and returns what the bar showed, sampled every 10 ms from the first key
+     * until [paceMs] after the last one. [dictionaryDelayMs] holds the answer of a resume after a delete back (a slow app, F3).
+     */
+    private fun paced(script: String, paceMs: Int, slowConnection: Boolean = false, resumeAfterDelete: Boolean = false, resumeDelayMs: Int = 0): List<String> {
+        rig.startField("", restarting = true)
+        rig.settle()
+        if (slowConnection) {
+            val connection = latinIME.mInputLogic.mConnection
+            connection.javaClass.getDeclaredField("mLastSlowInputConnectionTime").apply { isAccessible = true }
+                .setLong(connection, android.os.SystemClock.uptimeMillis())
+        }
+        val kinds = ArrayList<String>()
+        for (c in script) {
+            val code = if (c == b) KeyCode.DELETE else c.code
+            if (resumeAfterDelete && c == b) latinIME.mInputLogic.finishInput()
+            rig.tapFast(code)
+            kinds.add(state())
+            // the app's selection update arrives late: the resume (100 ms after it) answers after resumeDelayMs + 100 ms
+            if (resumeAfterDelete && c == b) { repeat(resumeDelayMs / 10) { rig.idle(10); Thread.sleep(2); kinds.add(state()) }; latinIME.mHandler.postResumeSuggestions(true) }
+            repeat(paceMs / 10) { rig.idle(10); Thread.sleep(2); kinds.add(state()) }
+        }
+        return kinds
+    }
+
+    private fun noEmptyBetween(kinds: List<String>) = kinds.dropWhile { it == "T" }.count { it == "E" }
+
+    /** F1: at a normal typing pace the words area does not blink empty between two words (a pause longer than the debounce may). */
+    @Test fun atANormalTypingPaceTheWordsAreaNeverGoesEmptyBetweenWords() {
+        for (pace in listOf(200, 300)) {
+            rig.predictions = emptyList()
+            val kinds = paced("wie geht es dir", pace)
+            assertEquals(0, noEmptyBetween(kinds.dropLast(pace / 10)), "pace $pace ms: " + kinds.joinToString(""))
+        }
+    }
+
+    /**
+     * F3: a slow app answers the resume of a delete late. What this shows (honest): the debounce (250 ms) is shorter than the answer
+     * (250 ms until the app's selection update, then 100 ms for the resume), so the words area goes empty for about the time the answer
+     * is later than the debounce (here about 100 ms) and fills again. The debounce does not hide that: no constant fits an app whose
+     * answer time is unknown. The diagnose card ("leer", "langsam") shows whether this is the way on the owner's phone.
+     */
+    @Test fun aResumeThatAnswersAfterTheDebounceShowsAShortEmptyBlink() {
+        rig.predictions = emptyList()
+        val kinds = paced("Hallo wie" + b + b, 150, slowConnection = true, resumeAfterDelete = true, resumeDelayMs = 250)
+        println("late resume, kinds per 10 ms: " + kinds.joinToString(""))
+        val runs = Regex("E+").findAll(kinds.joinToString("")).map { it.value.length }.toList()
+        assertTrue(runs.all { it <= 15 }, "an empty phase longer than 150 ms: $runs")
+    }
+
+    /** The same answer within the debounce (100 ms after the app's update, 200 ms after the key): no empty phase at all. */
+    @Test fun aResumeThatAnswersWithinTheDebounceShowsNoEmptyPhase() {
+        rig.predictions = emptyList()
+        val kinds = paced("Hallo wie" + b + b, 150, slowConnection = true, resumeAfterDelete = true, resumeDelayMs = 100)
+        assertEquals(0, noEmptyBetween(kinds), kinds.joinToString(""))
+    }
+
+    /** F2: the keyboard could not read the text (position unknown, cache empty) in the middle of a text: that is no empty field. */
+    @Test fun anUnreadableFieldMidTextDoesNotEndTheSession() {
+        rig.predictions = emptyList()
+        rig.startField("", restarting = true)
+        rig.settle()
+        rig.play("Hallo wie ")
+        rig.settle()
+        val connection = latinIME.mInputLogic.mConnection
+        val cls = connection.javaClass
+        cls.getDeclaredField("mExpectedSelStart").apply { isAccessible = true }.setInt(connection, -1)
+        cls.getDeclaredField("mExpectedSelEnd").apply { isAccessible = true }.setInt(connection, -1)
+        val cache = cls.getDeclaredField("mCommittedTextBeforeComposingText").apply { isAccessible = true }.get(connection)
+        (cache as StringBuilder).setLength(0)
+        latinIME.setNeutralSuggestionStrip()
+        assertTrue(state() != "T", "the session goes on: " + state())
+    }
+
+    /** F5: the field is emptied and the dictionary offers next words there: the words stay, the session is over. */
+    @Test fun anEmptiedFieldWithPredictionsEndsTheSession() {
+        rig.predictions = listOf("wie", "und", "ich")
+        rig.startField("", restarting = true)
+        rig.settle()
+        rig.play("ab"); rig.settle()
+        assertTrue(strip.isWritingSession())
+        rig.play("" + b + b); rig.settle()
+        assertEquals("", rig.text)
+        assertTrue(!strip.isWritingSession(), "the session ended with the emptied field")
+        assertEquals("W", state(), "the predictions stand")
+        latinIME.setNeutralSuggestionStrip()
+        assertEquals("T", state(), "a later neutral update shows the tools")
+    }
+
+    /** F4: no count in an incognito field; and a new field's first kind is no change. */
+    @Test fun anIncognitoFieldIsNotCounted() {
+        helium314.keyboard.agent.BarCalmCounters.resetForTest()
+        latinIME.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        rig.startField("")
+        rig.settle()
+        assertEquals(0, helium314.keyboard.agent.BarCalmCounters.total.fieldStarts)
+        latinIME.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        rig.startField("")
+        assertEquals(1, helium314.keyboard.agent.BarCalmCounters.total.fieldStarts)
+    }
+
     private val wordViews: List<android.widget.TextView> get() =
         @Suppress("UNCHECKED_CAST") (SuggestionStripView::class.java.getDeclaredField("wordViews").apply { isAccessible = true }.get(strip) as List<android.widget.TextView>)
 

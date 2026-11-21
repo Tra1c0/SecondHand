@@ -36,6 +36,7 @@ object BarCalmCounters {
     fun resetForTest() { total.changesTo.fill(0); total.deletes.fill(0); total.fieldStarts = 0; total.restarts = 0; total.droppedTaps = 0; field = Counts(); slowSeen = false; last = null }
 
     fun onFieldStart(restarting: Boolean, protectedField: Boolean) {
+        if (!restarting) last = null // a new field starts with its own first kind: that is a start, not a change
         if (protectedField) return
         if (restarting) { total.restarts++; field.restarts++ } else { total.fieldStarts++; field = Counts(); field.fieldStarts = 1 }
     }

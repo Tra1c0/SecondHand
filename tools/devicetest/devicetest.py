@@ -2093,6 +2093,10 @@ def bar_calm_typing(d):
             shot(d, "calm_after_space")
     d.notes.append("kinds while typing: " + "".join(k for _, k in kinds))
     d.expect_equal("the tools never come back while typing (after the first key)", [c for c, k in kinds[1:] if k == "T"], [])
+    # "E" (the words area empty) is read too; inside a word it must not appear. A dump takes a second or more: an empty phase shorter than
+    # that (the blink of 100 ms the unit test StripCalmLogTest samples every 10 ms) cannot be seen here.
+    d.expect_equal("no empty words area inside a word", [c for c, k in kinds[1:] if k == "E" and c.isalpha()], [])
+    d.notes.append("empty words area after punctuation or space: %d of %d keys" % (sum(1 for c, k in kinds if k == "E"), len(kinds)))
     shot(d, "calm_typed")
     deletes = []
     for _ in range(10):

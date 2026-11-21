@@ -66,6 +66,9 @@ class BarState {
         pinned = false
     }
 
+    /** The session is over (an emptied field): the next neutral update shows the tools. */
+    fun endSession() { writing = false; pinned = false }
+
     /** A tool of the bar was tapped while the tools show: they stay (a second undo, the redo arrow) until the next typed key. */
     fun onToolTapped() {
         if (calm && show == Show.TOOLS) pinned = true
