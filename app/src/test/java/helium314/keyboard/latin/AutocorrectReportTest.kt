@@ -164,9 +164,10 @@ class AutocorrectReportTest {
         reportLocale = Locale.GERMAN
         settings()
         reportKnowing = mapOf("the" to listOf(Locale.ENGLISH), "cat" to listOf(Locale.ENGLISH), "is" to listOf(Locale.ENGLISH, Locale.GERMAN))
-        // "tomorow" is unknown to every dictionary; the engine ranks a German word first
-        results(main("morgen", 650000, Locale.GERMAN), main("tomorrow", 600000, Locale.ENGLISH))
-        assertEquals("morgen", type("tomorow", listOf("the", "cat", "is")).correction(),
+        // "recieve" is unknown to every dictionary; the engine ranks a German word first (the score is high enough for
+        // the engine's own threshold: at 650000 nothing is corrected on the default strength, which is not the point here)
+        results(main("Rezept", 1500000, Locale.GERMAN), main("receive", 600000, Locale.ENGLISH))
+        assertEquals("Rezept", type("recieve", listOf("the", "cat", "is")).correction(),
             "the sentence language is not asked for a typed word that no dictionary knows")
     }
 
