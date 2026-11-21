@@ -73,6 +73,7 @@ class StripCalmLogTest {
         }
         rig.settle()
         val rows = ArrayList<String>()
+        rows.add("FIELD|${state()}|${state()}|${state()}|${stripWords}") // the new, empty field before the first key
         var seen = ArrayList<String>()
         fun sample() {
             if (Thread.currentThread() !== uiThread) return
