@@ -715,6 +715,7 @@ object Diagnose {
             Row(s(R.string.agent_barcalm_row_personalized), onOff(context, prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS))),
         )
         return Section(Part.BAR_CALM, s(R.string.agent_barcalm_title), rows)
+    }
 
     // --- correction and language (stage 90a) ---
 
