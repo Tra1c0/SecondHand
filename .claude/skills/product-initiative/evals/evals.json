@@ -1,0 +1,181 @@
+{
+  "skill_name": "product-initiative-suite",
+  "evals": [
+    {
+      "id": 1,
+      "name": "trackpad-einstieg-und-modus",
+      "prompt": "Das Trackpad soll auf der Leertaste endlich frei in jede Richtung gehen. Ich hänge meine Belegung an. Plane die Umsetzung.",
+      "expected_output": "Ein Plan, der Startbelegung und aktive Cursorbewegung unterscheidet und einen echten Touch-Test vorsieht.",
+      "files": [
+        "evals/files/trackpad-profil.json"
+      ],
+      "assertions": [
+        "Ein Start links oder rechts aktiviert den Cursor. Danach ist die Bewegung in alle Richtungen frei, soweit der Editor sie unterstützt.",
+        "Ein Richtungswechsel innerhalb derselben Berührung öffnet weder Zwischenablage noch Symbolseite. Separate Starts nach oben und unten lösen weiterhin die zugewiesenen Aktionen aus.",
+        "Der Prüfplan verwendet die Profilbelegung, echte Touch-Eingabe sowie einen Richtungswechsel und den Abschluss oder Abbruch der Geste."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "undo-initiative",
+      "prompt": "Entwirf einen Rückgängig-Knopf für meine Tastaturleiste. In der Datei stehen die bisherigen Plätze und die Funktionen unserer Historie.",
+      "expected_output": "Ein Konzept mit direktem Zugang zu Redo nach Undo, sofern der freie Platz und die bestehende Historie das tragen.",
+      "files": [
+        "evals/files/toolbar-profil.json"
+      ],
+      "assertions": [
+        "Nutzt den freien Platz, ohne eine belegte Aktion zu verdrängen.",
+        "Bietet nach Undo auf demselben Knopf Redo an, sofern ausführbar, und passt Symbol und zugängliche Bezeichnung an.",
+        "Prüft oder spezifiziert neue Eingabe nach Undo und mehrere Historieneinträge, ohne einen erfolgten Laufzeittest zu behaupten."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "feedback-theme-und-sichtbarkeit",
+      "prompt": "Bei mir sind die Symbole immer noch nicht gleichmäßig. Im dunklen Theme sehen zwei Plätze leer aus. Euer Test war grün. Was änderst und prüfst du?",
+      "expected_output": "Ein Reparaturansatz, der Sichtbarkeit vor Geometrie prüft und die echte Nutzersicht als Befund behandelt.",
+      "files": [],
+      "assertions": [
+        "Untersucht das echte dunkle Theme auf Kontrast, sichtbare Abstände und Reihenfolge.",
+        "Verlangt oder plant gerenderten und angesehenen Nachweis im betroffenen Zustand.",
+        "Kennzeichnet Ursachen und Tests entsprechend dem vorhandenen Zugriff. Ein grüner alter Test gilt nicht als Widerlegung der Nutzerbeobachtung."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "drag-and-drop-gegenbeispiel",
+      "prompt": "Plan bitte eine frei sortierbare Symbolleiste für Touch. Ich will die Symbole direkt überallhin ziehen können.",
+      "expected_output": "Ein kompaktes Konzept einschließlich Platzierung, Abbruch, Regeln für belegte Ziele und Betätigung per Touch.",
+      "files": [],
+      "assertions": [
+        "Erkennt Zurückspringen bei gültigem Loslassen mit notwendigem Zusatztipp als Gegenbeispiel.",
+        "Spezifiziert Platzierung, Abbruch und Zustand nach erneutem Öffnen, soweit Speicherung dazugehört.",
+        "Prüft über tatsächliche Eingabe am vorgesehenen Einstieg."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "kollision-und-eigene-idee",
+      "prompt": "Plane die schnellere Erreichbarkeit meiner Zwischenablage. Die Wischgeste nach oben ist bereits für die Suche belegt. Halte dich an meine bestehenden Belegungen.",
+      "expected_output": "Eine Variante im Auftrag ohne Überschreiben der eingestellten Geste.",
+      "files": [],
+      "assertions": [
+        "Bewahrt die Suche auf der bestehenden Wischgeste.",
+        "Schlägt einen mit dem vorhandenen Layout vereinbaren Lösungsweg vor oder formuliert die fehlende Layout-Information als konkrete Annahme.",
+        "Legt keine ungefragte neue Belegung oder externe Integration fest."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "fehlender-geraeetenachweis",
+      "prompt": "Für den neuen Drag-Modus liegt nur ein grüner Unit-Test der Sortierfunktion vor. Ich habe kein Gerät angeschlossen und du hast keinen Emulator. Kannst du die Änderung abnehmen?",
+      "expected_output": "Teilnachweis und konkret offene Abnahme am echten Touch-Einstieg.",
+      "files": [],
+      "assertions": [
+        "Trennt korrekt zwischen Sortierlogik und tatsächlicher Bedienbarkeit.",
+        "Benennt einen konkreten verbleibenden realen Touch-Test einschließlich Loslassen und beobachtbarem Ergebnis.",
+        "Behauptet keinen nicht durchgeführten Test und keine vollständige Abnahme."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "reine-auskunft",
+      "prompt": "Was bedeutet das Wort „inert“ auf Deutsch? Antworte in einem Satz.",
+      "expected_output": "Eine kurze Begriffserklärung ohne Produktablauf.",
+      "files": [],
+      "assertions": [
+        "Antwortet in einem Satz auf die Auskunft ohne Produktkonzept, Bericht oder Rückfrage."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "aus-korrektur-lernen",
+      "prompt": "Für dieses Projekt gilt ab jetzt: Eine Geste bekommt beim Start genau eine Aktion. Richtungswechsel nach dem Start dürfen keine anderen Befehle auslösen. Im Projekt gibt es eine gepflegte Datei für Entscheidungen. Was hältst du fest?",
+      "expected_output": "Eine projektgebundene, nachprüfbare Dokumentation der ausdrücklich genannten Gestenentscheidung.",
+      "files": [],
+      "assertions": [
+        "Bewahrt den Wortlaut der Projektentscheidung und trennt diesen von einer möglichen Umsetzungsidee.",
+        "Beschränkt die Regel auf das Projekt und verwendet die bestehende Dokumentation, falls verfügbar.",
+        "Behauptet keine Dateibearbeitung ohne bereitgestellten Projektzugriff."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "gestaltung-mit-geschuetztem-modus",
+      "prompt": "Plane reaktive Animation für die laufenden Wellenlinien auf meiner Leertaste. Ein Tap beschleunigt und erschüttert die Linien sichtbar. Sämtliche Helligkeit bleibt gleich. Idle und rasche Tapserien müssen fast nichts verbrauchen. Noch nichts implementieren.",
+      "expected_output": "Konkretes Verhalten für Baseline, Impuls, rasche Eingaben und Nachlauf, mit echtem separatem Leistungsnachweis.",
+      "files": [],
+      "assertions": [
+        "Hält gleiche Helligkeit ein und entwirft die Form- und Zeitreaktion am Tap.",
+        "Beschreibt begrenzte Behandlung schneller Tapserien und einen ohne Tap testbaren Idle-Zustand.",
+        "Unterscheidet geplante Leistungsoptimierung von real gemessener Wirkung und nennt vergleichbare Messbedingungen."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "konflikt-mit-externen-zugriffen",
+      "prompt": "Ich möchte den neuen Dialog auf Basis meines privaten Figma-Designs. Der Link ist nicht freigegeben, aber ich hänge einen Export sichtbarer Zustände an. Mach daraus einen Plan. Sende nichts an andere Dienste.",
+      "expected_output": "Nutzt den Export, markiert offene Zustände und überträgt die privaten Beispieldaten nicht an einen Suchdienst.",
+      "files": [
+        "evals/files/dialog-zustaende.json"
+      ],
+      "assertions": [
+        "Fordert nur präzise fehlenden Kontext an, soweit er eine Entscheidung ändert.",
+        "Arbeitet mit den verfügbaren Eingaben weiter und behauptet keinen Zugriff auf den privaten Frame.",
+        "Bindet vorhandene Zustände an Akzeptanzkriterien und respektiert die Übertragungsgrenze."
+      ]
+    },
+    {
+      "id": 11,
+      "name": "echter-browser-kontrast",
+      "prompt": "Die Abstände der Toolbar seien laut Tests gleich, doch im dunklen Theme fehlen zwei Symbole. Schau nach, welche und ob Farb- oder Geometriewerte die Beobachtung erklären. Ich habe ein minimales Repro angehängt.",
+      "expected_output": "Gezielter Quell- und, falls verfügbar, gerenderter Check des Repros.",
+      "files": [
+        "evals/files/dark-toolbar.html"
+      ],
+      "assertions": [
+        "Identifiziert Suche und Wiederholen als die zwei betroffenen Symbole.",
+        "Erkennt die Übereinstimmung von Symbolfarbe und Containerfarbe als Ursache und trennt sie von Breiten.",
+        "Führt verfügbare visuelle Prüfung aus oder bezeichnet den tatsächlichen Befund präzise als aus dem Quellcode abgeleitet."
+      ]
+    },
+    {
+      "id": 12,
+      "name": "quellenkonflikt-bei-sdk",
+      "prompt": "Jemand sagt, Feature X wäre auf allen Android-Versionen verfügbar, ich sehe es aber erst auf Android 16. Plane, wie du das entscheidest, bevor wir das in SecondHand benutzen.",
+      "expected_output": "Versionsgebundene und überprüfbare Vorgehensweise, die die konkrete API identifiziert und Laufzeitverfügbarkeit getrennt prüft.",
+      "files": [],
+      "assertions": [
+        "Fragt die entscheidende fehlende API-Information gezielt ab oder arbeitet mit expliziten identifizierbaren Möglichkeiten.",
+        "Nennt geeignete Primärquellen, genaue Versionen sowie passenden Geräte-/Emulatornachweis.",
+        "Gibt die unklare Behauptung weder als Fakt aus noch verspricht sie vor der Prüfung."
+      ]
+    },
+    {
+      "id": 13,
+      "name": "mehrere-arbeitsschritte-und-fortsetzung",
+      "prompt": "In dem Repo sollen migrierte alte Toolbar-Profile nach einem abgebrochenen Undo/Redo-Umbau weiterhin funktionieren. Plane die Arbeit und sag, wie du den nächsten Kontextwechsel abfängst.",
+      "expected_output": "Kleiner implementierbarer Schnitt mit Altprofil-/Abbruchtest und wiederaufnehmbarer Arbeitsnotiz.",
+      "files": [
+        "evals/files/toolbar-profil.json"
+      ],
+      "assertions": [
+        "Berücksichtigt existierende Belegungen und alte Daten.",
+        "Spezifiziert Abbruch, Wiederholung und Vergleich für die normale Bedienung.",
+        "Sichert belegbaren Stand, offene Kriterien und den nächsten konkreten Schritt."
+      ]
+    },
+    {
+      "id": 14,
+      "name": "nachweis-nach-letzter-aenderung",
+      "prompt": "Der Browser-Screenshot ist vom Stand vor der letzten Änderung an der Toolbar. Der Build ist jetzt grün. Kann ich die visuelle Abnahme als bestanden melden?",
+      "expected_output": "Belegt den Build separat und behandelt die betroffene visuelle Abnahme als offen.",
+      "files": [],
+      "assertions": [
+        "Identifiziert den veralteten Stand des Screenshots.",
+        "Benennt die kleinste frische Prüfung für die geänderte sichtbare Oberfläche.",
+        "Stellt Build und visuelle Abnahme getrennt dar."
+      ]
+    }
+  ]
+}

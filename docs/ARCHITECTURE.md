@@ -4142,7 +4142,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
   `.claude/skills/product-initiative/SKILL.md` ist der Projekt-Skill zur Regel „Verantworte das Produkt“ in
   `CLAUDE.md` (Auftrag durchdenken, eigene Ideen einordnen, wie der Owner prüfen, Bericht in vier Teilen); er
-  enthält keine eigenen Regeln.
+  enthält keine eigenen Regeln. Seit 2026-11-21 mit Abnahme-Zeilen, Kritiker vor dem Bau und der Tabelle „Aussage →
+  Nachweis“ (übernommen aus dem Paket „Product Initiative Suite“ des Owners; dessen Design-Datenbank, Nachweis-Skript
+  und Fremddienste sind bewusst nicht übernommen). `.claude/skills/product-initiative/evals/evals.json` mit den
+  Vorlagen `dark-toolbar.html`, `dialog-zustaende.json`, `toolbar-profil.json`, `trackpad-profil.json` sind die 14
+  Verhaltensfälle des Owners aus diesem Paket, unverändert kopiert (das Feld `skill_name` nennt noch die Suite); sie
+  sind noch nie ausgeführt worden und dienen als Messlatte für einen späteren Vergleich mit und ohne Skill.
 
 ## Fallstricke
 
@@ -6722,11 +6727,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (758 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (763 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.claude/skills/product-initiative/` (1): SKILL
+- `.claude/skills/product-initiative/evals/` (1): evals
+- `.claude/skills/product-initiative/evals/files/` (4): dark-toolbar, dialog-zustaende,
+  toolbar-profil, trackpad-profil
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings

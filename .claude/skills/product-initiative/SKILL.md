@@ -55,6 +55,22 @@ Konzept in `docs/`): Ziel, Antiprompt, Ablauf mit Randfällen und Abbruch, Unaus
 Berührungspunkte, Prüfplan. Das kostet Minuten und verhindert, dass eine ganze Etappe am
 eigentlichen Wunsch vorbeigeht.
 
+Mach aus dem Antiprompt und aus jedem durchgespielten Schritt eine Abnahme-Zeile. Erst die Zeile
+zwingt dich, den Ablauf mit den echten Gegebenheiten des Nutzers zu Ende zu denken, und sie ist
+später genau das, was geprüft wird:
+
+| Ausgangslage | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- |
+| Wie es beim Nutzer wirklich ist (seine Daten, Menge, Belegung, sein Design) | Was er tut, in seiner Reihenfolge | Was er danach sieht | Woran es im Alltag scheitern würde | Wo und womit das geprüft wird |
+
+Bevor gebaut wird, liest ein unabhängiger Kritiker das Konzept (ein Agent, wenn die Umgebung
+einen hat; sonst du selbst mit Abstand und nur den Abnahme-Zeilen vor Augen). Sein Auftrag ist
+eng: den realistischen Fall finden, in dem der Plan den Wortlaut erfüllt und der Nutzer trotzdem
+scheitert, vor allem bei vorhandenen Belegungen, Datenmengen und Gewohnheiten. Höchstens drei
+Punkte, je Punkt der kleinste Versuch, der die Frage entscheidet. Ein Fehler, der im Konzept
+gefunden wird, kostet einen Absatz; derselbe Fehler nach dem Bau kostet eine Prüfrunde und das
+Vertrauen des Nutzers in die Meldung „fertig“.
+
 ## 2. Weiterdenken und über eigene Ideen entscheiden
 
 Beim Durchdenken fallen dir Dinge ein, die niemand bestellt hat. Das ist gewollt. Entscheidend
@@ -106,6 +122,16 @@ Prüfen heißt herausfinden, ob es bei ihm funktioniert, nicht ob dein Test grü
   die Abstände seien gleich, ersetzt den Blick nicht.
 - **Den ganzen Ablauf.** Auch Abbruch, Fehlgriff, Wiederholung, Rückweg.
 
+Welcher Nachweis eine Aussage trägt, hängt von der Aussage ab:
+
+| Du willst sagen … | Das trägt die Aussage | Das trägt sie nicht |
+| --- | --- | --- |
+| Die Geste oder das Ziehen funktioniert | Echte Berührung am echten Einstieg, in seiner Belegung, auch nach dem, was er davor tut (scrollen, markieren) | Test der inneren Funktion, simulierte Ereignisse |
+| Es sieht richtig aus | Angesehenes Bild in seinem Design und in den entscheidenden Größen | Nachgerechnete Abstände, Standarddesign |
+| Der Fehler ist behoben | Das ursprüngliche Symptom am selben Einstieg, vorher rot und nachher grün | Geänderter Code, ein grüner Test, der vorher auch grün war |
+| Tests und Build laufen | Frischer Lauf nach der letzten Änderung, mit gelesenem Ergebnis | Ein früherer Lauf, die Meldung eines Agenten |
+| Alles aus dem Auftrag ist erfüllt | Jede Abnahme-Zeile mit ihrem Stand: belegt, offen oder nur vom Nutzer prüfbar | Grüne Tests insgesamt |
+
 Wenn der Nutzer etwas anderes beobachtet als deine Prüfung ergeben hat, ist seine Beobachtung
 der Befund. Verteidige dein Ergebnis nicht, sondern finde heraus, was an deiner Prüfung nicht
 seiner Wirklichkeit entsprach. Meist war es der Einstieg oder die Einrichtung.
@@ -146,4 +172,11 @@ Diese Fälle sind der Grund für den Skill:
 - Das Trackpad startete beim Nutzer nie, weil es eine Belegung voraussetzte, die er nicht hatte.
   Geprüft wurde nur mit Standardbelegung.
 
-In allen drei Fällen war die Prüfung gründlich und das Konzept fehlte.
+- Das neue Ziehen wurde mit echten Berührungen getestet, aber immer mit einem Werkzeug aus dem
+  sichtbaren Teil des Rasters. Der Nutzer hat rund 25 Werkzeuge und muss scrollen; nach dem
+  Scrollen ging kein Ziehen mehr. Das Konzept hatte seine Ausgangslage (wie viele, in welcher
+  Reihenfolge er vorgeht) nicht in eine Abnahme-Zeile geschrieben, und gefunden hat es erst der
+  Prüfer nach dem Bau, als schon „funktioniert“ gemeldet war.
+
+In den ersten drei Fällen war die Prüfung gründlich und das Konzept fehlte. Im vierten gab es ein
+Konzept, aber niemand hatte es vor dem Bau gegen den echten Ablauf des Nutzers gelesen.

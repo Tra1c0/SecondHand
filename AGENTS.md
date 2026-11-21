@@ -59,8 +59,10 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   Skill `product-initiative` (`.claude/skills/product-initiative/SKILL.md`); verbindlich sind die Punkte hier.
   - Vor dem Bau einer größeren Funktion steht ein kurzes Konzept in `docs/` (Muster: `docs/LEISTE-KONZEPT.md`):
     was der Owner will, was dem widerspricht, der vollständige Ablauf mit Randfällen und Abbruch, was
-    unausgesprochen dazugehört, wie es zu den vorhandenen Funktionen passt, wie es geprüft wird. Kleine Aufgaben
-    brauchen kein Konzept.
+    unausgesprochen dazugehört, wie es zu den vorhandenen Funktionen passt, wie es geprüft wird. Der Ablauf steht
+    als Abnahme-Zeilen (Ausgangslage beim Owner, Aktion, Erwartung, Gegenfall, Nachweis), und ein Prüfer liest das
+    Konzept vor dem Bau mit dem Auftrag, den Fall zu finden, in dem der Plan den Wortlaut erfüllt und der Owner
+    trotzdem scheitert. Kleine Aufgaben brauchen kein Konzept.
   - Eigene Zusätze nur mit klarem Nutzen für den Owner, nie um Initiative zu zeigen. Harmlos, direkt zugehörig und
     leicht entfernbar → einbauen und nennen. Alles, was vorhandenes Verhalten ändert, sich mit anderen Funktionen
     überschneidet oder sie ersetzt → vorher vorschlagen. Einstellungen und Gewohnheiten des Owners bleiben erhalten.
