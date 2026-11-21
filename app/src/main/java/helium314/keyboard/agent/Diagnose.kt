@@ -696,19 +696,22 @@ object Diagnose {
      * Stage 90a: sizes only, read off the main thread: learned words per language of the typing history ([learnedWords], null when it
      * cannot be read), learned typo pairs, pairs learned in the field, corrections taken back. Never a word.
      */
-    class CorrectionCounts(val learnedWords: Map<String, Int>?, val typoPairs: Int?, val fieldPairs: Int?, val rejectedPairs: Int?)
+    class CorrectionCounts(val learnedWords: Map<String, Int>?, val typoPairs: Int?, val fieldPairs: Int?, val rejectedPairs: Int?, val personalWords: Int? = null)
 
     fun correctionCounts(context: Context): CorrectionCounts = CorrectionCounts(
         runCatching { LearningData.counts(UserHistoryLearningSource(context)) }.getOrNull(),
         runCatching { TypoMemory.all(context).size }.getOrNull(),
         runCatching { FieldCorrectionMemory.all(context).size }.getOrNull(),
-        runCatching { RejectedCorrections.all(context).size }.getOrNull())
+        runCatching { RejectedCorrections.all(context).size }.getOrNull(),
+        // the personal dictionary (Android's user dictionary): only how many entries, null when the provider is not there
+        runCatching { context.contentResolver.query(android.provider.UserDictionary.Words.CONTENT_URI,
+            arrayOf(android.provider.UserDictionary.Words._ID), null, null, null)?.use { it.count } }.getOrNull())
 
     /**
      * The card "Korrektur & Sprache": the settings that decide what the automatic correction does and the sizes of what the keyboard
      * learned. States, language tags, layout names and numbers only: no word, no field text, nothing from the typing history.
      */
-    fun correction(context: Context, counts: CorrectionCounts): Section {
+    fun correction(context: Context, counts: CorrectionCounts?): Section {
         fun s(id: Int) = context.getString(id)
         val prefs = context.prefs()
         fun pref(key: String, default: Boolean) = prefs.getBoolean(key, default)
@@ -737,19 +740,24 @@ object Diagnose {
                 second.ifEmpty { s(R.string.agent_diagnose_none) })
         }
         rows += Row(s(R.string.agent_diagnose_corr_personalized), onOff(context, pref(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS)))
+        rows += Row(s(R.string.agent_diagnose_corr_add_personal), onOff(context, pref(Settings.PREF_ADD_TO_PERSONAL_DICTIONARY, Defaults.PREF_ADD_TO_PERSONAL_DICTIONARY)))
         rows += Row(s(R.string.agent_diagnose_corr_learn_typos), onOff(context, pref(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false)))
         rows += Row(s(R.string.agent_diagnose_corr_remember_rejected), onOff(context, pref(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false)))
         rows += Row(s(R.string.agent_diagnose_corr_memory), onOff(context, pref(AgentPreferences.MEMORY, false)))
         rows += Row(s(R.string.agent_diagnose_corr_paused), onOff(context, pref(AgentPreferences.LEARNING_PAUSED, false)))
         rows += Row(s(R.string.agent_diagnose_corr_touch), onOff(context, pref(AgentPreferences.ADAPT_TOUCH, false)))
         rows += Row(s(R.string.agent_diagnose_corr_next_word), onOff(context, pref(Settings.PREF_BIGRAM_PREDICTIONS, Defaults.PREF_BIGRAM_PREDICTIONS)))
+        // the sizes are counted off the main thread and without holding back the other cards: null = still counting
         val unknown = s(R.string.agent_diagnose_field_unknown)
-        rows += Row(s(R.string.agent_diagnose_corr_learned_words), counts.learnedWords?.let { map ->
+        val counting = s(R.string.agent_diagnose_corr_counting)
+        fun number(n: Int?) = if (counts == null) counting else n?.toString() ?: unknown
+        rows += Row(s(R.string.agent_diagnose_corr_learned_words), if (counts == null) counting else counts.learnedWords?.let { map ->
             if (map.isEmpty()) "0" else map.entries.sortedBy { it.key }.joinToString(", ") { "${it.key}: ${it.value}" }
         } ?: unknown)
-        rows += Row(s(R.string.agent_diagnose_corr_typo_pairs), counts.typoPairs?.toString() ?: unknown)
-        rows += Row(s(R.string.agent_diagnose_corr_field_pairs), counts.fieldPairs?.toString() ?: unknown)
-        rows += Row(s(R.string.agent_diagnose_corr_rejected), counts.rejectedPairs?.toString() ?: unknown)
+        rows += Row(s(R.string.agent_diagnose_corr_typo_pairs), number(counts?.typoPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_field_pairs), number(counts?.fieldPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_rejected), number(counts?.rejectedPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
         return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }
 

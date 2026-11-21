@@ -293,4 +293,7 @@
     <string name="agent_diagnose_corr_field_pairs">Im Feld gelernte Korrekturen (Anzahl)</string>
     <string name="agent_diagnose_corr_rejected">Zurückgenommene Korrekturen (Anzahl)</string>
     <string name="agent_diagnose_corr_active_layouts">Aktive Layouts (Anzahl)</string>
+    <string name="agent_diagnose_corr_add_personal">Automatisch zum persönlichen Wörterbuch hinzufügen</string>
+    <string name="agent_diagnose_corr_personal_words">Einträge im persönlichen Wörterbuch (Anzahl)</string>
+    <string name="agent_diagnose_corr_counting">wird gezählt …</string>
 </resources>

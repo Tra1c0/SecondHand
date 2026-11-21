@@ -294,4 +294,7 @@
     <string name="agent_diagnose_corr_field_pairs">Corrections learned in the field (count)</string>
     <string name="agent_diagnose_corr_rejected">Corrections taken back (count)</string>
     <string name="agent_diagnose_corr_active_layouts">Active layouts (count)</string>
+    <string name="agent_diagnose_corr_add_personal">Add to the personal dictionary automatically</string>
+    <string name="agent_diagnose_corr_personal_words">Entries in the personal dictionary (count)</string>
+    <string name="agent_diagnose_corr_counting">counting …</string>
 </resources>

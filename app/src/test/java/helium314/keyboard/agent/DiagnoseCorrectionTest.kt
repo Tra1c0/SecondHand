@@ -101,6 +101,19 @@ class DiagnoseCorrectionTest {
         assertEquals("unbekannt", unknown["Gelernte Tippfehler-Paare (Anzahl)"])
     }
 
+    @Test fun theCardAppearsAtOnceWhileTheCountsAreStillBeingRead() {
+        val r = Diagnose.correction(app, null).rows.associate { it.label to it.value }
+        // the settings are there, the sizes say "wird gezählt …" (not "0", not "unbekannt")
+        assertTrue(r["Korrekturstufe"]!!.isNotBlank())
+        for (label in listOf("Gelernte Wörter (Anzahl je Sprache)", "Gelernte Tippfehler-Paare (Anzahl)", "Im Feld gelernte Korrekturen (Anzahl)",
+            "Zurückgenommene Korrekturen (Anzahl)", "Einträge im persönlichen Wörterbuch (Anzahl)")) assertEquals("wird gezählt …", r[label], label)
+        assertEquals("aus", r["Automatisch zum persönlichen Wörterbuch hinzufügen"])
+        app.prefs().edit { putBoolean(Settings.PREF_ADD_TO_PERSONAL_DICTIONARY, true) }
+        assertEquals("an", rows()["Automatisch zum persönlichen Wörterbuch hinzufügen"])
+        assertEquals("7", rows(Diagnose.CorrectionCounts(emptyMap(), 0, 0, 0, 7))["Einträge im persönlichen Wörterbuch (Anzahl)"])
+        assertEquals("unbekannt", rows(Diagnose.CorrectionCounts(emptyMap(), 0, 0, 0, null))["Einträge im persönlichen Wörterbuch (Anzahl)"])
+    }
+
     @Test fun theCardIsOnThePageAndInTheCopiedText() {
         compose.setContent { Theme(true) { AgentDiagnoseScreen {} } }
         compose.waitForIdle()

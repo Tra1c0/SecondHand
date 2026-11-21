@@ -67,12 +67,17 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     // stage 61: the choice made with the button of the card (null until it is pressed), and that it was saved
     var forceChoice by remember { mutableStateOf<Boolean?>(null) }
     var forceFull by remember { mutableStateOf(false) }
+    // stage 90a: the card appears at once with "wird gezählt …"; reading the whole typing history can take up to 10 s, so it runs
+    // on its own and fills the numbers in when it is done; nothing else on the page waits for it
+    LaunchedEffect(Unit) {
+        correction = withContext(Dispatchers.IO) { Diagnose.correction(context, null) }
+        correction = withContext(Dispatchers.IO) { Diagnose.correction(context, Diagnose.correctionCounts(context)) }
+    }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
         // stage 55: the last field, first on the page; its dictionary files and the app's name off the main thread
         val opened = SystemClock.elapsedRealtime()
         lastField = withContext(Dispatchers.IO) { Diagnose.lastField(context, opened) }
-        correction = withContext(Dispatchers.IO) { Diagnose.correction(context, Diagnose.correctionCounts(context)) }
         // lists the dictionary files: off the main thread
         symbols = withContext(Dispatchers.IO) { Diagnose.symbols(context) }
         // the table the keyboard has in memory (main thread), else read from the asset; both offline
