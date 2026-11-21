@@ -1126,6 +1126,41 @@ def probe_english_sentences(d):
                  ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
 
 
+def _keep_typed(d, word, times):
+    """Types the word with a space `times` times the way the owner keeps a word: if the keyboard changed it,
+    one tap on delete takes the correction back, then the space again (as learning_not_in_password)."""
+    for _ in range(times):
+        d.type(word + " ")
+        time.sleep(1.0)
+        if not d.field("text").endswith(word + " "):
+            d.press("delete")
+            time.sleep(0.8)
+            if d.field("text").endswith(word):
+                d.press("space")
+
+
+def probe_history_loop(d):
+    """Findings 2 and 4: with "Personalisierte Vorschläge" on, a typo the owner once kept ("nicbmal", "war'a") sits
+    in the typing history. Does the correct word ("nichtmal", "war's") then become that typo?"""
+    _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"), "Personalisierte Vorschläge")
+    d.start("probe_history_loop")
+    d.focus("text")
+    d.type("und")
+    d.wait_for_suggestions()
+    d.type(" ")
+    for typo in ("nicbmal", "war'a"):
+        _keep_typed(d, typo, 2)
+    log("PROBE probe_history_loop | after keeping the typos twice: field %r" % d.field("text"))
+    _probe_cases(d, "probe_history_loop", "und", ["nichtmal", "war's", "nicbmal", "war'a"])
+
+
+def probe_level_gentle(d):
+    """Finding 3 at the level "Behutsam" (Tippen & Korrektur): "i" in the middle of a sentence, English layout."""
+    _open_settings_and_switch_on(d, ("Tippen & Korrektur",), "Behutsam")
+    _probe_cases(d, "probe_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
+    _probe_cases(d, "probe_level_gentle_de", "und", ["war's", "nichtmal"])
+
+
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
     Inline autofill chips are remote surfaces whose text is probably not readable, so they are found by
@@ -2155,7 +2190,8 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
-PROBES = [probe_apostrophe_de, probe_apostrophe_en, probe_capital_i, probe_english_sentences]
+PROBES = [probe_apostrophe_de, probe_apostrophe_en, probe_capital_i, probe_english_sentences,
+          probe_history_loop, probe_level_gentle]
 
 KNOWN_FINDINGS = {
     # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
