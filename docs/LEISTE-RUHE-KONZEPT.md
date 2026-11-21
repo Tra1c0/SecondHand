@@ -76,141 +76,144 @@ und `PREF_AUTO_HIDE_TOOLBAR = true` (`FlatPreset.kt:44-45`). „Automatisch anze
 (`LatinIME.java:1918-1923`) auch dann, wenn Wörter angeboten werden (Vorhersage am Zeilenanfang). Das ist genau sein „Absätze“. Ob die Einstellung bei ihm an ist, zeigt die Diagnose;
 die Regel muss mit beiden Werten ruhig sein (Abschnitt 4, Regel 8).
 
-## 3. Die Regel „Schreibsitzung“ (Variante A, ohne Zeitsteuerung)
 
-Der Lead hat entschieden. Hier ausgearbeitet, mit den Zuständen, die dazugehören.
+## 2a. Nachtrag nach der Kritik (Kritiker, Entscheidungen des Leads)
 
-**Zustand (neu in `BarState`):** `writing` (in dieser Sitzung ist geschrieben worden) und `pinned` (der Nutzer hat die Werkzeuge verlangt und behält sie bis zum nächsten Zeichen).
+- **K1 (schwer):** `SuggestionStripView.setSuggestions` ruft zuerst `clear()` und legt dann die neue Liste an (`SuggestionStripView.kt` 350-360, `clear` 635). Bliebe nur `show = CONTENT`, würde aus „Werkzeuge ↔ Wörter“ ein
+  „Wörter ↔ leer“: dasselbe Flackern. Darum zählt die Messung **jeden sichtbaren Inhaltswechsel** (Werkzeuge, Wörter, leer, Chip/Pille getrennt), und die Regel enthält die Entprellung (Regel 5).
+  Vermuteter Weg beim Owner (Claude-App): langsame Verbindung (`InputLogic:1730`: jede Rücktaste neutral) plus `onUpdateSelection` → `postResumeSuggestions` (`InputLogic:636-653`) bringt die Wörter zurück: je Buchstabe einmal leer, einmal Wörter.
+  Der Test `todayWithSlowConnectionAndResume` stellt genau das nach und muss vor dem Umbau rot sein.
+- **K2 (schwer):** Der Mikrofon-Kreis ist nur der letzte Platz der Werkzeugzeile (`FixedBar` 166, 181); `applyBarState` (785-787) tauscht die ganze Zeile gegen die Wörter. Unter Regel A ist Diktieren in einer Schreibsitzung zwei Tipps weit weg.
+  Entscheidung: Stufe 2 (Abschnitt 9): linke Taste und Kreis stehen fest, nur die Mitte wechselt (wie Gboard). Stufe 1 baut das nicht.
+- **K3:** „Schreibsitzung nur aus getippten Zeichen über die Eingabeart“ geht nicht (die Wiederaufnahme liefert `INPUT_STYLE_TYPING`, `InputLogic:2219`), und nach dem Wiederöffnen wäre `writing` zurückgesetzt:
+  wer dann nur löscht, hätte das alte Verhalten, genau der gemeldete Fall. Entscheidung: `writing` wird am **Tastencode** gesetzt (Regel 3).
+- **K4:** Ohne Personalisierung (`PREF_KEY_USE_PERSONALIZED_DICTS = false`) und ohne Folgewortvorhersage steht der Wörter-Bereich nach fast jedem Leerzeichen leer. Das ist der Normalfall der Regel, nicht die Ausnahme; die Diagnose-Karte zeigt, ob es beim Owner so ist.
+- **K5:** Die Zwischenablage-Pille (`LatinIME.setNeutralSuggestionStrip` 1905) wechselt unter A nach jeder Kopie drei Minuten lang an jedem Wortende mit den Wörtern. Siehe Abschnitt 7, Vorschlag 3 (nicht gebaut).
+
+## 3. Die Regel „Schreibsitzung“ (Variante A, ohne Zeitsteuerung für den Wechsel Werkzeuge/Wörter)
+
+**Zustand (neu in `BarState`):** `writing` (in dieser Sitzung ist geschrieben worden), `pinned` (der Nutzer hat die Werkzeuge verlangt und behält sie bis zum nächsten Zeichen), `calm` (die Regel gilt in diesem Feld).
 
 **Regeln, in der Reihenfolge, in der sie entscheiden:**
 
-1. **Geltungsbereich.** Nur im Modus „Tasten + Vorschläge“ (`fixedBar`) und nur in einem Feld, das Wörter anzeigen kann: `mInputAttributes.mShouldShowSuggestions && mSuggestionsEnabled`
-   (Passwortfeld, Feld mit `NO_SUGGESTIONS`, Zahlen-/Telefonfeld, ausgeschaltete Vorschläge, App-Vervollständigung = andere Regel). Sonst gilt alles wie heute (Werkzeuge bei leerer Liste), weil ein
-   Wörter-Bereich, der nie Wörter bekommt, die Werkzeuge für immer verstecken würde.
+1. **Geltungsbereich (`calm`).** Nur im Modus „Tasten + Vorschläge“ (`fixedBar`) und nur in einem Feld, das Wörter anzeigen kann: `mInputAttributes.mShouldShowSuggestions && mSuggestionsEnabled` (kein Passwort-, Zahlen-, Telefonfeld, keine
+   ausgeschalteten Vorschläge, keine App-Vervollständigung). Sonst gilt alles wie heute.
 2. **Anfang.** Neues Feld (`onFieldStarted`), geschlossene und wieder geöffnete Tastatur (`onKeyboardHidden`), leeres Feld: `writing = false`, `pinned = false`, Werkzeuge.
-3. **Schreiben beginnt** mit der ersten Wörterliste für getippte Zeichen oder eine Wischeingabe (`INPUT_STYLE_TYPING`, `UPDATE_BATCH`, `TAIL_BATCH`): `writing = true`, `pinned = false`, Inhalt.
-   Vorhersagen am Feldanfang und Wiederaufnahme (`BEGINNING_OF_SENTENCE_PREDICTION`, `PREDICTION`, `RECORRECTION`) setzen `writing` nicht (ein Feld mit Text, das offen steht, zeigt ihr Wort, aber noch keine Schreibsitzung).
-   Einfügen, Chips und Diktat setzen `writing` nicht: erst ein getipptes Zeichen.
-4. **Während `writing`:** `onNeutral` ändert `show` nicht. Die Leiste bleibt im Wörter-Bereich (`show = CONTENT`), `hasContent` ist `false`, der Bereich ist leer. Gilt für Leerzeichen,
-   Satzzeichen, Absatz, Autokorrektur, Löschen (alle Wege der Tabelle in 2) und die langsame Verbindung.
-5. **Zurück zu den Werkzeugen von selbst** nur bei: Feld wird leer (Cursor am Anfang des Felds und nichts dahinter: Beurteilung in `LatinIME.setNeutralSuggestionStrip` mit dem schon gelesenen
-   `getCodePointBeforeCursor() == NOT_A_CODE`, siehe Risiko R5), neues Feld, Tastatur wieder geöffnet (Regel 2).
-6. **Zu den Werkzeugen auf Wunsch:** linke Taste („Werkzeuge zeigen“, `onLeftKey` `SHOW_TOOLS`) oder Tipp auf ein Leistenwerkzeug bei sichtbaren Werkzeugen: `pinned = true`. Solange `pinned`,
-   ändern Wörter (auch Wiederaufnahme nach „Rückgängig“), neutrale Aktualisierungen, Zwischenablage-Pille, Screenshot-Pille, Autofill, Update-Chip und Cursorbewegungen `show` nicht. `pinned` endet beim nächsten
-   getippten Zeichen (Regel 3), bei Feldwechsel/Verstecken (Regel 2), bei neuer Auswahl (Auswahl-Chips gewinnen wie heute) und bei einem Befehls-Chip (er kommt nur durch ein getipptes Zeichen).
-   Damit sind nach „Rückgängig“ der Wiederholen-Pfeil (`UndoOffer`) und ein zweites „Rückgängig“ sichtbar, ohne dass ein Wort die Werkzeuge verdrängt.
-   Die linke Taste ist bei `pinned` das Raster (wie heute bei sichtbaren Werkzeugen), nicht „zurück zu den Wörtern“: den Weg zurück macht das Tippen.
-7. **Auswahl-Chips (Etappe 82, `stickyTools`)** bleiben, wie sie sind: Auswahl → Chips (Inhalt), „Werkzeuge zeigen“ klebt für diese Auswahl. Nach dem Ende der Auswahl (neutral) entscheidet Regel 4 (während
-   `writing` leerer Wörter-Bereich, sonst Werkzeuge). `pinned` und `stickyTools` sind ein Mechanismus (`stickyTools` bleibt für Chips, `pinned` ist die Ausweitung auf jeden Inhalt).
-8. **Einstellungen des Owners bleiben erhalten**, bis auf einen Fall: „Leiste automatisch anzeigen“ (`mAutoShowToolbar`, vom Flachen Look gesetzt) wirkt in der festen Leiste weiter bei **Feldanfang** und
-   **Auswahl**, aber **nicht mehr nach einem Absatz** (`codePointBeforeCursor == CODE_ENTER`, `LatinIME.java:1920`). Das steht im Widerspruch zu „Absätze“ der Meldung und
-   ist die einzige Stelle, an der Regel A eine vorhandene Einstellung enger fasst (Rückfrage, Abschnitt 7). „Automatisch ausblenden“ ist in diesem Modus weiter ohne Wirkung (Inhalt ersetzt die Werkzeuge immer).
-9. **Andere Leistenmodi** (`TOOLBAR_KEYS`, `SUGGESTION_STRIP`, `HIDDEN`) und der Flache Stil mit ausgeschaltetem Schalter „Feste Leiste wie Gboard“ bleiben unverändert (`fixedBar` falsch, nichts an dieser Regel läuft).
-   Die alten Aufrufe `setToolbarVisibility(true/false)` laufen weiter über `onToolsRequested`/`onContentRequested`: `true` setzt `show = TOOLS` und `pinned` nicht (es ist der automatische Weg, kein Wunsch des Nutzers; kommt ein
-   Inhalt, geht es zurück), `false` setzt `show = CONTENT` (jetzt auch ohne Inhalt, wenn `writing`).
+3. **`writing` wird am Tastencode gesetzt** (Hook im Listener wie `UndoOffer.onCode`, `KeyboardActionListenerImpl.onCodeInput`): durch jede Zeichentaste (Code ≥ 0, auch Leerzeichen und Enter), jede Wischeingabe (`onEndBatchInput`)
+   und die Rücktaste, auch den Löschwisch beim Loslassen (`onUpWithDeletePointerActive`), in einem Feld mit `calm`. Cursorbewegung, Feld öffnen, Einfügen, Chips und Diktat setzen es nicht. Der Hook beendet auch `pinned`.
+   Er ändert die Leiste nicht selbst: die Anzeige wechselt mit dem nächsten Inhalt oder dem nächsten neutralen Aufruf.
+4. **Während `writing`:** ein neutraler Aufruf (`onNeutral`) schaltet nicht auf die Werkzeuge. `show` ist `CONTENT`, `hasContent` falsch, der Bereich leer. Gilt für Leerzeichen, Satzzeichen, Absatz, Autokorrektur, Löschen, langsame Verbindung.
+5. **Keine Leerung zwischen zwei Listen (Entprellung der Anzeige).** Ein neutraler Aufruf nimmt die sichtbaren Wörter nicht sofort weg. Kommt innerhalb von **`BarState.CALM_DEBOUNCE_MS` = 150 ms** eine neue nichtleere Liste (oder ein Chip),
+   ersetzt sie die alten Wörter direkt; sonst wird geleert. 150 ms, weil die Aktualisierung nach einem Zeichen mit 100 ms Verzögerung läuft (`mDelayInMillisecondsToUpdateSuggestions`) plus Antwortzeit des Wörterbuchs; eine längere Frist ließe
+   veraltete Wörter sichtbar stehen. Das ist nur eine Entprellung, kein Wechsel zu den Werkzeugen. **Veraltete Wörter in der Frist** sind **nicht antippbar** (Tipp wird verworfen, `onClick`/`onLongClick` der Wörter und das Wischen nach oben prüfen
+   `stale`): das ist das Sichere, denn ein Tipp auf „hello“, während der Text schon weiter ist, würde das falsche Wort einsetzen. Die Wörter sehen in der Frist unverändert aus (kein Abdunkeln, das wäre selbst ein Flackern).
+   Kein Entprellen bei leerem Feld, neuem Feld, Verstecken (sofort).
+6. **Zurück zu den Werkzeugen von selbst** nur bei: Feld leer (Cursor am Anfang und nichts davor, `getCodePointBeforeCursor() == NOT_A_CODE`, nur gelesen, solange `writing`), neues Feld, Tastatur wieder geöffnet.
+7. **Zu den Werkzeugen auf Wunsch:** linke Taste („Werkzeuge zeigen“) oder Tipp auf ein Leistenwerkzeug bei sichtbaren Werkzeugen: `pinned = true`. Solange `pinned`, ändern Wörter (auch die Wiederaufnahme nach „Rückgängig“), neutrale Aufrufe, Pille,
+   Screenshot-Pille, Autofill, Update-Chip und Cursorbewegungen `show` nicht. `pinned` endet beim nächsten Zeichen (Hook), Feldwechsel/Verstecken, neuer Auswahl (Auswahl-Chips gewinnen) und Befehls-Chip (kommt nur durch ein Zeichen).
+   Die linke Taste ist bei `pinned` das Raster (wie bei sichtbaren Werkzeugen heute).
+8. **Auswahl-Chips (Etappe 82, `stickyTools`)** bleiben, wie sie sind. Nach der Auswahl entscheidet Regel 4.
+9. **„Leiste automatisch anzeigen“ (Entscheidung Lead):** in der festen Leiste während `writing` **nicht** nach Enter (`LatinIME.java:1920`: Bedingung `CODE_ENTER` nur ohne Schreibsitzung); bei neuem Feld und Auswahl wie heute. „Automatisch ausblenden“
+   bleibt ohne Wirkung.
+10. **Andere Leistenmodi** (`TOOLBAR_KEYS`, `SUGGESTION_STRIP`, `HIDDEN`) unverändert. Die alten Aufrufe `setToolbarVisibility(true/false)` laufen über `onToolsRequested`/`onContentRequested`; `true` setzt `pinned` nicht.
 
-**Was der leere Wörter-Bereich zeigt.** Nichts im Bereich der Wörter; links bleibt die Taste mit dem Pfeil („Werkzeuge zeigen“, `agent_bar_show_tools`), rechts nichts. Die Leiste behält ihre Höhe und Farbe (der
-Bereich ist `suggestionsStrip`, leer, sichtbar). Das ist das Verhalten, das auch heute bei einem Leerzeichen *mit* Vorhersage vorkommt, nur dass es danach nicht mehr verschwindet. Es wirkt nicht wie ein Fehler,
-wenn der Pfeil daneben steht und die Leiste eine feste Höhe behält; es wirkt wie ein Fehler, wenn der Nutzer nicht weiß, wohin die Werkzeuge gegangen sind (R1). Die Beschreibung der linken Taste sagt es bereits.
+**Was der leere Wörter-Bereich zeigt.** Nichts im Bereich der Wörter, links der Pfeil „Werkzeuge zeigen“. Höhe und Farbe bleiben. In Stufe 2 stehen auch der Kreis und die linke Taste fest, sodass der Bereich nicht wie ein Loch wirkt.
 
 ## 4. Angriff auf die Regel: wo scheitert sie beim Owner?
 
-Fälle, in denen die Regel den Wortlaut erfüllt und der Owner trotzdem scheitert, nach Gewicht:
+- **R1 (Kosten, K2): Werkzeuge sind beim Schreiben einen Tipp weiter weg**, Diktat eingeschlossen. In Stufe 1 bewusst so (zwei Tipps statt einem, das Raster drei); Stufe 2 nimmt dem Diktat den Mehrweg. **Hier ist A schlechter als heute.**
+- **R2, leere Leiste ohne Wörter:** durch den Geltungsbereich (Regel 1) abgefangen (Passwort, Zahlenfeld, Vorschläge aus).
+- **R3, Leerlauf nach „Werkzeuge zeigen“:** `pinned` (Regel 7).
+- **R4, die erste Taste jedes Felds wechselt spät** (≈ 100 ms Werkzeuge bis zur Wörterbuchantwort): ein Wechsel je Feld, hingenommen.
+- **R5, „leeres Feld“ nur billig erkennbar** (Cursor am Anfang, nichts davor): Pos1 in gefülltem Feld zeigt die Werkzeuge.
+- **R6, Apps, die für jedes Zeichen ein neues Feld melden:** die Leiste springt wie heute; die Diagnose zählt `onStartInput` mit und ohne `restarting`.
+- **R7 (K5), Pille und Update-Chip:** wechseln wie heute mit den Wörtern; nach jeder Kopie drei Minuten lang an jedem Wortende. Nicht gebaut (Abschnitt 7).
+- **R8, Entprellung:** 150 ms veraltete Wörter; deshalb nicht antippbar. Ein Gegenfall: der Owner tippt in genau diesem Fenster auf ein Wort und nichts geschieht. 150 ms sind kürzer als eine Zielbewegung; der Zähler „verworfene Tipps“ ist in der Diagnose.
+- **R9, Entprellung und Hartnäckigkeit:** Wechselt die Liste öfter als alle 150 ms zwischen leer und nichtleer (Wörterbuchantwort langsamer als 150 ms), flackert es weiter. Die Diagnose zählt die Wechsel „leer“ mit.
+- **R10, Mehr als Stufe 1:** Das Hin und Her an Wortgrenzen ist mit R8 ruhiger, aber der Wechsel *erste Taste → Wörter* bleibt (R4).
 
-- **R1, die echte Kosten: Werkzeuge sind beim Schreiben einen Tipp weiter weg.** Der Owner arbeitet mit Werkzeugen mitten im Text (Aktionspanel, Skill-Tasten, Diktat, Zwischenablage, Rückgängig). Heute sind sie nach jedem
-  Leerzeichen ohne Vorhersage und nach jedem Satzzeichen mit einem Tipp erreichbar; mit A braucht jedes Werkzeug zwei Tipps (Pfeil, Werkzeug) und das Raster drei (Pfeil, Raster-Knopf,
-  Werkzeug), solange er schreibt, einschließlich des Diktat-Kreises rechts. Das ist der Preis der Ruhe und genau der Gboard-Zustand; Variante B (Abschnitt 6) holt ihn zurück. **Hier ist A klar schlechter als
-  heute**, bewusst.
-- **R2, leere Leiste in Feldern mit ausgeschalteten Vorschlägen:** durch den Geltungsbereich (Regel 1) abgefangen. Ohne ihn wäre A in jedem Feld ohne Wörter (Passwort, Zahlenfeld, Vorschläge aus, nur
-  Autokorrektur) nach dem ersten Zeichen für immer leer. Das Passwortfeld ist der einzige Fall, in dem die Werkzeuge (gedimmt) sicher bleiben müssen.
-- **R3, der Leerlauf nach „Werkzeuge zeigen“:** Der Owner tippt den Pfeil, wählt ein Werkzeug, das Text einfügt (Einfügen aus der Zwischenablage). Danach kommen Wörter (Wiederaufnahme) und, ohne `pinned`, würden sie die
-  Werkzeuge sofort wegnehmen. `pinned` löst es; die Ausnahmen (Auswahl-Chips, Befehls-Chips) stehen in Regel 6. Ein Werkzeug, das selbst Text *tippt* (kein Beispiel im Raster heute), würde `pinned`
-  beenden: Prüfen bei jedem neuen Werkzeug.
-- **R4, die erste Taste jedes Felds wechselt spät:** Die erste Buchstabentaste lässt die Werkzeuge ≈ 100 ms stehen, bis die Wörterbuchantwort kommt (Protokoll `H T- W+`). Das ist ein Wechsel je Feld
-  und ruhig genug; ein früherer Wechsel (Hook am Tastencode, `KeyboardActionListenerImpl.onCodeInput`, wie `UndoOffer.onCode`) wäre möglich, ist aber ein zweiter Weg, der sich mit dem ersten streitet.
-  Nicht in Teil 2, sofern der Gerätetest den Wechsel nicht als störend zeigt.
-- **R5, „leeres Feld“ erkennen:** Billig geht nur „Cursor am Anfang und nichts davor“ (`getCodePointBeforeCursor()`, aus dem Zwischenspeicher). Das erkennt „Nachricht gesendet, Feld geleert“ und „alles gelöscht“, aber auch
-  „Cursor mit Pos1 an den Anfang eines Texts gesetzt“: dort zeigt die Leiste die Werkzeuge (kein Wort davor, kein Schaden). Nicht billig: „nichts hinter dem Cursor“ (`hasTextAfterCursor`, kann eine Leseanfrage an die App sein, Etappe 84
-  hat solche Lesungen aus dem Tastendruck genommen). Entscheidung: nur das Billige.
-- **R6, Apps, die für jedes Zeichen ein neues Feld melden:** Chrome/Compose/Xiaomi-Apps rufen manchmal `onStartInput` neu auf. Ein Neustart im selben Feld (`restarting`) lässt die Leiste offen und ändert `writing`
-  nur über die Leere des Felds (P390). Meldet eine App jedoch ein *neues* Feld je Zeichen (kein `restarting`), setzt `onFieldStarted` zurück und die Leiste springt: dasselbe wie heute, nicht schlimmer, aber auch nicht
-  besser. Zeigt die Diagnose „Letztes Feld“ viele Feldwechsel, ist das die Ursache, nicht die Regel.
-- **R7, Update-Chip und Zwischenablage-Pille bleiben Inhalt der neutralen Leiste:** Nach jedem Leerzeichen ohne Vorhersage kann der Update-Chip oder die Pille erscheinen (`setNeutralSuggestionStrip`, `LatinIME.java:1899` bis
-  1925); das ist heute so und ändert sich nicht. Auffällig wird es erst, wenn die Leiste sonst ruhig ist: ein Chip, der bei jedem Wortende kommt und geht, ist ein Wechsel Wörter ↔ Chip (nicht Werkzeuge). Nicht Teil dieser
-  Etappe; Teil 2 misst es mit gesetzter Pille (`TypingRig.setUp(withClipboardPill)`).
-- **R8, „Automatisch anzeigen“ (Flacher Look) widerspricht „Absätze“:** siehe Regel 8 und Rückfrage.
-- **R9, Mikrofon-Kreis:** Er ist Teil der Werkzeugzeile; solange die Wörter stehen, ist er weg. In der Voreinstellung steht er zuletzt in der Leiste: Diktat beim Schreiben ist ein Tipp mehr (R1).
-
-**Wo A schlechter ist als B:** nur in der Entdeckbarkeit und in R1 (zwei Tipps mitten im Satz). **Wo A besser ist als B:** nichts wechselt von selbst; B hat einen Zeitgeber, der Werkzeuge einblendet, während der Owner
-nachdenkt oder die Hand zur Wörter-Leiste führt („Element, das von selbst die Position wechselt“, Abschnitt 1).
+**Wo A schlechter ist als B:** nur in der Entdeckbarkeit und R1. **Wo A besser ist als B:** nichts wechselt von selbst.
 
 ## 5. Zusammenspiel mit vorhandenen Funktionen
 
 | Funktion | Verhalten mit der Regel |
 | --- | --- |
-| Auswahl-Knöpfe (Etappe 82, `stickyTools`) | wie heute (Regel 7); nach der Auswahl leerer Wörter-Bereich statt Werkzeuge, wenn `writing` |
-| Zwischenablage-Pille, Screenshot-Pille | wie heute Inhalt der neutralen Leiste; bei `pinned` kein Wechsel; Tipp auf die Pille fügt ein und lässt `writing` unberührt |
-| Autofill-Chips | Inhalt am Feldanfang (`writing` falsch), danach Regel 3 |
-| Befehls-Chips (`@clip` …) | kommen nur durch getippte Zeichen: Inhalt; nach Wahl oder Löschen neutral → Regel 4 |
-| Symbol-Chips (gemalte Symbole) | Inhalt, setzen `writing` nicht (kein getipptes Zeichen) |
-| Update-Chip | wie Pille (R7) |
-| `UndoOffer` (Wiederholen-Pfeil) | der Pfeil ist am Werkzeug „Rückgängig“; die Werkzeuge bleiben nach einem Tipp auf „Rückgängig“ stehen (`pinned`), so ist er sichtbar; er endet mit dem Text wie bisher |
-| Passwort-/Inkognito-Feld, Zahlenlayout | Geltungsbereich (Regel 1): wie heute; Werkzeuge gedimmt wie heute |
-| Feld wird von der App geleert (Nachricht gesendet) | `onStartInputView(restarting)` → `setNeutralSuggestionStrip`, Feld leer → Werkzeuge (Regel 5); ohne Leeren (Suchfeld bleibt gefüllt) bleibt der Wörter-Bereich |
-| Cursor nur bewegt (Space-Wisch, Trackpad) | `onUpdateSelection` → Wiederaufnahme: Wörter, wenn der Cursor ein Wort berührt, sonst leer; kein Wechsel zu Werkzeugen |
-| Text eingefügt (App, Einfügen-Werkzeug, Pille) | kein getipptes Zeichen: `writing` unverändert (im leeren Feld Werkzeuge, in der Sitzung leerer Bereich) |
-| Gestentippen (Wischen) | Wörter der Eingabe setzen `writing` (Regel 3) |
-| Sprachwechsel | ändert nur Layout und Wörterbuch, `writing` bleibt; Wörter kommen mit der nächsten Aktualisierung |
-| Feld mit vorhandenem Text wird geöffnet | `writing` falsch, Werkzeuge; berührt der Cursor ein Wort, zeigt die Wiederaufnahme es (heute so). Erst das erste getippte Zeichen setzt `writing` |
-| Raster, Anpassen-Modus | unverändert (`gridOpen()` zwingt die Werkzeuge in `applyBarState`) |
-| Diagnose „Letztes Feld“ (P384) | die Leiste mit `show = CONTENT` und `hasContent = false` meldet „leer“, nicht „Werkzeugleiste“ (`reportToLastField`: `tools` falsch, Wörter keine, extern keine) |
-| Tasten- und Zeichenverhalten, Autokorrektur, Lernen | unberührt; `InputLogic`, `RichInputConnection`, `PointerTracker` bleiben unberührt |
+| Auswahl-Knöpfe (82, `stickyTools`) | wie heute; nach der Auswahl leerer Bereich, wenn `writing` |
+| Zwischenablage-Pille, Screenshot-Pille | Inhalt der neutralen Leiste wie heute (ersetzt direkt, ohne Frist); bei `pinned` kein Wechsel |
+| Autofill-Chips | Inhalt am Feldanfang (`writing` falsch) |
+| Befehls-Chips, Symbol-Chips | Inhalt; Symbol-Chips setzen `writing` nicht |
+| Update-Chip | wie Pille |
+| `UndoOffer` | Werkzeuge bleiben nach dem Tipp auf „Rückgängig“ (`pinned`), der Wiederholen-Pfeil ist sichtbar |
+| Passwort-/Inkognito-Feld, Zahlenlayout | Regel 1: wie heute |
+| Feld von der App geleert | Feld leer → Werkzeuge (Regel 6) |
+| Cursor bewegt (Trackpad) | Wiederaufnahme: Wörter oder leer, kein Wechsel zu den Werkzeugen |
+| Text eingefügt | `writing` unverändert |
+| Wischeingabe | setzt `writing` (Hook) |
+| Sprachwechsel | `writing` bleibt |
+| Feld mit Text geöffnet | Werkzeuge, bis ein Zeichen oder die Rücktaste kommt (Regel 3) |
+| Raster, Anpassen | unverändert |
+| Diagnose „Letztes Feld“ (P384) | `show = CONTENT`, `hasContent = false` meldet „leer“ |
+| `InputLogic`, `RichInputConnection`, `PointerTracker` | unberührt |
 
-## 6. Verworfene Alternative: Variante B „Ruhepause“
+## 6. Verworfene Alternative: Variante B „Ruhepause“ (bleibt verworfen, Entscheidung Lead)
 
-Wie A, aber nach ≈ 1,5 s ohne Taste und ohne Vorschlag kommen die Werkzeuge von selbst.
+Wie A, aber nach ≈ 1,5 s ohne Taste und ohne Vorschlag kommen die Werkzeuge von selbst. Vorteil: Werkzeuge in Denkpausen einen Tipp entfernt. Nachteil: ein Element wechselt von selbst (Gegenanforderung); 1,5 s Pause ist beim Tippen alltäglich;
+Zeitgeber mit Abbruch an jeder Taste, jedem Cursorsprung, jedem Chip. Mit Stufe 2 (feste Taste und feststehender Kreis) entfällt auch der Hauptvorteil.
 
-**Vorteile:** Die Werkzeuge sind in Denkpausen einen Tipp entfernt (R1 entfällt); der leere Bereich dauert nie lang (kein „wo sind sie hin“); es braucht keine neue Bedienung, nur einen Zeitgeber.
-**Nachteile:** Ein Element wechselt von selbst (Abschnitt 1, Gegenanforderung): Der Owner denkt nach, die Leiste wechselt; er greift zu einem Wort in der Leiste, genau dann wechselt sie zu den Werkzeugen und er trifft ein
-Werkzeug. Ein Zeitgeber braucht Abbruch bei jeder Taste, jedem Cursorsprung, jedem Chip, bei Feldwechsel, bei Raster und Anpassen (eine Fehlerquelle mehr; Prüfung nur mit Zeit). Eine Pause von 1,5 s ist beim
-Tippen auf dem Telefon alltäglich (Wort suchen, Nachricht lesen), also wechselt die Leiste im Alltag doch ständig. B lässt sich später auf A aufsetzen (`BarState.onPause()`), umgekehrt ist es ein Umbau.
-**Entscheidung:** A zuerst. Bleibt R1 beim Owner ein Ärgernis, ist B ein kleiner, getrennter Nachtrag mit eigener Prüfung.
+## 7. Offene Entscheidungen und Vorschläge für den Owner
 
-## 7. Offene Entscheidungen für den Owner (nur echte)
-
-1. **„Leiste automatisch anzeigen“ nach einem Absatz:** In der festen Leiste nur noch bei neuem Feld und Auswahl, nicht mehr nach Enter (Regel 8)? Empfehlung: ja (sonst bleiben „Absätze“ bestehen,
-   die Voreinstellung „Flacher Look“ setzt sie an). Das ändert eine vorhandene Einstellung und braucht darum sein Ja.
-2. **Zwei Tipps statt einem für Werkzeuge während des Schreibens (R1):** Akzeptiert er das, oder soll B mit? Empfehlung: erst A, dann nach einer Woche am Telefon entscheiden (kein Umbau nötig).
-3. **Zähler für Leistenwechsel in der Diagnose** (nur Zahlen, keine Texte; „Leiste: n Wechsel in 100 Tasten“): Vorschlag, nicht bestellt; hilft, die Rücktasten-Meldung am Gerät zu klären. Empfehlung: ja, klein, leicht entfernbar.
+1. **Entschieden (Lead):** „Leiste automatisch anzeigen“ zeigt nach Enter in der Schreibsitzung nicht mehr die Werkzeuge.
+2. **Stufe 2 (feste linke Taste und Kreis neben den Wörtern):** auf Zeichen des Leads; Abschnitt 9.
+3. **Vorschlag (nicht gebaut): Zwischenablage-Pille während `writing` nur einmal je Kopie.** Die Pille käme nach jeder Kopie an jedem Wortende wieder (R7). Ob es beim Owner vorkommt, zeigt der Zähler „Chip/Pille“ der Diagnose-Karte.
+4. **Zähler in der Diagnose** (Karte „Leiste“): gebaut in Stufe 1 (Abschnitt 8a).
 
 ## 8. Prüfplan (Abnahme-Zeilen)
 
-Nachweis: **U** = `StripCalmLogTest` (Robolectric, echte `LatinIME`/`InputLogic`/Leiste über `TypingRig`); **G** = Gerätetest (`tools/devicetest/devicetest.py`, echte Tastenberührungen, die Leiste wie die
-`bar_*`-Szenarien abgefragt: `dump()`, `bar_report`, `left_key`); **B** = Bild über `shot()` (Job-Log, `shots_from_log.py`), angesehen im dunklen Design; **O** = nur der Owner am Telefon.
+Nachweis: **U** = Robolectric (`StripCalmLogTest`, `BarStateTest`, `FixedBarTest`); **G** = Gerätetest (`tools/devicetest/devicetest.py`, Szenario `bar_calm_typing`, echte Tastenberührungen); **B** = Bild über `shot()` (Job-Log,
+`shots_from_log.py`), angesehen im dunklen Design; **O** = nur der Owner am Telefon.
 
 | # | Ausgangslage beim Owner | Aktion | Erwartung | Gegenfall | Nachweis |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Neues Textfeld (Notiz-App), dunkles Design, Voreinstellung „Flacher Look“ (Auto-Anzeige an), Wörterbuch Deutsch | Satz „Hallo, wie geht es dir. Gut“ tippen | genau ein Wechsel (Werkzeuge → Wörter bei der ersten Taste), danach nie wieder Werkzeuge, auch nicht nach `,` `.` und Leerzeichen | die Leiste wird nach Satzzeichen zu den Werkzeugen (17 Wechsel heute) | U (neue Folge in `stage89/`), G, O |
-| 2 | wie 1, Folgewort-Vorhersage aus oder keine für das Wort | Leerzeichen nach jedem Wort | Wörter-Bereich leer, Pfeil links, Höhe gleich, nichts springt | leerer Bereich wirkt kaputt (kein Pfeil, andere Höhe) | G, B (`calm_empty`) |
-| 3 | wie 1, Absatz | Enter (Mehrzeilenfeld), „Und“ tippen | Enter wechselt nichts, auch nicht mit „Automatisch anzeigen“ | Werkzeuge nach Enter | U (Einstellung an und aus), G |
-| 4 | Text im Feld | zehn Rücktasten einzeln, dann einmal gehalten | in der Sitzung null Wechsel, auch über Leerzeichen, Absatz und Satzzeichen zurück ins Wort | Werkzeuge ↔ Wörter an Wortgrenzen (4 Wechsel heute) | U, G (jede Rücktaste abgefragt) |
-| 5 | wie 4, App mit langsamer Verbindung | Rücktaste | wie 4 (kein dauerhaftes Werkzeuge) | `hasSlowInputConnection` bringt die Werkzeuge | U (`todayWithSlowConnection`, neue Folge) |
-| 6 | Text im Feld, „Tabula rasa“ | alles löschen | beim leeren Feld Werkzeuge; erste Taste: Wörter | Wörter-Bereich bleibt leer, Werkzeuge nie wieder | U, G |
-| 7 | Chat-App, Nachricht getippt | Senden (Feld wird geleert, `restarting`) | Werkzeuge | leerer Bereich | U (`startField("", restarting = true)`), O (Chat-App) |
-| 8 | in der Sitzung | Pfeil links tippen, „Rückgängig“ tippen, „Rückgängig“ noch einmal | Werkzeuge bleiben, der Wiederholen-Pfeil sichtbar, zweites Rückgängig geht; nächstes Zeichen: Wörter | Wörter der Wiederaufnahme verdrängen die Werkzeuge nach dem ersten Rückgängig | U, G, B (`calm_undo_redo`) |
-| 9 | in der Sitzung | Pfeil, Raster-Knopf, Werkzeug | drei Tipps, das Raster öffnet | Raster nur über Langdruck | G |
-| 10 | Passwortfeld, Zahlenfeld, Feld mit ausgeschalteten Vorschlägen | tippen | Werkzeuge (gedimmt wie heute) wie heute, nie ein leerer Bereich | leerer Bereich ohne Weg zurück | U, G |
-| 11 | Text markiert (Auswahl-Chips) | „Werkzeuge zeigen“, Auswahl ändern, Auswahl beenden | wie heute (`FixedBarTest`, `stickyTools`); nach dem Ende in der Sitzung leerer Bereich | Chips bleiben nach dem Ende | U (vorhandene Tests grün), G |
-| 12 | Zwischenablage-Pille (Kopie jünger als drei Minuten) | Leerzeichen nach einem Wort | Pille wie heute; Pille tippen fügt ein und ändert den Wörter-Bereich nicht | Pille verdrängt die Werkzeuge nach „Rückgängig“ (`pinned`) | U (`setUp(withClipboardPill = true)`) |
-| 13 | Feld mit Text, Cursor am Wortende | Tastatur öffnen | Werkzeuge oder die Wörter des Worts (heute so); erster Buchstabe: Wörter | Sitzung beginnt ohne Zeichen | U, G |
-| 14 | wie 1 | Tastatur schließen, öffnen, neues Feld | Werkzeuge | alter Zustand bleibt | U (`startField`, `onKeyboardHidden`), G |
-| 15 | andere Leistenmodi | tippen | wie vor der Etappe | Regel in anderem Modus | U (`FixedBarTest` unverändert grün) |
-| 16 | Raster/Anpassen offen, Tastenanschlag | Satz tippen | unverändert | Regel stört das Anpassen | vorhandene Tests (`BarEditModeTest`) grün |
+| 1 | Neues Textfeld, dunkles Design, Flacher Look (Auto-Anzeige an), Deutsch | Satz „Hallo, wie geht es dir. Gut“ tippen | genau ein Wechsel (Werkzeuge → Wörter bei der ersten Taste), danach nie wieder Werkzeuge | Werkzeuge nach Satzzeichen (heute 17 Wechsel) | U, G, O |
+| 2 | wie 1, keine Folgewortvorhersage | Leerzeichen nach jedem Wort | Wörter-Bereich leer ohne Sprung; innerhalb eines Worts null Wechsel, **auch kein Leeren** | Wörter ↔ leer (K1) | U (`switches` zählt jeden Inhaltswechsel), G |
+| 3 | wie 1, Absatz, „Automatisch anzeigen“ an und aus | Enter, „Und“ | Enter wechselt nichts | Werkzeuge nach Enter | U (beide Einstellungen), G |
+| 4 | Text im Feld | zehn Rücktasten einzeln | in der Sitzung null Wechsel, auch über Leerzeichen und Absatz zurück ins Wort | Wechsel an Wortgrenzen (heute 4) | U, G |
+| 5 | langsame Verbindung (Claude-App) | Rücktaste, mit `onUpdateSelection`-Wiederaufnahme | kein Leeren zwischen den Listen | je Buchstabe einmal leer, einmal Wörter | U (`todayWithSlowConnectionAndResume`, vorher rot) |
+| 6 | Text im Feld, Tastatur wieder geöffnet | nur löschen | Rücktaste setzt `writing`: ruhig | altes Verhalten | U, G |
+| 7 | Text im Feld | alles löschen | beim leeren Feld Werkzeuge; erste Taste: Wörter | Bereich bleibt leer | U, G |
+| 8 | Chat-App | Senden (Feld leer, `restarting`) | Werkzeuge | leerer Bereich | U, O |
+| 9 | in der Sitzung | Pfeil links tippen, „Rückgängig“, „Rückgängig“ | Werkzeuge bleiben, Wiederholen-Pfeil sichtbar; nächstes Zeichen: Wörter | Wiederaufnahme verdrängt die Werkzeuge | U, G, B |
+| 10 | Passwort-, Zahlenfeld, Vorschläge aus | tippen | Werkzeuge wie heute | leerer Bereich ohne Weg zurück | U, G |
+| 11 | alte Wörter in der Frist (150 ms) | Tipp auf ein Wort | wird verworfen, nichts eingefügt | falsches Wort eingesetzt | U |
+| 12 | Auswahl | „Werkzeuge zeigen“, Auswahl beenden | wie heute | Chips bleiben | U (`FixedBarTest`) |
+| 13 | Pille (Kopie jünger als drei Minuten) | Leerzeichen nach einem Wort | Pille ersetzt direkt, ohne Leeren | Leeren vor der Pille | U |
+| 14 | Feld mit Text geöffnet | Tastatur öffnen, ein Zeichen | Werkzeuge, dann Wörter | Sitzung beginnt ohne Zeichen | U, G |
+| 15 | Karte „Leiste“ der Diagnose | nach dem Tippen öffnen | Zähler stimmen mit dem Protokoll des Tests überein; kein Text, nichts im geschützten Feld | Text oder App-Name in der Karte | U (Test der Karte) |
+| 16 | andere Leistenmodi, Raster, Anpassen | wie vorher | unverändert | Regel wirkt dort | vorhandene Tests grün |
 
-**Reihenfolge in Teil 2:** (1) Referenzfolgen in `stage89/` durch die erwarteten Folgen ersetzen (rot sehen), (2) `BarState` (rein) mit Zustandstest, (3) Anschluss in `SuggestionStripView`/`LatinIME`
-(`InputLogic`, `RichInputConnection`, `PointerTracker` unberührt), (4) Szenario `bar_calm_typing` im Gerätetest (Satz tippen, löschen, jede Probe der Leiste ablegen; Bilder `calm_after_space`, `calm_empty`,
-`calm_undo_redo` im dunklen Design), (5) vor dem Bau liest ein Prüfer dieses Konzept mit dem Auftrag aus `product-initiative` (der Fall, in dem der Plan den Wortlaut erfüllt und der Owner trotzdem scheitert; R1 bis R9 sind
-mein eigener Versuch, kein Ersatz).
+### 8a. Diagnose-Karte „Leiste“ (E2)
 
-**Was nur der Owner prüfen kann:** ob die Wechsel beim Löschen auf seinem Telefon tatsächlich von Wortgrenzen kommen (Abschnitt 2, offener Punkt), wie sich der leere Bereich im Alltag anfühlt (R1), und ob „Automatisch
-anzeigen“ bei ihm an ist.
+`BarCalmCounters` (Zahlen, nie Text, nie App-Name, nichts in geschützten Feldern, nach dem Muster der Trackpad-Diagnose): sichtbare Inhaltswechsel seit dem Start und im letzten Feld (Werkzeuge, Wörter, leer, Chip/Pille getrennt);
+je Rücktaste der Weg (im Wort, Wiederaufnahme, langsame Verbindung); `onStartInput` mit und ohne `restarting`; ob die Verbindung gerade als langsam gilt; „Leiste automatisch anzeigen/verbergen“, Folgewortvorschläge, Personalisierung an oder aus;
+Zahl der verworfenen Tipps auf veraltete Wörter.
+
+## 9. Stufe 2 (nicht gebaut, auf Zeichen des Leads): linke Taste und Kreis stehen fest
+
+**Ziel (E3):** Linke Taste und Akzent-Kreis (Mikrofon, wenn er in der Leiste liegt) stehen fest, auch neben den Wörtern; nur die Mitte wechselt zwischen Werkzeugen und Wörtern, wie Gboard.
+
+**Eingriffsplan:**
+- `FixedBar.arrange` (166, 181): die Mikrofon-Taste mit Kreis aus der Werkzeugzeile lösen; die Plätze für die übrigen Werkzeuge rechnen mit einem Platz weniger, wenn der Kreis fest steht.
+- `SuggestionStripView.applyBarState` (785-787): nicht die ganze Zeile, nur die Mitte (Werkzeugplätze ohne Kreis) tauschen; der Kreis bleibt sichtbar (Verfügbarkeit, Kontrastregel, RGB wie bisher).
+- Platzberechnung fürs Anpassen (`SuggestionStripView` 1090-1111, `slotCentres`, `BarEditor.slotCountAfterDrop`): der Kreis zählt als fester Endplatz; „Plätze hängen nur von der Anzahl ab“ gilt weiter.
+- Anpassen-Modus: im Modus gilt unverändert die Werkzeugzeile mit Kreis am Ende (kein Wörter-Bereich); Ablegen auf den Kreis-Platz wie bisher.
+- Schmale Bildschirme: Breite des Wörter-Bereichs = Leistenbreite − linke Taste (40 dp) − Kreis (34 dp) − Ränder (12 dp). Bei 360 dp bleiben ≈ 274 dp, bei 320 dp ≈ 234 dp; die Leiste zeigt bis zu drei Wörter (je ≈ 90 beziehungsweise 78 dp); lange Wörter werden gekürzt, der Pfeil für weitere Vorschläge entfällt bei weniger Platz. **Vor dem Bau zu messen** mit dem Renderbild bei 320/360/411 dp.
+- Zusammenspiel: Kontrastregel (`StripIconColors`) und `RgbStrip` für den Kreis neben Wörtern; `UndoOffer` unberührt.
+
+**Abnahme-Zeilen Stufe 2:**
+
+| # | Ausgangslage | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- | --- |
+| S1 | Standardleiste mit Mikrofon am Ende, dunkles Design | tippen | links Taste und rechts Kreis bleiben an ihrem Platz, die Mitte wechselt | Kreis verschwindet mit den Werkzeugen | G, B |
+| S2 | dasselbe, 320 dp / 360 dp | Wort tippen | zwei bis drei Wörter lesbar, nichts überlappt | abgeschnittene Wörter ohne Platz | Render-Test, B |
+| S3 | Diktat mitten im Satz | Kreis tippen | ein Tipp | zwei Tipps | G |
+| S4 | Anpassen-Modus | ziehen | wie Etappe 88, Kreis am Ende | Plätze verschieben sich | `BarEditModeTest`, G |
