@@ -1237,6 +1237,82 @@ def reported_finding_3_level_gentle(d):
     rows = _probe_cases(d, "reported_finding_3_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
     _expect_fields(d, rows, {"i": "And i ", "i'll": "And I'll ", "im": "And I'm ", "cant": "And cant ", "dont": "And font "})
 
+def _ui_open_fresh():
+    """Opens the keyboard's settings in a cleared task and closes the "new build" dialogs."""
+    shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.0)
+    for _ in range(2):
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
+
+
+def _ui_tap(d, wanted, exact=False, swipes=7):
+    """Taps the first visible node of the keyboard whose text or description starts with (or equals) `wanted`, any case,
+    scrolling down for it. Returns the label that was tapped."""
+    seen = []
+    for _ in range(swipes + 1):
+        for node in dump().nodes:
+            label = node.text or node.desc
+            if node.visible and node.package == KEYBOARD_PACKAGE and label and \
+                    (label.lower() == wanted.lower() if exact else label.lower().startswith(wanted.lower())):
+                tap(*node.center)
+                time.sleep(1.2)
+                return label
+        seen = [(n.text or n.desc)[:28] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+        shell("input swipe 540 1700 540 900 400", check=False)
+        time.sleep(0.8)
+    raise CheckFailed("no text starting with %r on the screen; texts: %s" % (wanted, seen[:30]))
+
+
+def _set_secondary_english(d):
+    """Einstellungen -> Tasten & Sprachen -> Sprache hinzufügen -> Deutsch -> Mehrsprachiges Tippen -> English -> OK, with real
+    touches. Logs what the pages showed, so a failure shows where it stopped."""
+    _ui_open_fresh()
+    log("PROBE settings step: %s" % _ui_tap(d, "Tasten & Sprachen"))
+    log("PROBE settings step: %s" % _ui_tap(d, "Sprache hinzufügen"))
+    log("PROBE settings step: %s" % _ui_tap(d, "Deutsch"))
+    texts = [(n.text or n.desc)[:40] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+    log("PROBE subtype page: %s" % texts[:30])
+    log("PROBE settings step: %s" % _ui_tap(d, "Nichts", exact=True))  # the row under "Mehrsprachiges Tippen" shows its languages; none yet
+    texts = [(n.text or n.desc)[:40] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+    log("PROBE dialog: %s" % texts[:40])
+    log("PROBE settings step: %s" % _ui_tap(d, "Englisch"))
+    log("PROBE settings step: %s" % _ui_tap(d, "OK", exact=True))
+    texts = [(n.text or n.desc)[:40] for n in dump().nodes if n.package == KEYBOARD_PACKAGE and (n.text or n.desc)]
+    log("PROBE subtype page after: %s" % texts[:30])
+    shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
+
+
+MULTI_CASES = ["i", "i think im", "this is a test. im Haus", "i hob koa zeit", "i.d.r.", "the wars", "ich liebe star wars",
+               "what is your name", "my new job", "dont", "cant", "gehts", "wars"]
+
+
+def reported_finding_multilingual_de(d):
+    """Records, at the level Behutsam on the German layout WITHOUT a second language, what the keyboard does to the cases of
+    the multilingual question (today's behaviour; the log lines PROBE carry typed text, pending correction, strip and field)."""
+    _ui_open_fresh()
+    log("PROBE settings step: %s" % _ui_tap(d, "Tippen & Korrektur"))
+    log("PROBE settings step: %s" % _ui_tap(d, "Behutsam"))
+    shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
+    _probe_cases(d, "reported_finding_multilingual_de", "und", MULTI_CASES)
+
+
+def reported_finding_multilingual_de_en(d):
+    """The same cases at Behutsam on the German layout with English entered as its second language by touch
+    (Einstellungen -> Tasten & Sprachen -> Sprache hinzufügen -> Deutsch -> Mehrsprachiges Tippen)."""
+    _set_secondary_english(d)
+    _ui_open_fresh()
+    _ui_tap(d, "Tippen & Korrektur")
+    _ui_tap(d, "Behutsam")
+    shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
+    _probe_cases(d, "reported_finding_multilingual_de_en", "und", MULTI_CASES)
+
+
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
     Inline autofill chips are remote surfaces whose text is probably not readable, so they are found by
@@ -2267,7 +2343,8 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
 PROBES = [reported_finding_2_apostrophe_de, reported_finding_2_apostrophe_en, reported_finding_3_capital_i,
-          reported_finding_1_english_sentences, reported_finding_2_4_history_loop, reported_finding_3_level_gentle]
+          reported_finding_1_english_sentences, reported_finding_2_4_history_loop, reported_finding_3_level_gentle,
+          reported_finding_multilingual_de, reported_finding_multilingual_de_en]
 
 KNOWN_FINDINGS = {
     # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
