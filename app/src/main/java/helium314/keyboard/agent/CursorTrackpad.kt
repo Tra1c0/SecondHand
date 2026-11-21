@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import android.text.InputType
 import dev.agentkeyboard.core.CursorTrack
 
 /**
@@ -100,6 +101,15 @@ object CursorTrackpad {
         SpaceGesture.SWIPE_UP -> true
         else -> false
     }
+
+    /** Stage 87b: the input type is of class text (a field kind, flags only). */
+    @JvmStatic fun isTextClass(inputType: Int?): Boolean = inputType != null && inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT
+
+    /** Stage 87b: the field says it is multi-line (the flag alone, as reported by the app). */
+    @JvmStatic fun hasMultiLineFlag(inputType: Int?): Boolean = inputType != null && inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+
+    /** Vertical moves only where the field is known to be multi-line: class text with the multi-line flag. */
+    @JvmStatic fun isMultiLine(inputType: Int?): Boolean = isTextClass(inputType) && hasMultiLineFlag(inputType)
 
     /** Consecutive steps on the same axis in the same direction, to be executed as one move with one tick. */
     class Run(val axis: CursorTrack.Axis, val direction: Int, val count: Int, val chars: Int, val detent: Boolean)

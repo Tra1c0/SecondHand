@@ -847,6 +847,11 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `InlineAutofillCounters` (Summen und letzte Antwort, `shared`); `InlineAutofillGeneration.isOpen`. `InlineAutofillUtils.createView(…, InlineAutofillResponse)` startet die Rückrufe erst, wenn der Container steht.
   `LatinIME`: `onInlineSuggestionsResponse` zeigt den Kasten (`showInlineAutofill`) nur aus der Aktion „erster Chip“, zählt leer/abgelehnt/angenommen; `dump()` druckt `InlineAutofillCounters.line()`;
   `openInlineAutofillGeneration()` hält `generationOpen` der Zähler. Diagnose: `Diagnose.autofill` (Part `AUTOFILL`, vor „App und Telefon“) und `AgentDiagnoseScreen`. Tests: `AT/InlineAutofillResponseTest.kt`, `AT/InlineAutofillCardTest.kt` (P440–P443).
+- Etappe 87b (Trackpad sichtbar machen, auf der Regel von 87c): neue Datei `A/CursorTrackDiag.kt` mit `CursorTrackCounters` (Zähler je Taste, `shared`), `CursorTrackVerdict` (gilt die Einstellung für Leertaste und Löschtaste, mit Grund; `space` ruft `CursorTrackpad.spaceReason`) und
+  `CursorTrackText` (die Worte für Statuszeile und Karte). `A/CursorTrackpad.kt` bekommt die Feldart-Hilfen (`isTextClass`, `hasMultiLineFlag`, `isMultiLine`).
+  `KeyboardActionListenerImpl` ruft die Zähler an den Entscheidungsstellen des Trackpads (siehe P451). Diagnose: `Diagnose.trackpad` (Part `TRACKPAD`), Karte in `AgentDiagnoseScreen`;
+  `AgentAreaGesturesScreen`: zwei Statuszeilen unter dem Schalter (Tags `TRACKPAD_SPACE_TAG`, `TRACKPAD_DELETE_TAG`). Texte: `values*/agent_trackdiag_strings.xml`.
+  Tests: `AT/CursorTrackDiagTest.kt`, `InputLogicTest` `cursor87b…` (P450–P454). `InputLogic`, `RichInputConnection` und `PointerTracker` sind unberührt.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -6392,6 +6397,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P444** Leiste und Zahlenlayouts (79b): Die Abdunklung der Ablage (`BarTools.NOT_IN_NUMBER_LAYOUTS`) wurde nur in `applyBarState` neu berechnet; `KeyboardSwitcher.setKeyboard` ruft jetzt `SuggestionStripView.onKeyboardLayoutChanged` (nur bei geändertem Zahlenzustand). `AgentEditorController.openPrompts` prüft das Zahlenlayout selbst (still, kein Hinweis), weil der Weg über die Leiste, den Code `AGENT_PROMPTS` und das Popup verschiedene Quellen hat.
   `SuggestionStripView.onFieldStarted` setzt `barState` zurück (sonst überlebt `stickyTools` ein neues Feld derselben App).
 - **P445** Test-Feldwechsel (79b): `InputLogicTest.setText` startet ein Feld nur über `latinIME.mHandler`; `LatinIME.onStartInput` und damit `AgentEditorController.startEditor` (verwirft gemerkte Wahlen) laufen dabei nicht. Wer in diesem Prüfstand ein „anderes Feld“ prüft, ruft `controller.startEditor` selbst auf, sonst hängt das Ergebnis an einer asynchronen Aufgabe (Fortsetzung auf dem IO-Thread unter Legacy-Looper).
+- **P450** Trackpad-Zähler (87b): `CursorTrackCounters` hält nur Zahlen, Enum-Namen und zwei Feld-Flags (Textklasse, Mehrzeilig); nie Text, nie den Paketnamen der App (`mTargetApplicationPackageName`), nie eine Position. Wer ein Feld hinzufügt, prüft den Test `cursor87bTheCardHoldsNoTextOfTheFieldAndNoPackageName`. Die Zähler sind pro Prozess und beginnen bei null; die Karte liest beim Öffnen.
+- **P451** Trackpad, Zählstellen (87b): `deleteClaimed` setzt nur das Ende des beanspruchenden Fingers (Modus ACTIVE), ein Feldwechsel (`onCursorTrackEnd(-1)`) und eine neue Berührung desselben Fingers zurück; ein abgewiesener Finger lässt es stehen. Eine Entscheidung wird genau einmal gezählt: Aus-Gründe (Schalter, Eingabe gesperrt, keine Cursor-Richtung) und „abgewiesen, anderer Finger führt den Cursor“ in `decideTrackMode`; „abgewiesen“ auch beim Anspruch (zweiter Finger, dann auch „anderer Finger führt eine Aktion aus“); „Aktion statt Trackpad“ im LEGACY-Zweig vor dem Rückgabewert `TRACK_OFF` (eine Entscheidung, kein Fehler: der Text sagt nie „nicht gestartet“); „nie übernommen“ in `countNeverClaimed` (Ende oder Ersatz einer PENDING-Berührung, auch beim Feldwechsel `onCursorTrackEnd(-1)`; ein Zustand im Modus OFF zählt nicht). Ein neuer Weg, der einen Zustand verwirft, muss `countNeverClaimed` aufrufen. Das Löschen beim Loslassen zählt nur, wenn der Wisch vom Trackpad übernommen war (`deleteClaimed`); `onUpWithDeletePointerActive` liest die Markierung vor `deleteAtLift`. Das Zusammenziehen einer Markierung (87c) zählt `onCollapsed` (nur ein Zähler und ein Flag).
+- **P452** Trackpad, unterdrückte Pfeile (87b): In einem nicht mehrzeiligen Feld läuft die flache Spur, senkrechter Weg erzeugt keinen Schritt; gezählt wird `Weg / VERTICAL_STEP_DP` (26 dp) je Berührung, also eine Schätzung, kein gesendeter Pfeil. Nur auf der Leertaste.
+- **P453** Trackpad, eine Regel (87b auf 87c): `CursorTrackpad.spaceReason` ist die einzige Stelle der Bindungsregel; Listener (`decideTrackMode`), `CursorTrackVerdict` (Statuszeile, Karte) rufen sie, `appliesToSpace` ist nur ihr `qualifies`. `CursorTrackText.startDecides` ordnet die Richtungen mit `CursorTrackpad.isFree` (dieselbe Einordnung wie `decideStart`: „Cursor bewegen“ und „nichts“ sind frei); wer `decideStart` ändert, ändert den Satz mit. Die Statuszeile kennt Panel, zweiten Finger und Feldart nicht (nur beim Tippen bekannt): „aktiv“ dort heißt „die Einstellung passt“, nicht „hat gerade gewirkt“. Unter dem Schalter steht der Erklärtext von 87c (`agent_gestures_trackpad_summary*`, allgemein) und darunter die Zeilen von 87b (der aktuelle Stand); beide sagen dasselbe in verschiedener Tiefe und dürfen sich nicht widersprechen.
+- **P454** Diagnose-Zeilen (87b): Die Beschriftung einer Zeile der Diagnose darf kein „: “ enthalten; `DiagnoseScreenTest.copyPutsExactlyTheShownValuesOnTheClipboard` teilt die kopierten Zeilen am ersten „: “ und sucht den Rest als Wert auf der Seite.
+- **P455** Geschützte Felder (87b): Eine Regel an einer Stelle: In einem geschützten Feld (`isProtectedField`: Passwortfeld, `mIncognitoModeEnabled` einschließlich Feld ohne Lernen, gesperrtes Gerät nach `LockState.isLocked`, der Live-Abfrage; nie der zwischengespeicherte Settings-Wert, vgl. Etappe 82) zählt die Diagnose nur die Entscheidung und dass ein Wisch stattfand. Jeder Wert, der etwas über die Bewegung im Text verrät (Schritte, Pfeile, unterdrückte Pfeile, Rasten, Markierungslänge, Zusammenziehen, Zahl der gelöschten Wische), liegt in `CursorTrackCounters.Movement` und wird nur über `move` geschrieben; `move` zeichnet bei `protectedSwipe` (beim Anspruch gesetzt) nichts auf. Ein neuer Bewegungszähler gehört in `Movement`; `CursorTrackDiagTest.aProtectedSwipeRecordsNoMovementValueAtAll` prüft jedes Feld von `Movement` und lässt eine neue Ganzzahl in `PerKey` außerhalb der Entscheidungszähler scheitern. Der Listener liest die Markierungslänge im geschützten Fall nicht.
+- **P456** Trackpad-Texte (87b): Die Zeile unter dem Schalter sagt für ↑/↓ mit „nichts“ oder „Cursor bewegen“ „nur in mehrzeiligen Feldern“ (`CursorTrackText.startDecides`, passend zu `decideStart`); bei ausgeschaltetem Schalter ist es eine Aussage für beide Tasten (`agent_trackdiag_off_both`, auf der Seite einmal). „Unterdrückte Pfeile“ ist eine Schätzung („etwa“).
 
 - **P330** Begleit-App, Fehlercodes (80b): Der Kotlin-Wrapper des SDK macht aus jedem Pull-Fehler nur `geniex_model_pull failed (rc=<Code>)`; die
   Klartextmeldung des Rust-Teils (`geniex_model_last_error_message`, z. B. „chipset … not available for this model; supported: …“) ist über
@@ -6648,7 +6660,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P462** Markierung (Etappe 87c): kein Ausschlussgrund mehr. Beim Anspruch zieht `collapseSelection` die Markierung zusammen (`CursorTrackpad.collapsesToStart`: Start links/oben, Ende rechts/unten, in Rechts-nach-links-Sprachen links = Ende), `setExpectCursorMove`, `finishInput`, `checkpointFieldCorrectionsBeforeOwnCursorMove` und `setSelection(p, p)` (wie `applyHorizontalMove`, L-3), danach beginnt die Spur an der Stelle; nichts wird getippt oder gelöscht. Das Löschwischen bleibt unverändert und die Leertasten-Haltegeste feuert wie vorher (der Anspruch bricht sie ab). Der Editor muss die Auswahl der Tastatur gemeldet haben (`hasSelection` nutzt die erwartete Auswahl): Tests rufen nach „Alles auswählen“ `onUpdateSelection` selbst auf.
 - **P463** Warum Etappe 87 beim Owner nie anlief und kein Test es sah: Seine Belegung war links/rechts „Cursor bewegen“, oben/unten mit anderen Aktionen; die Prüfung verlangte oben/unten frei. Alle Tests der Etappe 87 benutzten die Vorgabe oder „Cursor bewegen“ für oben/unten.
 - **P464** Prüfstand: Der Rig-Start liegt hinter `SystemClock.uptimeMillis()` plus 10 s, damit Tipp-Zeiten früherer Tests im statischen Tipp-Zeitschreiber die Wisch-Meldungen nicht verschlucken; die Meldungsfolgen der Fixture sind ohne Zählung gleicher Folgemeldungen verglichen (ihre Zahl hängt von der Ereignisanzahl ab).
-- **P465** Einstellungszeile (`AgentAreaGesturesScreen`, Karte „Treffen & Wischen“): Der Text unter dem Schalter kommt aus `CursorTrackpad.spaceReason(gestures)`; bei `NOT_NO_CURSOR_DIRECTION` steht `agent_gestures_trackpad_summary_none`. Die Diagnose-Karte von 87b soll dieselbe reine Funktion benutzen.
+- **P465** Einstellungszeile (`AgentAreaGesturesScreen`, Karte „Treffen & Wischen“): Der Erklärtext unter dem Schalter ist seit 87b in allen Fällen derselbe (`agent_gestures_trackpad_summary`; `agent_gestures_trackpad_summary_none` entfiel, den Hinweis „lege eine Richtung auf Cursor bewegen“ trägt die Statuszeile von 87b bei `NOT_NO_CURSOR_DIRECTION`). Die Diagnose-Karte und die Statuszeilen von 87b benutzen dieselbe reine Funktion (P453).
 - **P466** Sperre durch eine alte Aktion (Nachprüfung 87c): `TrackState.runsAction` (nur bei `LEGACY` über die Startrichtung mit einer anderen Aktion als „nichts“, nur solange `OFF` und der Finger unten) lässt `otherFingerRunsAnAction` einen anderen Finger auf der Leertaste, der das Trackpad beanspruchen würde, `REFUSED` machen. Ende: `onCursorTrackEnd(Finger)` oder `-1`; wer `-1` hört, bleibt `OFF` ohne Sperre. Zwei alte Aktionen nebeneinander bleiben erlaubt; Schalter aus und gesperrte Eingabe setzen die Sperre nie. Der Tracker bleibt unberührt.
 - **P467** Dichte im Test: `PointerTracker.sPointerStep` ist `static final` und wird beim Laden der Klasse gesetzt (Robolectric: Dichte 1,0, 10 px). Der Listener liest ihn über `PointerTracker.getPointerStep()` (Etappe 87c, N-2). Die Tests ändern die Dichte NACH dem Laden (`RuntimeEnvironment.setQualifiers("+168dpi")`, `+420dpi` = 2,625, `+480dpi` = 3,0) und prüfen am echten Tracker, dass der Listener bei 10 px entscheidet, wie der Tracker, nicht bei floor(10 · neue Dichte) (26 bzw. 30 px); `10.dpToPx(Resources.getSystem())` zeigt in `cursor87cTheTrackersStepComesFromTheTrackerAndDoesNotFollowALaterDensityChange` das Auseinanderlaufen. Echte Startdichten wie 2,625 prüft nur das reine Gitter (Entscheidungsfunktion mit px-Schwelle).
 
@@ -6657,7 +6669,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (748 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (752 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6665,12 +6677,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (96): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (97): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
-  CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation,
-  EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
+  CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose,
+  Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
   FieldCorrections, FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps,
   ForeignWords, FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
@@ -6693,14 +6705,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (124): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (125): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
   CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
   ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
-  CursorGestureTrackerTest, CursorTrackpadReasonTest, DatePlaceCommandsTest, DebugPrivacyTest,
-  DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
-  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  CursorGestureTrackerTest, CursorTrackDiagTest, CursorTrackpadReasonTest, DatePlaceCommandsTest,
+  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
+  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
   EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
@@ -6824,7 +6836,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (37): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (38): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_bar_tools_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
@@ -6833,9 +6845,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (46): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (47): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_bar_tools_strings, agent_charart_ids, agent_charart_strings,
   agent_clipvault_strings, agent_command_system_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings,
@@ -6845,8 +6857,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, strings, themes-flat
+  agent_trackdiag_strings, agent_typing_strings, agent_update_prompt_strings, agent_update_strings,
+  attrs, clip_provider, donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

@@ -36,7 +36,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
+    enum class Part { TRACKPAD, LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
     /**
      * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
      * package of the app and whether it is on the list of forced apps, for the button of the card.
@@ -652,6 +652,39 @@ object Diagnose {
         })
         rows += Row(s(R.string.agent_diagnose_autofill_input), s(if (snapshot.generationOpen) R.string.agent_diagnose_autofill_input_open else R.string.agent_diagnose_autofill_input_closed))
         return Section(Part.AUTOFILL, s(R.string.agent_diagnose_autofill), rows)
+    }
+
+    /**
+     * Stage 87b: the card "Cursor-Trackpad": the configuration in words (from the preferences, with the functions the listener uses)
+     * and what the trackpad decided since the keyboard started: numbers, enum names and flags only, never a text or an app name.
+     */
+    fun trackpad(context: Context, prefs: android.content.SharedPreferences, snapshot: CursorTrackCounters.Snapshot): Section {
+        fun s(id: Int) = context.getString(id)
+        val space = snapshot.space
+        val delete = snapshot.delete
+        val rows = mutableListOf<Row>()
+        rows += Row(s(R.string.agent_trackdiag_row_switch), onOff(context, CursorTrackVerdict.trackpadOn(prefs)))
+        rows += Row(s(R.string.agent_trackdiag_row_horizontal), CursorTrackText.pair(context, prefs, SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT))
+        rows += Row(s(R.string.agent_trackdiag_row_vertical), CursorTrackText.pair(context, prefs, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN))
+        rows += Row(s(R.string.agent_trackdiag_row_space_now), CursorTrackText.spaceNow(context, CursorTrackVerdict.space(prefs)))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_swipe), onOff(context, prefs.getBoolean(Settings.PREF_DELETE_SWIPE, Defaults.PREF_DELETE_SWIPE)))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_now), CursorTrackText.deleteNow(context, CursorTrackVerdict.delete(prefs)))
+        rows += Row(s(R.string.agent_trackdiag_row_space_touches), space.touches.toString())
+        rows += Row(s(R.string.agent_trackdiag_row_space_decisions), CursorTrackText.decisions(context, space, true))
+        rows += Row(s(R.string.agent_trackdiag_row_space_action), CursorTrackText.lastAction(context, space))
+        rows += Row(s(R.string.agent_trackdiag_row_space_collapsed), CursorTrackText.collapsed(context, space))
+        rows += Row(s(R.string.agent_trackdiag_row_space_steps), context.getString(R.string.agent_trackdiag_steps,
+            space.steps, space.verticalArrows, space.suppressedArrows, space.detents))
+        rows += Row(s(R.string.agent_trackdiag_row_space_field), CursorTrackText.field(context, space))
+        rows += Row(s(R.string.agent_trackdiag_row_space_last), CursorTrackText.last(context, space, true))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_touches), delete.touches.toString())
+        rows += Row(s(R.string.agent_trackdiag_row_delete_decisions), CursorTrackText.decisions(context, delete, false))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_steps), context.getString(R.string.agent_trackdiag_steps_delete, delete.steps, delete.detents))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_lifts), if (delete.lifts == 0) s(R.string.agent_trackdiag_lifts_none)
+            else if (delete.lastProtected) context.getString(R.string.agent_trackdiag_lifts_protected, delete.lifts)
+            else context.getString(R.string.agent_trackdiag_lifts, delete.lifts, delete.liftsDeleted, delete.lastSelectedChars))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_last), CursorTrackText.last(context, delete, false))
+        return Section(Part.TRACKPAD, s(R.string.agent_trackdiag_title), rows)
     }
 
     // --- app and phone ---
