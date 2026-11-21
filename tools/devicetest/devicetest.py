@@ -1046,7 +1046,7 @@ def language_switch(d):
 
 
 # ----------------------------------------------------------------------- investigation (autocorrect findings)
-# Round "Untersuchung Autokorrektur": the owner reports (1) German corrections in English sentences, (2) a lost
+# Round "Untersuchung Autokorrektur" (they run only with --only / the workflow input `only`): the owner reports (1) German corrections in English sentences, (2) a lost
 # apostrophe in "war's" / "I'm", (3) "i" never becoming "I", (4) a correct word turned into a non-word. These probes
 # type the words with real touches and write what the keyboard did to the log (lines "PROBE ..."): the correction the
 # space key announces BEFORE the space, the strip, and the field AFTER the space. They compare nothing about the
@@ -1116,31 +1116,57 @@ def _probe_cases(d, name, prefix, cases, english=False):
     return rows
 
 
-def probe_apostrophe_de(d):
-    """Finding 2 on the German layout: dialect contractions with an apostrophe, and the same without it."""
-    _probe_cases(d, "probe_apostrophe_de", "und",
-                 ["war's", "geht's", "gibt's", "ist's", "wie's", "wars", "gibts", "nichtmal"])
+def _expect_fields(d, rows, expected):
+    """Compares the field after the space of each recorded case with what the keyboard does TODAY (the value is
+    documented here, it is not a statement that it is right)."""
+    got = {text: field for text, _pending, _strip, field in rows}
+    for text, field in expected.items():
+        d.expect_equal("%r gives" % text, got.get(text), field)
 
 
-def probe_apostrophe_en(d):
-    """Finding 2 on the English layout: contractions with and without the apostrophe, and "war's" for comparison."""
-    _probe_cases(d, "probe_apostrophe_en", "and",
-                 ["i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
+def reported_finding_2_apostrophe_de(d):
+    """Reported finding 2, German layout, default settings, no history: words typed WITH an apostrophe stay as typed;
+    typed without it ("wars") the keyboard does not add one ("ward"), only the English dictionary has such pairs."""
+    rows = _probe_cases(d, "reported_finding_2_apostrophe_de", "und",
+                        ["war's", "geht's", "gibt's", "ist's", "wie's", "wars", "gibts", "nichtmal"])
+    _expect_fields(d, rows, {"war's": "Und war's ", "geht's": "Und geht's ", "gibt's": "Und gibt's ", "ist's": "Und ist's ",
+                             "wie's": "Und wie's ", "wars": "Und ward ", "gibts": "Und gibts ", "nichtmal": "Und nicht mal "})
 
 
-def probe_capital_i(d):
-    """Finding 3: a lower-case "i" in the middle of a sentence, on the English and the German layout."""
-    _probe_cases(d, "probe_capital_i_en", "and", ["i", "i think", "i am", "i'll"], english=True)
-    _probe_cases(d, "probe_capital_i_de", "und", ["i", "i think"])
+def reported_finding_2_apostrophe_en(d):
+    """Reported finding 2, English layout, default settings: the keyboard adds the apostrophe for "im", "cant", "ive"
+    (whitelist of the dictionary), keeps typed apostrophes, but turns "dont" into "font" and not into "don't"."""
+    rows = _probe_cases(d, "reported_finding_2_apostrophe_en", "and",
+                        ["i'm", "im", "don't", "dont", "it's", "its", "that's", "cant", "ive", "war's"], english=True)
+    _expect_fields(d, rows, {"i'm": "And I'm ", "im": "And I'm ", "don't": "And don't ", "dont": "And font ", "it's": "And it's ",
+                             "its": "And its ", "that's": "And that's ", "cant": "And can't ", "ive": "And I've ", "war's": "And war's "})
 
 
-def probe_english_sentences(d):
-    """Finding 1: whole English sentences, on the English layout (own layout) and on the German layout."""
-    _probe_cases(d, "probe_english_en", "and",
-                 ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine",
-                  "we should meet tomorrow", "thanks for the help"], english=True)
-    _probe_cases(d, "probe_english_de", "und",
-                 ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
+def reported_finding_3_capital_i(d):
+    """Reported finding 3, default settings: on the English layout "i" in the middle of a sentence becomes "I"; on the
+    German layout (no second language) it stays "i". (At the level Behutsam it also stays on the English layout, see
+    reported_finding_3_level_gentle.)"""
+    rows = _probe_cases(d, "reported_finding_3_capital_i_en", "and", ["i", "i think", "i am", "i'll"], english=True)
+    _expect_fields(d, rows, {"i": "And I ", "i think": "And I think ", "i am": "And I am ", "i'll": "And I'll "})
+    rows = _probe_cases(d, "reported_finding_3_capital_i_de", "und", ["i", "i think"])
+    _expect_fields(d, rows, {"i": "Und i ", "i think": "Und i think "})
+
+
+def reported_finding_1_english_sentences(d):
+    """Reported finding 1: English sentences stay English on the English layout; on the German layout without a second
+    language the German dictionary corrects English words ("name" -> "Name", "bank" -> "Bank", "new" -> "New")."""
+    rows = _probe_cases(d, "reported_finding_1_english_en", "and",
+                        ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine",
+                         "we should meet tomorrow", "thanks for the help"], english=True)
+    _expect_fields(d, rows, {"this is a test of the keyboard": "And this is a test of the keyboard ",
+                             "what is your name": "And what is your name ", "i went to the bank": "And I went to the bank ",
+                             "my new job is fine": "And my new job is fine ", "we should meet tomorrow": "And we should meet tomorrow ",
+                             "thanks for the help": "And thanks for the help "})
+    rows = _probe_cases(d, "reported_finding_1_english_de", "und",
+                        ["this is a test of the keyboard", "what is your name", "i went to the bank", "my new job is fine"])
+    _expect_fields(d, rows, {"this is a test of the keyboard": "Und this is a test of the keyboard ",
+                             "what is your name": "Und what is your Name ", "i went to the bank": "Und i went to the Bank ",
+                             "my new job is fine": "Und my New job is fine "})
 
 
 def _settings_fresh(d, path, wanted):
@@ -1184,7 +1210,7 @@ def _keep_typed(d, word, times):
                 d.press("space")
 
 
-def probe_history_loop(d):
+def reported_finding_2_4_history_loop(d):
     """Findings 2 and 4: with "Personalisierte Vorschläge" on, a typo the owner once kept ("nicbmal", "war'a") sits
     in the typing history (German layout). Does the correct word ("nichtmal", "war's") then become that typo?"""
     _settings_fresh(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"), "Personalisierte Vorschläge")
@@ -1197,15 +1223,19 @@ def probe_history_loop(d):
     for typo in ("nicbmal", "war'a"):
         _keep_typed(d, typo, 2)
     log("PROBE probe_history_loop | after keeping the typos twice: field %r" % d.field("text"))
-    _probe_cases(d, "probe_history_loop", "und", ["nichtmal", "war's", "nicbmal", "war'a"])
+    rows = _probe_cases(d, "reported_finding_2_4_history_loop", "und", ["nichtmal", "war's", "nicbmal", "war'a"])
+    # today: the correct "war's" becomes the kept typo "war'a"; "nichtmal" becomes "nicht mal" (the history word "nicbmal"
+    # is offered in the strip but the engine's own two-word correction ranks first, with this little history)
+    _expect_fields(d, rows, {"war's": "Und war'a ", "nichtmal": "Und nicht mal ", "nicbmal": "Und nicbmal ", "war'a": "Und war'a "})
 
 
-def probe_level_gentle(d):
-    """Finding 3 at the level "Behutsam" (Tippen & Korrektur): "i" in the middle of a sentence, English layout."""
+def reported_finding_3_level_gentle(d):
+    """Reported finding 3 at the level "Behutsam" (Tippen & Korrektur, "Richtige Wörter nie ändern"): "i" in the middle
+    of a sentence stays "i" on the English layout, "cant" stays, "im" and "i'll" are still corrected."""
     label = _settings_fresh(d, ("Tippen & Korrektur",), "Behutsam")
     d.notes.append("tapped %r" % label)
-    _probe_cases(d, "probe_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
-    _probe_cases(d, "probe_level_gentle_de", "und", ["war's", "nichtmal"])
+    rows = _probe_cases(d, "reported_finding_3_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
+    _expect_fields(d, rows, {"i": "And i ", "i'll": "And I'll ", "im": "And I'm ", "cant": "And cant ", "dont": "And font "})
 
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
@@ -2236,8 +2266,8 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
-PROBES = [probe_apostrophe_de, probe_apostrophe_en, probe_capital_i, probe_english_sentences,
-          probe_history_loop, probe_level_gentle]
+PROBES = [reported_finding_2_apostrophe_de, reported_finding_2_apostrophe_en, reported_finding_3_capital_i,
+          reported_finding_1_english_sentences, reported_finding_2_4_history_loop, reported_finding_3_level_gentle]
 
 KNOWN_FINDINGS = {
     # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
