@@ -213,6 +213,24 @@ du in einem Tipp, was sie zeigt:
 - **NUR VORSCHLÄGE**: nur Vorschläge und angeheftete Knöpfe.
 - **VERSTECKT**: keine Leiste, mehr Platz für Tasten.
 
+**Die Leiste beim Schreiben (ab Etappe 89).** In der Voreinstellung „Tasten + Vorschläge“ bleibt die Leiste, sobald du in einem Feld mit
+Vorschlägen etwas getippt oder gelöscht hast, im Bereich der Wörter; ist nichts vorzuschlagen, bleibt er leer, links bleibt der Pfeil.
+Die Werkzeuge siehst du bei einem neuen oder leeren Feld und nach einem Tipp auf den Pfeil links oder auf ein Werkzeug; dann bleiben sie
+stehen, bis du das nächste Zeichen tippst (so kannst du mehrmals „Rückgängig“ tippen und siehst den Wiederholen-Pfeil). Wie oft die Leiste
+wechselt und warum, zeigt Einstellungen → Diagnose → Karte „Leiste“ (nur Zahlen).
+
+**Wenn die Leiste flackert: so liest du die Karte „Leiste“ ab.** Öffne die App, in der es flackert, schreibe ein langes Wort (zehn Buchstaben oder
+mehr) und lösche es mit zehn einzelnen Tipps auf die Rücktaste. Öffne dann Einstellungen → Diagnose, tippe „Kopieren“ und schicke mir den Text der Karte
+„Leiste“. Was die Zahlen heißen:
+- „Leiste – Rücktasten im letzten Feld“: *im Wort* sind Löschungen, die ruhig laufen sollten. *Wort wiedergefunden* heißt, die Tastatur sucht nach jedem Löschen das Wort
+  neu (das ist der normale Weg, wenn die App das Wort nicht als Eingabe führt). *Langsame Verbindung* heißt, die App hat einmal mehr als 200 Millisekunden für eine
+  Leseanfrage gebraucht, und zehn Minuten lang gilt jede Rücktaste als „nichts vorzuschlagen“.
+- „Leiste – sichtbare Wechsel im letzten Feld“ (zu Werkzeugen, zu Wörtern, zu leer, zu Chip): Bei zehn Rücktasten in einem Wort soll fast nichts davon steigen. Steigen
+  „zu leer“ und „zu Wörtern“ ungefähr gleich stark, und die Rücktasten stehen unter *langsame Verbindung* oder *Wort wiedergefunden*, dann ist das der Weg dahinter: Die Antwort der
+  App kommt später als die Wartezeit der Leiste (250 Millisekunden), die Leiste wird kurz leer und füllt sich wieder. Steigt „zu Werkzeugen“, kommt es aus einer anderen Stelle (Feldwechsel, leeres Feld).
+- „Leiste – Feldstarts“: Viele *neue Felder* beim Tippen in einem einzigen Feld heißen, dass die App für jedes Zeichen ein neues Feld meldet; das setzt die Sitzung jedes Mal zurück.
+- „Leiste – Verbindung bei der letzten Rücktaste“ und die vier Einstellungen sagen, ob die Tastatur die Verbindung als langsam führt und welche Einstellungen mitspielen.
+
 Steht „Eigene Einstellung“ darunter, ist der vierte Modus „Nur Leisten-Tasten“ gewählt (unter
 „Knöpfe wählen und sortieren“ → „Leisten-Modus“). Die Karte „@-Befehle“ zeigt das Präfix und alle
 Befehle; ein Tipp auf einen Befehl schaltet ihn einzeln an oder aus, der Schalter oben rechts

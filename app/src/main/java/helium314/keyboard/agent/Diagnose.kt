@@ -39,7 +39,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { TRACKPAD, LAST_FIELD, CORRECTION, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
+    enum class Part { BAR_CALM, TRACKPAD, LAST_FIELD, CORRECTION, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
     /**
      * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
      * package of the app and whether it is on the list of forced apps, for the button of the card.
@@ -688,6 +688,33 @@ object Diagnose {
             else context.getString(R.string.agent_trackdiag_lifts, delete.lifts, delete.liftsDeleted, delete.lastSelectedChars))
         rows += Row(s(R.string.agent_trackdiag_row_delete_last), CursorTrackText.last(context, delete, false))
         return Section(Part.TRACKPAD, s(R.string.agent_trackdiag_title), rows)
+    }
+
+    /**
+     * Stage 89: the card "Leiste": what the bar showed and how often it changed, the way of the backspaces, field starts, and the settings
+     * that decide it. Numbers and words for settings only (`BarCalmCounters`): never a text or an app name.
+     */
+    fun barCalm(context: Context, prefs: android.content.SharedPreferences, total: BarCalmCounters.Counts, field: BarCalmCounters.Counts, slow: Boolean): Section {
+        fun s(id: Int) = context.getString(id)
+        fun changes(c: BarCalmCounters.Counts) = context.getString(R.string.agent_barcalm_changes,
+            c.changesTo[BarCalmCounters.Kind.TOOLS.ordinal], c.changesTo[BarCalmCounters.Kind.WORDS.ordinal],
+            c.changesTo[BarCalmCounters.Kind.EMPTY.ordinal], c.changesTo[BarCalmCounters.Kind.CHIP.ordinal])
+        fun deletes(c: BarCalmCounters.Counts) = context.getString(R.string.agent_barcalm_deletes,
+            c.deletes[BarCalmCounters.Delete.IN_WORD.ordinal], c.deletes[BarCalmCounters.Delete.RESUME.ordinal], c.deletes[BarCalmCounters.Delete.SLOW.ordinal])
+        val rows = listOf(
+            Row(s(R.string.agent_barcalm_row_changes_total), changes(total)),
+            Row(s(R.string.agent_barcalm_row_changes_field), changes(field)),
+            Row(s(R.string.agent_barcalm_row_deletes_total), deletes(total)),
+            Row(s(R.string.agent_barcalm_row_deletes_field), deletes(field)),
+            Row(s(R.string.agent_barcalm_row_fields), context.getString(R.string.agent_barcalm_fields, total.fieldStarts, total.restarts)),
+            Row(s(R.string.agent_barcalm_row_slow), s(if (slow) R.string.agent_barcalm_slow_yes else R.string.agent_barcalm_slow_no)),
+            Row(s(R.string.agent_barcalm_row_dropped), total.droppedTaps.toString()),
+            Row(s(R.string.agent_barcalm_row_auto_show), onOff(context, prefs.getBoolean(Settings.PREF_AUTO_SHOW_TOOLBAR, Defaults.PREF_AUTO_SHOW_TOOLBAR))),
+            Row(s(R.string.agent_barcalm_row_auto_hide), onOff(context, prefs.getBoolean(Settings.PREF_AUTO_HIDE_TOOLBAR, Defaults.PREF_AUTO_HIDE_TOOLBAR))),
+            Row(s(R.string.agent_barcalm_row_bigram), onOff(context, prefs.getBoolean(Settings.PREF_BIGRAM_PREDICTIONS, Defaults.PREF_BIGRAM_PREDICTIONS))),
+            Row(s(R.string.agent_barcalm_row_personalized), onOff(context, prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS))),
+        )
+        return Section(Part.BAR_CALM, s(R.string.agent_barcalm_title), rows)
     }
 
     // --- correction and language (stage 90a) ---

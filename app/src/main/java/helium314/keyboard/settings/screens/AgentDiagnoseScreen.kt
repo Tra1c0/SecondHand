@@ -105,7 +105,9 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     val autofill = remember { Diagnose.autofill(context, helium314.keyboard.agent.InlineAutofillCounters.shared.snapshot()) }
     // stage 87b: the card "Cursor-Trackpad": configuration and decisions, numbers only, read when the page opens
     val trackpad = remember { Diagnose.trackpad(context, context.prefs(), helium314.keyboard.agent.CursorTrackCounters.shared.snapshot()) }
-    val shown = remember(sections, typing, autofill, trackpad) { sections.flatMap { if (it.part == Diagnose.Part.DEVICE) listOf(typing, trackpad, autofill, it) else listOf(it) } }
+    // stage 89: the card "Leiste": visible changes of the bar and their causes, numbers only
+    val barCalm = remember { Diagnose.barCalm(context, context.prefs(), helium314.keyboard.agent.BarCalmCounters.total, helium314.keyboard.agent.BarCalmCounters.field, helium314.keyboard.agent.BarCalmCounters.slowSeen) }
+    val shown = remember(sections, typing, autofill, trackpad, barCalm) { sections.flatMap { if (it.part == Diagnose.Part.DEVICE) listOf(typing, barCalm, trackpad, autofill, it) else listOf(it) } }
     val windowWidth = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width
     val narrow = with(androidx.compose.ui.platform.LocalDensity.current) { windowWidth.toDp() } < 400.dp
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {

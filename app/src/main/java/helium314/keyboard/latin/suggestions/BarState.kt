@@ -14,6 +14,10 @@ package helium314.keyboard.latin.suggestions
  * - While the content is the selection chips, "Werkzeuge zeigen" is sticky for that selection ([stickyTools]): range changes
  *   and the app's echo of the selection rebuild the chips but keep the tools, until the selection ends (a neutral update) or
  *   words come (typing). The left key then brings the chips back ([LeftKey.SHOW_CONTENT]), so both are one tap apart.
+ * - Writing session (fork, stage 89, `docs/LEISTE-RUHE-KONZEPT.md`): in a field that can show words ([calm]) the first typed key, wiped word
+ *   or delete ([onTyped]) starts a session. From then on a neutral update ([onNeutral]) does not bring the tools back: the bar stays on
+ *   the words area (empty when nothing is offered). The tools return only for an emptied field, a new field, a reopened keyboard, or
+ *   when the user asks ([onLeftKey], [onToolTapped]: [pinned], until the next typed key). Outside such a field everything is as before.
  * - [onToolsRequested] / [onContentRequested] are the old `setToolbarVisibility(true/false)` calls of `LatinIME`:
  *   forcing the tools, or the content when there is some (without content the bar stays on the tools: an empty
  *   suggestion area would leave a blank bar).
@@ -38,6 +42,38 @@ class BarState {
     var contentIsSelection = false
         private set
 
+    /** The rule of the writing session applies in this field (the fixed bar, a field that can show words). Set by the strip before each update. */
+    var calm = false
+        private set
+    /** Something was typed in this session (key, wipe or delete); the neutral strip no longer means the tools. */
+    var writing = false
+        private set
+    /** The user asked for the tools in the writing session; no update takes them away until the next typed key. */
+    var pinned = false
+        private set
+    /** The session is on: neutral updates keep the words area. */
+    val calmWriting get() = calm && writing
+
+    fun setCalm(on: Boolean) {
+        calm = on
+        if (!on) { writing = false; pinned = false }
+    }
+
+    /** A character key, a wipe or a delete went to the field: the session starts (or goes on), a pinned choice of the tools ends. */
+    fun onTyped() {
+        if (!calm) return
+        writing = true
+        pinned = false
+    }
+
+    /** The session is over (an emptied field): the next neutral update shows the tools. */
+    fun endSession() { writing = false; pinned = false }
+
+    /** A tool of the bar was tapped while the tools show: they stay (a second undo, the redo arrow) until the next typed key. */
+    fun onToolTapped() {
+        if (calm && show == Show.TOOLS) pinned = true
+    }
+
     /** What the left button does now. */
     val leftKey get() = when {
         show == Show.CONTENT -> LeftKey.SHOW_TOOLS
@@ -45,7 +81,18 @@ class BarState {
         else -> LeftKey.GRID
     }
 
-    fun onNeutral() {
+    /** [fieldEmpty]: the cursor is at the start and nothing is before it; then the session is over and the tools come back. */
+    fun onNeutral(fieldEmpty: Boolean = false) {
+        if (calm && writing && !fieldEmpty) {
+            // the writing session: the words area stays (empty), the tools only when the user asked for them
+            hasContent = false
+            stickyTools = false
+            contentIsSelection = false
+            show = if (pinned) Show.TOOLS else Show.CONTENT
+            return
+        }
+        writing = false
+        pinned = false
         hasContent = false
         toolsChosen = false
         stickyTools = false
@@ -58,6 +105,8 @@ class BarState {
         hasContent = true
         contentIsSelection = selection
         if (selection && stickyTools) return // the same selection, rebuilt: the tools stay
+        if (pinned && !selection) return // the user asked for the tools: no word, pill or chip takes them away before the next typed key
+        pinned = false
         stickyTools = false
         toolsChosen = false
         show = Show.CONTENT
@@ -69,7 +118,8 @@ class BarState {
 
     fun onContentRequested() {
         if (stickyTools) return // the user asked for the tools for this selection
-        show = if (hasContent) Show.CONTENT else Show.TOOLS
+        if (pinned) return
+        show = if (hasContent || calmWriting) Show.CONTENT else Show.TOOLS
     }
 
     /** The tap on the left button; returns what it did. */
@@ -79,12 +129,14 @@ class BarState {
             LeftKey.SHOW_TOOLS -> {
                 show = Show.TOOLS
                 toolsChosen = true
+                pinned = calm
                 stickyTools = contentIsSelection
             }
             LeftKey.SHOW_CONTENT -> {
                 show = Show.CONTENT
                 toolsChosen = false
                 stickyTools = false
+                pinned = false
             }
             LeftKey.GRID -> Unit
         }
@@ -92,5 +144,16 @@ class BarState {
     }
 
     /** The keyboard goes away or the strip starts again: tools, nothing waiting. */
-    fun reset() = onNeutral()
+    fun reset() { writing = false; pinned = false; onNeutral() }
+
+    companion object {
+        /**
+         * Fork, stage 89: how long the words of the bar stay when an update says "nothing to offer" while the user writes. A new
+         * list within this time replaces them directly (no empty bar in between); after it the bar is emptied. The suggestions of a
+         * key, and the resume after a delete, arrive after `mDelayInMillisecondsToUpdateSuggestions` (100 ms) plus the answer of the
+         * dictionary on its own thread and one hop to the main thread; 250 ms leaves 150 ms for that. A longer time would leave outdated
+         * words standing (they cannot be tapped meanwhile, see `SuggestionStripView.staleWords`).
+         */
+        const val CALM_DEBOUNCE_MS = 250L
+    }
 }

@@ -2253,13 +2253,92 @@ def bar_shots(d):
     _typed_still_works(d)
 
 
+def _strip_kind(screen):
+    """What the bar shows: T the tools, W words, E the words area with nothing in it (stage 89)."""
+    if bar_slots(screen):
+        return "T"
+    strip = screen.keyboard_node("suggestion_strip_view")
+    if strip is None:
+        return "?"
+    for n in screen.nodes:
+        if (n.package == KEYBOARD_PACKAGE and n.visible and (n.text or "").strip() and not n.cls.endswith(".Key")
+                and strip.left <= n.center[0] < strip.right and strip.top <= n.center[1] < strip.bottom):
+            return "W"
+    return "E"
+
+
+def bar_calm_typing(d):
+    """Stage 89, the quiet bar while writing, with real key touches: a sentence with punctuation, ten deletes, the tools on request.
+    The bar is read after every key (a dump takes a moment: a change that lasts less than that is not seen here; the unit test
+    StripCalmLogTest samples every 10 ms). The Enter key is not typed (the test field is a single line: Enter would be the editor
+    action), the paragraph is covered by the unit test."""
+    d.start("bar_calm_typing")
+    d.focus("text")
+    ensure_tools(d)
+    d.expect_equal("a new field shows the tools", _strip_kind(dump()), "T")
+    kinds = []
+    for char in "Hallo, wie geht es dir. Gut":
+        d.type(char)
+        time.sleep(0.35)
+        kinds.append((char, _strip_kind(dump())))
+        if char == " " and len(kinds) == 7:
+            shot(d, "calm_after_space")
+    d.notes.append("kinds while typing: " + "".join(k for _, k in kinds))
+    d.expect_equal("the tools never come back while typing (after the first key)", [c for c, k in kinds[1:] if k == "T"], [])
+    # "E" (the words area empty) is read too; inside a word it must not appear. A dump takes a second or more: an empty phase shorter than
+    # that (the blink of 100 ms the unit test StripCalmLogTest samples every 10 ms) cannot be seen here.
+    d.expect_equal("no empty words area inside a word", [c for c, k in kinds[1:] if k == "E" and c.isalpha()], [])
+    d.notes.append("empty words area after punctuation or space: %d of %d keys" % (sum(1 for c, k in kinds if k == "E"), len(kinds)))
+    shot(d, "calm_typed")
+    deletes = []
+    for _ in range(10):
+        d.press("delete")
+        time.sleep(0.35)
+        deletes.append(_strip_kind(dump()))
+    d.notes.append("kinds while deleting: " + "".join(deletes))
+    d.expect_equal("the tools do not come back while deleting", [k for k in deletes if k == "T"], [])
+    shot(d, "calm_deleted")
+    # the left key: the tools, and they stay until the next typed key
+    key = left_key(dump())
+    if key is None:
+        raise CheckFailed("no left key; the keyboard shows: " + bar_report(dump()))
+    tap(*key.center)
+    time.sleep(0.8)
+    d.expect_equal("the left key shows the tools", _strip_kind(dump()), "T")
+    time.sleep(1.5)
+    d.expect_equal("the tools stay", _strip_kind(dump()), "T")
+    undo = [n for n in bar_slots(dump()) if (n.desc or "").startswith(("Rückgängig", "Undo"))]
+    if not undo:
+        raise CheckFailed("the bar has no undo tool; it shows: " + bar_report(dump()))
+    tap(*undo[0].center)
+    time.sleep(1.2)
+    screen = dump()
+    d.expect_equal("the tools stay after Rückgängig", _strip_kind(screen), "T")
+    offered = [n.desc for n in bar_slots(screen) if "Wiederholen" in (n.desc or "") or "redo" in (n.desc or "").lower()]
+    d.expect_equal("after Rückgängig the undo tool offers redo", len(offered), 1)
+    shot(d, "calm_undo_redo")
+    tap(*bar_slots(dump())[[n.desc for n in bar_slots(dump())].index(offered[0])].center)  # a second undo works without the bar changing
+    time.sleep(0.8)
+    d.expect_equal("a second Rückgängig keeps the tools", _strip_kind(dump()), "T")
+    d.type("a")
+    time.sleep(0.6)
+    d.expect_equal("the next typed key brings the words area back", _strip_kind(dump()) != "T", True)
+    # the field holds the sentence: the keyboard still types after it (not _typed_still_works, which expects an empty field)
+    now = d.field("text")
+    d.refresh_keys()
+    d.type("ab")
+    d.expect_field("text", now + "ab")
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
              clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline,
              cursor_trackpad, cursor_trackpad_vertical,
              # stage 88: the bar with real touches; each leaves the standard bar behind
-             bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots]
+             bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
+             # stage 89: the quiet bar while writing
+             bar_calm_typing]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

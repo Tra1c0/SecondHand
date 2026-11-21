@@ -6575,6 +6575,15 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Wiederaufnahme der Vorschläge) zuerst beantwortet wird, und wechselten bei ausgelastetem Rechner; der Emoji-Tabellen-Thread (`EmojiSuggestions`) füllt die Leiste mit Emojis, wenn er fertig
   ist (`TypingRig.setUp` schaltet ihn aus). Verglichen wird dort nur der Editor. Wer Folgen ergänzt: `strip=` nur für Folgen ohne Rücktaste.
 
+- Ruhige Leiste (Etappe 89, Stufe 1; Konzept `docs/LEISTE-RUHE-KONZEPT.md`, Fallstricke P490–P495): `K/latin/suggestions/BarState.kt` hat `calm` (die Regel gilt im Feld), `writing` (Schreibsitzung), `pinned`
+  (Werkzeuge auf Wunsch) und `CALM_DEBOUNCE_MS` (250). `onTyped()` setzt die Sitzung, `onNeutral(fieldEmpty)` lässt in der Sitzung `show = CONTENT` (leerer Bereich), `onContent` und `onNeutral` ändern bei `pinned` nichts, `onLeftKey` (SHOW_TOOLS)
+  und `onToolTapped()` pinnen. `SuggestionStripView.kt`: `updateCalm()` (Feld kann Wörter zeigen: `mShouldShowSuggestions && mSuggestionsEnabled && !mApplicationSpecifiedCompletionOn`), `onTyped()`, `setFieldEmpty()`, `isWritingSession()`,
+  Entprellung in `setSuggestions` (neutral + Sitzung + Wörter sichtbar → `staleWords`, `calmHandler.postDelayed(releaseWords, 250 ms)`; eine neue Liste, ein Chip, ein neues Feld oder Verstecken bricht ab), Sperre in `onClick`/`onLongClick`/Wischen
+  für veraltete Wörter, `noteShown()` für die Zähler. `LatinIME.java`: `onAgentTyped()`, in `setNeutralSuggestionStrip` `setFieldEmpty(Sitzung && getCodePointBeforeCursor() == NOT_A_CODE)` und „automatisch anzeigen“ nach Enter nur ohne Sitzung,
+  in `onStartInput` der Zähler `BarCalmCounters.onFieldStart`. `KeyboardActionListenerImpl.kt`: `barSessionKey` in `onCodeInput` (Code ≥ 0 oder `DELETE`: `onAgentTyped` und der Weg der Rücktaste für die Diagnose), `onStartBatchInput`, `onUpWithDeletePointerActive`
+  (wenn gelöscht). `A/BarCalmCounters.kt` (nur Zahlen), `Diagnose.barCalm` (Karte „Leiste“, `AgentDiagnoseScreen`), Texte `agent_barcalm_strings.xml` (de, en). `InputLogic`, `RichInputConnection` und `PointerTracker` sind unberührt.
+  Tests: `StripCalmLogTest` (`T/latin/`, tippt über `TypingRig` einen Satz, einen Absatz und zehn Rücktasten, fragt die Leiste alle 10 ms ab und vergleicht mit `src/test/resources/stage89/strip-protocol-*.txt`; `TypingRig` hat `predictions` und
+  `startField(…, imeOptions)`), `BarStateTest`, `AT/BarCalmCountersTest`. Gerätetest: `bar_calm_typing` in `tools/devicetest/devicetest.py`.
 - **P380** Feste Leiste, nur ein Ort setzt Sichtbarkeiten (85): `SuggestionStripView.applyBarState` setzt Werkzeuge, Vorschlagsleiste, angeheftete Tasten, Verfügbarkeit und linke Taste
   zusammen aus `BarState` (und dem offenen Raster). Alte Wege, die `suggestionsStrip.isVisible` oder `toolbarContainer.isVisible` selbst setzen (`clear`, `removeSuggestion`,
   `onVisibilityChanged`, `setToolbarVisibility`), sind für die feste Leiste umgeleitet oder gesperrt; wer einen neuen setzt, zeigt Wörter neben den Werkzeugen. Eigene Sichtbarkeit nie
@@ -6726,12 +6735,23 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P466** Sperre durch eine alte Aktion (Nachprüfung 87c): `TrackState.runsAction` (nur bei `LEGACY` über die Startrichtung mit einer anderen Aktion als „nichts“, nur solange `OFF` und der Finger unten) lässt `otherFingerRunsAnAction` einen anderen Finger auf der Leertaste, der das Trackpad beanspruchen würde, `REFUSED` machen. Ende: `onCursorTrackEnd(Finger)` oder `-1`; wer `-1` hört, bleibt `OFF` ohne Sperre. Zwei alte Aktionen nebeneinander bleiben erlaubt; Schalter aus und gesperrte Eingabe setzen die Sperre nie. Der Tracker bleibt unberührt.
 - **P467** Dichte im Test: `PointerTracker.sPointerStep` ist `static final` und wird beim Laden der Klasse gesetzt (Robolectric: Dichte 1,0, 10 px). Der Listener liest ihn über `PointerTracker.getPointerStep()` (Etappe 87c, N-2). Die Tests ändern die Dichte NACH dem Laden (`RuntimeEnvironment.setQualifiers("+168dpi")`, `+420dpi` = 2,625, `+480dpi` = 3,0) und prüfen am echten Tracker, dass der Listener bei 10 px entscheidet, wie der Tracker, nicht bei floor(10 · neue Dichte) (26 bzw. 30 px); `10.dpToPx(Resources.getSystem())` zeigt in `cursor87cTheTrackersStepComesFromTheTrackerAndDoesNotFollowALaterDensityChange` das Auseinanderlaufen. Echte Startdichten wie 2,625 prüft nur das reine Gitter (Entscheidungsfunktion mit px-Schwelle).
 
+- **P490** Entprellung (89): `SuggestionStripView.setSuggestions` hält bei einer leeren Liste in der Sitzung die Wörter 250 ms (`staleWords`). Das Zeitgeber-Objekt ist ein `Handler` auf dem Hauptthread, nicht `View.postDelayed` (die wartet auf ein Fenster und läuft ohne nie, in Tests und bei versteckter Ansicht). Wer einen neuen Weg einbaut, der die Leiste mit Inhalt füllt (`setExternalSuggestionView` oder Ähnliches), ruft `cancelHeldWords()`, sonst räumt die Frist den neuen Inhalt weg.
+- **P491** Veraltete Wörter (89): In der Frist sind die Wörter nicht antippbar (`onClick`, `onLongClick`, Wischen nach oben prüfen `staleWords`; gezählt in `BarCalmCounters.droppedTaps`). Eine neue Berührungsstelle für Wörter braucht dieselbe Prüfung, sonst setzt ein Tipp ein Wort ein, das zu einem älteren Text gehört.
+- **P492** Sitzung am Tastencode (89): `writing` entsteht nur im Listener (`barSessionKey`, Batch-Start, Löschwisch), nie aus der Art der Wörterliste (die Wiederaufnahme liefert `INPUT_STYLE_TYPING`). Ein neuer Weg, der Text eintippt (nicht einfügt), ruft `LatinIME.onAgentTyped()`. Einfügen, Chips und Diktat setzen die Sitzung nicht.
+- **P493** `pinned` (89): Wörter, Pille, Autofill, Update-Chip und neutrale Aufrufe ändern die auf Wunsch gezeigten Werkzeuge nicht, Auswahl-Chips schon. Tests, die „Typing“ mit `strip.setSuggestions(…)` nachstellen, rufen vorher `strip.onTyped()` (`InputLogicTest` Auswahl-Werkzeuge). `reportToLastField` meldet `show = CONTENT` ohne Inhalt als „leer“ (P384).
+- **P494** Leeres Feld (89): Nur „Cursor am Anfang und nichts davor“ (`getCodePointBeforeCursor() == NOT_A_CODE`), und nur gelesen, solange die Sitzung läuft (der Wert kommt aus dem Zwischenspeicher, keine Leseanfrage an die App). Pos1 in einem gefüllten Feld zeigt damit die Werkzeuge. `hasTextAfterCursor` wäre eine Leseanfrage und gehört nicht in den Tastendruck (Etappe 84).
+- **P495** Diagnose „Leiste“ (89): `BarCalmCounters` zählt nichts in Passwortfeld, Inkognito und gesperrtem Gerät (`onShown`, `onDelete`, `onFieldStart` bekommen `protectedField`); die Beschriftungen der Zeilen enthalten kein „: “ (P454). Die Messung im Test (`StripCalmLogTest.visible`) zählt jeden sichtbaren Wechsel einschließlich „leer“; Werkzeuge gegen Inhalt allein sähe „Wörter, leer, Wörter“ nicht.
+
+- **P496** Frist ab dem letzten Zeichen (89, Prüferbefund F1): `SuggestionStripView.onTyped` startet `releaseWords` neu, solange `staleWords` gilt. Wer einen weiteren Weg einbaut, der Zeichen schreibt, ruft `onAgentTyped`; sonst blinkt die Mitte zwischen zwei Wörtern leer. Eine Antwort, die später kommt als `CALM_DEBOUNCE_MS`, bleibt als kurze leere Phase sichtbar (Test `aResumeThatAnswersAfterTheDebounceShowsAShortEmptyBlink`).
+- **P497** „Feld leer“ (89, F2/F5): `LatinIME.isAgentFieldEmpty()` verlangt erwartete Cursorposition 0 und nichts davor; unlesbarer Text (-1, leerer Zwischenspeicher) zählt nicht. Er wird auf dem neutralen und auf dem Weg mit Inhalt geprüft (`setNeutralSuggestionStrip`, `setSuggestedWords`) und nur, solange eine Sitzung läuft.
+- **P498** Zähler und Feldstart (89, F4): `BarCalmCounters.onFieldStart` wird in `onStartInputViewInternal` nach dem Laden der Einstellungen gerufen (Passwort, Inkognito, gesperrt: nichts), nicht in `onStartInput`; ein neues Feld setzt `last` zurück.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (767 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (772 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6742,24 +6762,24 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (99): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (100): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
-  AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
-  ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
-  CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose,
-  Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
-  FieldCorrections, FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps,
-  ForeignWords, FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
-  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
-  LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
-  MyDesigns, OnDeviceSpeechEngine, PillColors, PlaceCommand, PromptStore, RgbKeyPainter,
-  RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel,
-  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
-  SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
-  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
+  CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
+  CorrectionMemory, CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset, DesignLook,
+  DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
+  EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips, FlatMenuView,
+  FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords, FormatGuardChips, GermanVerbLemmas,
+  HapticChain, InformalWordsStore, InlineAutofill, JournaledModelCall, JournaledRun,
+  KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState,
+  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
+  PillColors, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
+  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
+  SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
+  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
+  UndoOffer, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6771,37 +6791,37 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (131): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (132): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
-  BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
-  ClipCachesTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest, CommandTemplatesTest,
-  ContactCommandTest, CorrectionMemoryTest, CursorGestureTrackerTest, CursorTrackDiagTest,
-  CursorTrackpadReasonTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
-  DesignTilesTest, DiagnoseCorrectionTest, DiagnoseScreenTest, DictationSessionTest,
-  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
-  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, GridPillsTest, HapticChainTest,
-  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
-  InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
-  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
-  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
-  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
-  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
-  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
-  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SeenSurfaceTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
-  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
-  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
-  TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest, UpdateChipTest,
-  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  ApprovedWorkflowRunnerTest, AskCommandTest, BarCalmCountersTest, BarEditModeTest,
+  BarIconVisibilityTest, BarToolsTest, BundledEmojiDictTest, CalculatorViewTest,
+  CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
+  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
+  CursorGestureTrackerTest, CursorTrackDiagTest, CursorTrackpadReasonTest, DatePlaceCommandsTest,
+  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseCorrectionTest, DiagnoseScreenTest,
+  DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
+  FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest,
+  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest,
+  GridPillsTest, HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest,
+  InlineAutofillCardTest, InlineAutofillGenerationTest, InlineAutofillResponseTest,
+  InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
+  LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
+  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
+  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
+  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SeenSurfaceTest,
+  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest,
+  SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest,
+  SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest,
+  TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest,
+  TypedWordFirstTest, TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest,
+  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
@@ -6905,8 +6925,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (38): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_bar_tools_strings, agent_charart_strings, agent_clipvault_strings,
+- `app/src/main/res/values-de/` (39): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_bar_tools_strings, agent_barcalm_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
   agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
@@ -6916,23 +6936,24 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
   agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
   agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (47): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_bar_tools_strings, agent_charart_ids, agent_charart_strings,
-  agent_clipvault_strings, agent_command_system_strings, agent_design_strings,
-  agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings,
-  agent_hardening_strings, agent_ids, agent_language_strings, agent_memory_strings,
-  agent_name_strings, agent_prompt_strings, agent_prompts_ids, agent_rgb_pattern_strings,
-  agent_rgb_strings, agent_search_strings, agent_selection_strings, agent_settings_keys_strings,
-  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_trackdiag_strings, agent_typing_strings, agent_update_prompt_strings, agent_update_strings,
-  attrs, clip_provider, donottranslate, gesture_data, strings, themes-flat
+- `app/src/main/res/values/` (48): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_bar_tools_strings, agent_barcalm_strings, agent_charart_ids,
+  agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
+  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
+  agent_gestures_strings, agent_hardening_strings, agent_ids, agent_language_strings,
+  agent_memory_strings, agent_name_strings, agent_prompt_strings, agent_prompts_ids,
+  agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings, agent_selection_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
+  gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (6): InputLogicTest, SuggestTest, SymbolLatencyTest,
-  TypingEquivalenceTest, TypingRig, WordListDictionaries
+- `app/src/test/java/helium314/keyboard/latin/` (7): InputLogicTest, StripCalmLogTest, SuggestTest,
+  SymbolLatencyTest, TypingEquivalenceTest, TypingRig, WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `app/src/test/java/helium314/keyboard/latin/suggestions/` (3): BarDragTest, BarEditorTest,
   BarStateTest

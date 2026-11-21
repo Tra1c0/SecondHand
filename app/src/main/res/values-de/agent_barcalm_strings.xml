@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Etappe 89: die Karte „Leiste“ der Diagnose (nur Zahlen). -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_barcalm_title">Leiste (Zahlen, kein Text)</string>
+    <string name="agent_barcalm_row_changes_total">Leiste – sichtbare Wechsel seit dem Start</string>
+    <string name="agent_barcalm_row_changes_field">Leiste – sichtbare Wechsel im letzten Feld</string>
+    <string name="agent_barcalm_changes">zu Werkzeugen %1$d, zu Wörtern %2$d, zu leer %3$d, zu Chip oder Pille %4$d</string>
+    <string name="agent_barcalm_row_deletes_total">Leiste – Rücktasten seit dem Start</string>
+    <string name="agent_barcalm_row_deletes_field">Leiste – Rücktasten im letzten Feld</string>
+    <string name="agent_barcalm_deletes">im Wort %1$d, Wort wiedergefunden %2$d, langsame Verbindung %3$d</string>
+    <string name="agent_barcalm_row_fields">Leiste – Feldstarts</string>
+    <string name="agent_barcalm_fields">neues Feld %1$d, Neustart im selben Feld %2$d</string>
+    <string name="agent_barcalm_row_slow">Leiste – Verbindung bei der letzten Rücktaste</string>
+    <string name="agent_barcalm_slow_yes">langsam</string>
+    <string name="agent_barcalm_slow_no">normal</string>
+    <string name="agent_barcalm_row_dropped">Leiste – verworfene Tipps auf veraltete Wörter</string>
+    <string name="agent_barcalm_row_auto_show">Leiste – Einstellung „Leiste automatisch anzeigen“</string>
+    <string name="agent_barcalm_row_auto_hide">Leiste – Einstellung „Leiste automatisch ausblenden“</string>
+    <string name="agent_barcalm_row_bigram">Leiste – Einstellung Folgewort-Vorschläge</string>
+    <string name="agent_barcalm_row_personalized">Leiste – Einstellung persönliche Vorschläge</string>
+</resources>

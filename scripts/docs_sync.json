@@ -97,7 +97,7 @@
       "app/src/main/java/helium314/keyboard/settings/preferences/{SliderPreference,KeyboardScalePreference,CustomFontPreference}.kt",
       "app/src/test/java/helium314/keyboard/{Shadows,KeyboardParserTest}.kt",
       "app/src/test/java/helium314/keyboard/Shadows.kt",
-      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries,TypingRig,SymbolLatencyTest,TypingEquivalenceTest}.kt",
+      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries,TypingRig,SymbolLatencyTest,TypingEquivalenceTest,StripCalmLogTest}.kt",
 
       "tools/dev.py",
       "tools/devicetest/devicetest.py",

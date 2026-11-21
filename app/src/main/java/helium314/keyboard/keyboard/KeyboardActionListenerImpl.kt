@@ -151,10 +151,28 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private fun isPlainEnter(keyCode: Int, keyEvent: KeyEvent) =
         (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) && keyEvent.hasNoModifiers()
 
+    /**
+     * Stage 89 ("ruhige Leiste"): a character key (code >= 0, space and Enter included) or the delete key starts or continues the writing session
+     * of the bar, ends a pinned choice of the tools, and counts the way of a delete for the diagnose (numbers only). Read before the key is
+     * handled, so the state is the one the key finds. `InputLogic` is not touched.
+     */
+    private fun barSessionKey(code: Int) {
+        if (code != KeyCode.DELETE && code < 0) return
+        if (code == KeyCode.DELETE) {
+            val slow = connection.hasSlowInputConnection()
+            helium314.keyboard.agent.BarCalmCounters.onDelete(
+                if (slow) helium314.keyboard.agent.BarCalmCounters.Delete.SLOW
+                else if (inputLogic.hasActiveComposition()) helium314.keyboard.agent.BarCalmCounters.Delete.IN_WORD
+                else helium314.keyboard.agent.BarCalmCounters.Delete.RESUME, slow, isProtectedField())
+        }
+        latinIME.onAgentTyped()
+    }
+
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // codes without a key press, e.g. from the strip
         helium314.keyboard.agent.UndoOffer.onCode(primaryCode) // stage 88: after an undo the bar offers a redo until the text changes
+        barSessionKey(primaryCode) // stage 89: a typed key starts the writing session of the bar
         if (TouchCalibration.active) keyboardSwitcher.mainKeyboardView?.let { view ->
             // view to keyboard coordinates, as KeyDetector does
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
@@ -259,6 +277,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     // LatinIME, InputLogic and the batch gate (P5) see nothing of it
     override fun onStartBatchInput() {
         helium314.keyboard.agent.UndoOffer.onTextChange() // stage 88: a gesture is typing
+        latinIME.onAgentTyped() // stage 89: and it starts the writing session of the bar
         if (!SymbolInk.isEnabled()) return latinIME.onStartBatchInput()
         if (!latinIME.agentEditorController.isBlockingInput) SymbolInk.onBatchStart()
     }
@@ -469,6 +488,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val diag = CursorTrackCounters.shared
         val selected = if (tracked && !diag.isProtectedSwipe(CursorTrackCounters.Key.DELETE)) (connection.expectedSelectionEnd - connection.expectedSelectionStart).coerceAtLeast(0) else 0
         val deleted = deleteAtLift()
+        if (deleted) latinIME.onAgentTyped() // stage 89: the wipe-delete is a delete
         if (tracked) diag.onDeleteLift(selected, deleted)
     }
 

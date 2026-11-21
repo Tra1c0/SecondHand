@@ -39,6 +39,8 @@ class TypingRig(val ime: LatinIME) {
     /** Words the stub dictionary knows (exact answer) and typos it corrects (a close match, so autocorrect takes it). */
     var known: Set<String> = setOf("hello", "world", "the", "and", "that", "this", "with", "you", "for", "have", "test", "good", "day")
     var typos: Map<String, String> = mapOf("teh" to "the", "adn" to "and", "helo" to "hello", "wrold" to "world", "taht" to "that", "wiht" to "with")
+    /** Stage 89: next-word predictions the stub offers when no word is being typed (empty: none, as before). */
+    var predictions: List<String> = emptyList()
     /** Look-ups of the dictionary (every suggestion computation, from any thread). */
     val lookups = AtomicInteger()
 
@@ -83,14 +85,16 @@ class TypingRig(val ime: LatinIME) {
     }
 
     /** A new field (or the same one again, [restarting]) holding [text] with the cursor at its end. */
-    fun startField(text: String, restarting: Boolean = false, inputType: Int = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) {
+    fun startField(text: String, restarting: Boolean = false, inputType: Int = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT,
+                   imeOptions: Int = 0) {
         ShadowInputMethodService.text = text
         ShadowInputMethodService.selectionStart = text.length
         ShadowInputMethodService.selectionEnd = text.length
         ShadowInputMethodService.composingStart = -1
         ShadowInputMethodService.composingEnd = -1
         ShadowInputMethodService.currentInputType = inputType
-        val info = EditorInfo().apply { this.inputType = inputType; initialSelStart = text.length; initialSelEnd = text.length }
+        ShadowInputMethodService.currentImeOptions = imeOptions
+        val info = EditorInfo().apply { this.inputType = inputType; this.imeOptions = imeOptions; initialSelStart = text.length; initialSelEnd = text.length }
         ime.onStartInput(info, restarting)
         ime.onStartInputView(info, restarting)
         idle()
@@ -110,6 +114,7 @@ class TypingRig(val ime: LatinIME) {
                 lookups.incrementAndGet()
                 val typed = (args!![0] as ComposedData).mTypedWord
                 when {
+                    typed.isEmpty() && predictions.isNotEmpty() -> suggestionResults(predictions.map { suggestion(it, 400_000) })
                     typed in known -> suggestionResults(listOf(suggestion(typed, 1_500_000)))
                     typed in typos -> suggestionResults(listOf(suggestion(typos.getValue(typed), 1_200_000)))
                     else -> suggestionResults(emptyList())

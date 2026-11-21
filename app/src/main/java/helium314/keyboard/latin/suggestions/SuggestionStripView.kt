@@ -141,6 +141,66 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      */
     private val fixedBar = !isGone && Settings.getValues().mFixedBar
     private val barState = BarState()
+
+    // ---- fork, stage 89: the writing session (BarState.calm/writing), the debounce of the words and the counters of the diagnose ----
+
+    /** The neutral update that is on its way says the field is empty (set by `LatinIME` before it, only while a session is on). */
+    private var fieldEmpty = false
+    fun setFieldEmpty(empty: Boolean) { fieldEmpty = empty }
+    /** The words are outdated: a neutral update arrived while they stand and the time of the debounce has not run out; taps on them are dropped. */
+    private var staleWords = false
+    private var heldRtl = false
+    // a Handler, not View.postDelayed: that one waits for a window (a view without one, as in tests or while hidden, would never run it)
+    private val calmHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var releaseScheduled = false
+    private val releaseWords = Runnable { releaseScheduled = false; staleWords = false; applyNeutral(heldRtl) }
+
+    /** Whether the session rule applies in this field: the fixed bar, and a field that can show words (not a password, number or phone field, suggestions on). */
+    private fun updateCalm() {
+        val values = Settings.getValues()
+        barState.setCalm(fixedBar && values.mInputAttributes.mShouldShowSuggestions && values.mSuggestionsEnabled
+            && !values.mInputAttributes.mApplicationSpecifiedCompletionOn)
+    }
+
+    /** The session is on (read by `LatinIME` for "Leiste automatisch anzeigen" after Enter). */
+    fun isWritingSession(): Boolean = barState.calmWriting
+
+    /** A character key, a wipe or a delete went to the field (the hook of the listener); starts the session, ends a pinned choice of the tools. */
+    fun onTyped() {
+        if (!fixedBar) return
+        updateCalm()
+        barState.onTyped()
+        // the words that wait for the next list get their time from the last key, not from the neutral update: at a normal typing pace the
+        // bar does not blink empty between two words, only in a real pause
+        if (staleWords) {
+            calmHandler.removeCallbacks(releaseWords)
+            calmHandler.postDelayed(releaseWords, BarState.CALM_DEBOUNCE_MS)
+        }
+    }
+
+    /** An emptied field ends the writing session (see `LatinIME.setSuggestedWords`). */
+    fun endSession() { barState.endSession() }
+
+    private fun cancelHeldWords() {
+        staleWords = false
+        releaseScheduled = false
+        calmHandler.removeCallbacks(releaseWords)
+    }
+
+    private fun protectedField() = Settings.getValues().mInputAttributes.mIsPasswordField || Settings.getValues().mIncognitoModeEnabled ||
+        helium314.keyboard.agent.LockState.isLocked(context)
+
+    /** What the owner sees now, for the counters of the diagnose. */
+    private fun noteShown() {
+        val tools = barState.show == BarState.Show.TOOLS || gridOpen()
+        val kind = when {
+            tools -> helium314.keyboard.agent.BarCalmCounters.Kind.TOOLS
+            isExternalSuggestionVisible -> helium314.keyboard.agent.BarCalmCounters.Kind.CHIP
+            suggestedWords.isEmpty -> helium314.keyboard.agent.BarCalmCounters.Kind.EMPTY
+            else -> helium314.keyboard.agent.BarCalmCounters.Kind.WORDS
+        }
+        helium314.keyboard.agent.BarCalmCounters.onShown(kind, protectedField())
+    }
     private val gridIcon = ContextCompat.getDrawable(context, R.drawable.sym_keyboard_grid_flat)
     private val backIcon = ContextCompat.getDrawable(context, R.drawable.ic_arrow_left)
     private val closeIcon = ContextCompat.getDrawable(context, R.drawable.ic_close)
@@ -276,7 +336,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                     return true
                 }
 
-                return if (!isExternalSuggestionVisible && toolbarContainer.visibility != VISIBLE && deltaY > 0 && dy < (-10).dpToPx(resources)) showMoreSuggestions()
+                return if (!staleWords && !isExternalSuggestionVisible && toolbarContainer.visibility != VISIBLE && deltaY > 0 && dy < (-10).dpToPx(resources)) showMoreSuggestions()
                 else false
             }
         }
@@ -348,6 +408,27 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun setSuggestions(suggestions: SuggestedWords, isRtlLanguage: Boolean) {
+        if (fixedBar) {
+            updateCalm()
+            // stage 89 (critic K1): while the user writes, "nothing to offer" does not empty the bar before the next list is known
+            if (suggestions.isEmpty && barState.calmWriting && !fieldEmpty && barState.show == BarState.Show.CONTENT
+                && !isExternalSuggestionVisible && !suggestedWords.isEmpty) {
+                heldRtl = isRtlLanguage
+                staleWords = true
+                if (!releaseScheduled) { releaseScheduled = true; calmHandler.postDelayed(releaseWords, BarState.CALM_DEBOUNCE_MS) }
+                return
+            }
+            cancelHeldWords()
+        }
+        applyNeutralOrWords(suggestions, isRtlLanguage)
+    }
+
+    private fun applyNeutral(isRtlLanguage: Boolean) {
+        fieldEmpty = false
+        applyNeutralOrWords(SuggestedWords.getEmptyInstance(), isRtlLanguage)
+    }
+
+    private fun applyNeutralOrWords(suggestions: SuggestedWords, isRtlLanguage: Boolean) {
         clear()
         setRtl(isRtlLanguage)
         suggestedWords = suggestions
@@ -357,16 +438,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         isExternalSuggestionVisible = false
         if (fixedBar) {
             // words, and punctuation the user asked for, replace the tools; an empty list gives the tools back
-            if (suggestions.isEmpty) barState.onNeutral() else barState.onContent()
+            if (suggestions.isEmpty) barState.onNeutral(fieldEmpty) else barState.onContent()
+            fieldEmpty = false
         }
         reportToLastField(newContent = true)
         updateKeys()
+        if (fixedBar) noteShown()
     }
 
     /** [selection]: the view is the chips of a selected text; a user's choice of the tools then holds for that selection (see [BarState]). */
     @JvmOverloads
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean, selection: Boolean = false) {
         helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_EXTERNAL) // fork, stage 84
+        if (fixedBar) { cancelHeldWords(); updateCalm() }
         clear()
         isExternalSuggestionVisible = true
         reportToLastField(newContent = true)
@@ -391,7 +475,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
 
         // The fixed bar: chips and every other external view replace the tools (the left key brings them back).
-        if (fixedBar) { barState.onContent(selection); applyBarState(); reportToLastField(newContent = false); return }
+        if (fixedBar) { barState.onContent(selection); applyBarState(); reportToLastField(newContent = false); noteShown(); return }
         // In the Flat style the left key opens the menu and cannot collapse the toolbar, so an external
         // suggestion (inline autofill, clipboard) always takes its place.
         if (Settings.getValues().mAutoHideToolbar || flatStyle) setToolbarVisibility(false)
@@ -465,6 +549,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             if (!view.isEnabled) return
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)
             closeGrid()
+            if (fixedBar) barState.onToolTapped() // stage 89: the tools stay until the next typed key
             onClickToolbarKey(view) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
             return
         }
@@ -478,6 +563,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
         // tag for word views is set in SuggestionStripLayoutHelper (setupWordViewsTextAndColor, layoutPunctuationSuggestions)
         if (tag is Int) {
+            if (staleWords) { helium314.keyboard.agent.BarCalmCounters.onDroppedTap(protectedField()); return } // stage 89: outdated words insert nothing
             if (tag >= suggestedWords.size()) {
                 return
             }
@@ -506,6 +592,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             onLongClickToolbarKey(view)
             return true
         }
+        if (staleWords) return true // stage 89: outdated words, no long press and no list of more words
         AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
         return if (view is TextView && wordViews.contains(view)) {
             onLongClickSuggestion(view)
@@ -708,6 +795,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         exitEdit(andClose = false) // what was dropped is saved; a drag in progress saves nothing
         helium314.keyboard.agent.UndoOffer.reset()
         closeGrid()
+        cancelHeldWords()
         barState.reset()
         applyBarState()
     }
@@ -763,6 +851,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         closeGrid()
         // stage 79b: what the last field left in the bar state (a sticky choice of the tools for a selection, content that is
         // gone) must not hold the chips of the new field back; its own content comes with its first strip update
+        cancelHeldWords()
         barState.reset()
         applyBarState()
     }
@@ -791,6 +880,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
         updateToolAvailability()
         updateLeftKey()
+        noteShown()
     }
 
     /** Tools that the field does not allow stay in their cell, dimmed; their own controllers still check again on a tap. */
