@@ -55,12 +55,20 @@ class StripCalmLogTest {
     private val stripWords: String get() = SuggestionStripView::class.java.getDeclaredField("suggestedWords")
         .apply { isAccessible = true }.get(strip).let { w -> w as SuggestedWords; (0 until w.size()).joinToString(",") { w.getWord(it) } }
 
-    private fun state(): String = (if (barState.show == BarState.Show.TOOLS) "T" else "W") + (if (barState.hasContent) "+" else "-")
+    /**
+     * What the owner sees in the bar: T tools, W words, C a chip or pill (external view), E the words area with nothing in it.
+     * (Stage 89, critic K1: counting only tools against content would not see "words, then empty, then words" as a flicker.)
+     */
+    private fun state(): String {
+        if (barState.show == BarState.Show.TOOLS) return "T"
+        if (strip.isExternalSuggestionVisible) return "C"
+        return if (stripWords.isEmpty()) "E" else "W"
+    }
 
     private val b = TypingRig.BACKSPACE_MARK
     private val uiThread = android.os.Looper.getMainLooper().thread
 
-    private fun protocol(script: String, slowConnection: Boolean = false): List<String> {
+    private fun protocol(script: String, slowConnection: Boolean = false, resumeAfterDelete: Boolean = false): List<String> {
         // multi-line: Enter is a paragraph (a single-line field sends the editor action instead)
         rig.startField("", restarting = true,
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE,
@@ -86,7 +94,11 @@ class StripCalmLogTest {
             for (c in script) {
                 val code = if (c == b) KeyCode.DELETE else c.code
                 seen = arrayListOf(state())
+                // an app that does not keep the composing region (a web view): the delete finds no composing word
+                if (resumeAfterDelete && c == b) latinIME.mInputLogic.finishInput()
                 rig.tapFast(code)
+                // the app answers a delete with a selection update the keyboard does not expect (what a slow app does): resume suggestions
+                if (resumeAfterDelete && c == b) latinIME.mHandler.postResumeSuggestions(true)
                 val afterKey = state()
                 sample()
                 rig.settle()
@@ -103,11 +115,18 @@ class StripCalmLogTest {
         return rows
     }
 
-    /** How often the bar changes between tools and content over the whole run: a count of the changes of the first letter of the trace. */
-    private fun switches(rows: List<String>) = rows.sumOf { row ->
-        val trace = row.split("|")[3].split(">")
-        trace.zipWithNext().count { (a, c) -> a[0] != c[0] }
-    }
+    /** The visible kinds in order: the state before the first key, then after every key and after the delayed messages of it. */
+    private fun visible(rows: List<String>): List<String> =
+        listOf(rows[0].split("|")[1]) + rows.drop(1).flatMap { r -> r.split("|").let { listOf(it[1], it[2]) } }
+
+    /** Every visible change of what the bar shows, empty included (critic K1). */
+    private fun switches(rows: List<String>) = visible(rows).zipWithNext().count { (a, c) -> a != c }
+
+    /** Changes between the tools and anything else. */
+    private fun toolSwitches(rows: List<String>) = visible(rows).zipWithNext().count { (a, c) -> (a == "T") != (c == "T") }
+
+    /** The visible changes caused by the rows [from] until the end (the rows after row [from] - 1). */
+    private fun switchesFrom(rows: List<String>, from: Int) = switches(rows.subList(from - 1, rows.size))
 
     private fun check(name: String, rows: List<String>) {
         val text = rows.joinToString("\n") + "\n"
@@ -121,28 +140,53 @@ class StripCalmLogTest {
     private val sentence = "Hallo, wie geht es dir. Gut\nUnd"
     private val tenBackspaces = b.toString().repeat(10)
 
-    /** No next-word predictions (the stub dictionary knows none): the case that shows the tools after every space. */
-    @Test fun todayWithoutPredictions() {
+    // ---- the protocol of the new rule (stage 89): golden files plus counted claims ----
+
+    /** No next-word predictions: the words area is empty after most spaces. */
+    @Test fun sentenceWithoutPredictions() {
         rig.predictions = emptyList()
         val rows = protocol(sentence + tenBackspaces)
-        println("switches without predictions: " + switches(rows))
+        println("visible changes without predictions: ${switches(rows)}, tools: ${toolSwitches(rows)}")
+        assertEquals(1, toolSwitches(rows), "the tools go away with the first key and never come back: " + visible(rows))
         check("no-predictions", rows)
     }
 
-    /** The dictionary offers next words after a space and at the start of a line: the bar should then stay on the words. */
-    @Test fun todayWithPredictions() {
+    /** The dictionary offers next words after a space. */
+    @Test fun sentenceWithPredictions() {
         rig.predictions = listOf("wie", "und", "ich")
         val rows = protocol(sentence + tenBackspaces)
-        println("switches with predictions: " + switches(rows))
+        println("visible changes with predictions: ${switches(rows)}, tools: ${toolSwitches(rows)}")
+        assertEquals(1, toolSwitches(rows), visible(rows).toString())
         check("with-predictions", rows)
     }
 
-    /** An app with a slow editor connection (hasSlowInputConnection): every backspace asks for the neutral strip (InputLogic line 1731). */
-    @Test fun todayWithSlowConnection() {
+    /** An app with a slow editor connection: every backspace asks for the neutral strip (InputLogic line 1731). */
+    @Test fun sentenceWithSlowConnection() {
         rig.predictions = emptyList()
         val rows = protocol(sentence + tenBackspaces, slowConnection = true)
-        println("switches with slow connection: " + switches(rows))
+        println("visible changes with slow connection: ${switches(rows)}, tools: ${toolSwitches(rows)}")
+        assertEquals(1, toolSwitches(rows), visible(rows).toString())
         check("slow-connection", rows)
+    }
+
+    /**
+     * The suspected way on the owner's phone (critic K1): slow connection, and the app's selection update after every delete makes the
+     * keyboard resume suggestions. Deleting inside a word must not change what the bar shows at all: not to the tools, not to empty and back.
+     */
+    @Test fun deletingInsideAWordWithSlowConnectionAndResumeDoesNotChangeTheBar() {
+        rig.predictions = emptyList()
+        val rows = protocol("Hallo wie" + b + b, slowConnection = true, resumeAfterDelete = true)
+        val firstDelete = rows.indexOfFirst { it.startsWith("<-|") } // row index; row 0 is the field start
+        println("slow + resume, rows: " + rows.drop(firstDelete))
+        assertEquals(0, switchesFrom(rows, firstDelete + 1), "inside the word 'wie': " + rows.drop(firstDelete))
+    }
+
+    /** The same without a slow connection: the resume after a delete inside a word shows the same words, no empty in between. */
+    @Test fun deletingInsideAWordWithResumeDoesNotChangeTheBar() {
+        rig.predictions = emptyList()
+        val rows = protocol("Hallo wie" + b + b, resumeAfterDelete = true)
+        val firstDelete = rows.indexOfFirst { it.startsWith("<-|") }
+        assertEquals(0, switchesFrom(rows, firstDelete + 1), rows.drop(firstDelete).toString())
     }
 
     @Test fun theProtocolSeesTheBar() {
