@@ -24,6 +24,9 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.SubtypeSettings
 import helium314.keyboard.latin.utils.locale
+import helium314.keyboard.latin.utils.getSecondaryLocales
+import helium314.keyboard.latin.utils.mainLayoutNameOrQwerty
+import helium314.keyboard.settings.screens.TypingAutocorrect
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.screens.getUserAndInternalDictionaries
 import java.util.Locale
@@ -36,7 +39,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { BAR_CALM, TRACKPAD, LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
+    enum class Part { BAR_CALM, TRACKPAD, LAST_FIELD, CORRECTION, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, AUTOFILL, DEVICE }
     /**
      * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
      * package of the app and whether it is on the list of forced apps, for the button of the card.
@@ -712,6 +715,76 @@ object Diagnose {
             Row(s(R.string.agent_barcalm_row_personalized), onOff(context, prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS))),
         )
         return Section(Part.BAR_CALM, s(R.string.agent_barcalm_title), rows)
+
+    // --- correction and language (stage 90a) ---
+
+    /**
+     * Stage 90a: sizes only, read off the main thread: learned words per language of the typing history ([learnedWords], null when it
+     * cannot be read), learned typo pairs, pairs learned in the field, corrections taken back. Never a word.
+     */
+    class CorrectionCounts(val learnedWords: Map<String, Int>?, val typoPairs: Int?, val fieldPairs: Int?, val rejectedPairs: Int?, val personalWords: Int? = null)
+
+    fun correctionCounts(context: Context): CorrectionCounts = CorrectionCounts(
+        runCatching { LearningData.counts(UserHistoryLearningSource(context)) }.getOrNull(),
+        runCatching { TypoMemory.all(context).size }.getOrNull(),
+        runCatching { FieldCorrectionMemory.all(context).size }.getOrNull(),
+        runCatching { RejectedCorrections.all(context).size }.getOrNull(),
+        // the personal dictionary (Android's user dictionary): only how many entries, null when the provider is not there
+        runCatching { context.contentResolver.query(android.provider.UserDictionary.Words.CONTENT_URI,
+            arrayOf(android.provider.UserDictionary.Words._ID), null, null, null)?.use { it.count } }.getOrNull())
+
+    /**
+     * The card "Korrektur & Sprache": the settings that decide what the automatic correction does and the sizes of what the keyboard
+     * learned. States, language tags, layout names and numbers only: no word, no field text, nothing from the typing history.
+     */
+    fun correction(context: Context, counts: CorrectionCounts?): Section {
+        fun s(id: Int) = context.getString(id)
+        val prefs = context.prefs()
+        fun pref(key: String, default: Boolean) = prefs.getBoolean(key, default)
+        val rows = mutableListOf<Row>()
+        val level = TypingAutocorrect.current(prefs)
+        rows += Row(s(R.string.agent_diagnose_corr_level), when (level) {
+            TypingAutocorrect.Level.OFF -> s(R.string.agent_typing_level_off)
+            TypingAutocorrect.Level.GENTLE -> s(R.string.agent_typing_level_gentle)
+            TypingAutocorrect.Level.BOLD -> s(R.string.agent_typing_level_bold)
+            null -> s(R.string.agent_diagnose_corr_level_custom)
+        })
+        rows += Row(s(R.string.agent_diagnose_corr_strength), String.format(Locale.ROOT, "%.2f",
+            prefs.getFloat(Settings.PREF_AUTO_CORRECT_CONFIDENCE, Defaults.PREF_AUTO_CORRECT_CONFIDENCE)))
+        rows += Row(s(R.string.agent_diagnose_corr_keep_valid), onOff(context, pref(AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_keep_umlaut), onOff(context, pref(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true)))
+        rows += Row(s(R.string.agent_diagnose_corr_swapped), onOff(context, pref(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, true)))
+        rows += Row(s(R.string.agent_diagnose_corr_sentence), onOff(context, pref(AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true)))
+        val selected = runCatching { SubtypeSettings.getSelectedSubtype(prefs) }.getOrNull()
+        rows += Row(s(R.string.agent_diagnose_corr_layout), selected?.let { "${it.locale().toLanguageTag()} (${it.mainLayoutNameOrQwerty()})" } ?: s(R.string.agent_diagnose_field_unknown))
+        val enabled = runCatching { SubtypeSettings.getEnabledSubtypes(true) }.getOrDefault(emptyList())
+        rows += Row(s(R.string.agent_diagnose_corr_active_layouts), if (enabled.isEmpty()) s(R.string.agent_diagnose_field_unknown) else enabled.size.toString())
+        if (enabled.isEmpty()) rows += Row(s(R.string.agent_diagnose_corr_second), s(R.string.agent_diagnose_field_unknown))
+        enabled.forEach { subtype ->
+            val second = getSecondaryLocales(subtype.extraValue).joinToString(", ") { it.toLanguageTag() }
+            rows += Row(context.getString(R.string.agent_diagnose_corr_second_of, subtype.locale().toLanguageTag(), subtype.mainLayoutNameOrQwerty()),
+                second.ifEmpty { s(R.string.agent_diagnose_none) })
+        }
+        rows += Row(s(R.string.agent_diagnose_corr_personalized), onOff(context, pref(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS)))
+        rows += Row(s(R.string.agent_diagnose_corr_add_personal), onOff(context, pref(Settings.PREF_ADD_TO_PERSONAL_DICTIONARY, Defaults.PREF_ADD_TO_PERSONAL_DICTIONARY)))
+        rows += Row(s(R.string.agent_diagnose_corr_learn_typos), onOff(context, pref(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_remember_rejected), onOff(context, pref(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_memory), onOff(context, pref(AgentPreferences.MEMORY, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_paused), onOff(context, pref(AgentPreferences.LEARNING_PAUSED, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_touch), onOff(context, pref(AgentPreferences.ADAPT_TOUCH, false)))
+        rows += Row(s(R.string.agent_diagnose_corr_next_word), onOff(context, pref(Settings.PREF_BIGRAM_PREDICTIONS, Defaults.PREF_BIGRAM_PREDICTIONS)))
+        // the sizes are counted off the main thread and without holding back the other cards: null = still counting
+        val unknown = s(R.string.agent_diagnose_field_unknown)
+        val counting = s(R.string.agent_diagnose_corr_counting)
+        fun number(n: Int?) = if (counts == null) counting else n?.toString() ?: unknown
+        rows += Row(s(R.string.agent_diagnose_corr_learned_words), if (counts == null) counting else counts.learnedWords?.let { map ->
+            if (map.isEmpty()) "0" else map.entries.sortedBy { it.key }.joinToString(", ") { "${it.key}: ${it.value}" }
+        } ?: unknown)
+        rows += Row(s(R.string.agent_diagnose_corr_typo_pairs), number(counts?.typoPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_field_pairs), number(counts?.fieldPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_rejected), number(counts?.rejectedPairs))
+        rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
+        return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }
 
     // --- app and phone ---

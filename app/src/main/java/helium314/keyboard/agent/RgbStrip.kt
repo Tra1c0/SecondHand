@@ -83,7 +83,8 @@ object RgbStrip {
         val lightButtons = on && RgbArea.TOOLBAR in s.areas
         if (lightWords || lightButtons) strip.getLocationInWindow(stripLocation)
         val colors = Settings.getValues().mColors
-        val background = colors.get(ColorType.STRIP_BACKGROUND)
+        // what is really behind the words and icons: the strip colour over the keyboard background (either may be translucent)
+        val background = helium314.keyboard.latin.suggestions.StripIconColors.seenBackground(colors)
         for (view in words) {
             if (lightWords && view.visibility == View.VISIBLE) paintText(view, strip, background) else restore(view)
         }
@@ -177,7 +178,7 @@ object RgbStrip {
         return RgbLighting.engineFor(target).light(x.coerceIn(0f, 1f), 0f, -1, RgbLighting.drawTimeMs)
     }
 
-    private fun paintText(view: TextView, strip: View, background: Int) {
+    private fun paintText(view: TextView, strip: View, background: dev.agentkeyboard.core.Seen) {
         var original = view.getTag(R.id.agent_rgb_original) as? Original
         if (original == null || view.currentTextColor != original.lastColor) {
             original = Original(view.textColors, null, null)
@@ -189,7 +190,7 @@ object RgbStrip {
         if (view.currentTextColor != color) view.setTextColor(color)
     }
 
-    private fun paintImage(view: ImageView, strip: View, themeTint: ColorStateList?, filterColor: Int, background: Int, force: Boolean) {
+    private fun paintImage(view: ImageView, strip: View, themeTint: ColorStateList?, filterColor: Int, background: dev.agentkeyboard.core.Seen, force: Boolean) {
         val drawable = view.drawable ?: return
         // an unavailable tool of the fixed bar keeps its "off" colour (stage 88); the bar's own list (with the guaranteed contrast) replaces the theme's
         if (view.getTag(R.id.agent_bar_off) != null) return

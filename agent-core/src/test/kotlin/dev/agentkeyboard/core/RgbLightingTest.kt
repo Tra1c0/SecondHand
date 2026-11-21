@@ -297,15 +297,15 @@ class RgbLightingTest {
     @Test fun labelsKeepAMinimumContrast() {
         val yellow = 0xFFFFFF00.toInt()
         val white = 0xFFFFFFFF.toInt()
-        val fixed = RgbColors.readable(white, yellow)
+        val fixed = RgbColors.readable(white, Seen.of(yellow))
         assertTrue(RgbColors.contrast(fixed, yellow) >= RgbColors.MIN_LABEL_CONTRAST)
         // the same colour on itself becomes readable too
         for (c in listOf(yellow, 0xFF0000FF.toInt(), 0xFF808080.toInt(), 0xFF00FF00.toInt())) {
-            assertTrue(RgbColors.contrast(RgbColors.readable(c, c), c) >= RgbColors.MIN_LABEL_CONTRAST, RgbSettings.hex(c))
+            assertTrue(RgbColors.contrast(RgbColors.readable(c, Seen.of(c)), c) >= RgbColors.MIN_LABEL_CONTRAST, RgbSettings.hex(c))
         }
         // already readable: unchanged, alpha kept
-        assertEquals(white, RgbColors.readable(white, 0xFF000000.toInt()))
-        assertEquals(0x80, RgbColors.alpha(RgbColors.readable(0x80FFFFFF.toInt(), yellow)))
+        assertEquals(white, RgbColors.readable(white, Seen.of(0xFF000000.toInt())))
+        assertEquals(0x80, RgbColors.alpha(RgbColors.readable(0x80FFFFFF.toInt(), Seen.of(yellow))))
     }
 
     @Test fun lightOnATransparentThemeIsNotDarkenedTwice() {
@@ -334,15 +334,15 @@ class RgbLightingTest {
         val dim = 0x80808080.toInt()
         assertTrue(RgbColors.contrast(dim or black, black) >= RgbColors.MIN_LABEL_CONTRAST)
         assertTrue(RgbColors.contrast(RgbColors.over(dim, black), black) < RgbColors.MIN_LABEL_CONTRAST)
-        val fixed = RgbColors.readable(dim, black)
+        val fixed = RgbColors.readable(dim, Seen.of(black))
         assertEquals(0x80, RgbColors.alpha(fixed), "alpha kept")
         assertTrue(RgbColors.contrast(RgbColors.over(fixed, black), black) >= RgbColors.MIN_LABEL_CONTRAST)
         // the same through label()
-        val label = RgbColors.label(dim, 0, false, black)
+        val label = RgbColors.label(dim, 0, false, Seen.of(black))
         assertTrue(RgbColors.contrast(RgbColors.over(label, black), black) >= RgbColors.MIN_LABEL_CONTRAST)
         // invisible stays invisible; too transparent for 3:1 becomes the best possible
-        assertEquals(0, RgbColors.readable(0, black))
-        assertEquals(0x10FFFFFF, RgbColors.readable(0x10808080, black))
+        assertEquals(0, RgbColors.readable(0, Seen.of(black)))
+        assertEquals(0x10FFFFFF, RgbColors.readable(0x10808080, Seen.of(black)))
     }
 
     @Test fun nanAndInfinityNeverThrow() {
@@ -518,5 +518,21 @@ class RgbLightingTest {
         val perFrameMicros = (System.nanoTime() - start) / 1000.0 / frames
         println("RGB light: ${"%.1f".format(perFrameMicros)} µs per frame (474 values), sink $sink")
         assertTrue(perFrameMicros < 10_000, "far below a 33 ms frame even on a slow test machine: $perFrameMicros µs")
+    }
+}
+
+/** Stage 88c: a translucent bottom colour is laid over black first (its alpha was dropped before: white at 50 % counted as white). */
+class RgbColorsOverTest {
+    @Test fun aTranslucentBottomIsNotTakenAsOpaque() {
+        assertEquals(0xFF808080.toInt(), RgbColors.over(0x00000000, 0x80FFFFFF.toInt()))
+        assertEquals(0xFF404040.toInt(), RgbColors.over(0x80000000.toInt(), 0x80FFFFFF.toInt()))
+        // an opaque bottom is as before
+        assertEquals(0xFF808080.toInt(), RgbColors.over(0x80FFFFFF.toInt(), 0xFF000000.toInt()))
+        assertEquals(0xFF123456.toInt(), RgbColors.over(0xFF123456.toInt(), 0x00ABCDEF))
+        assertEquals(0xFFABCDEF.toInt(), RgbColors.over(0x00123456, 0xFFABCDEF.toInt()))
+    }
+
+    @Test fun seenIsOpaqueAlways() {
+        for (c in listOf(0, 0x01FFFFFF, 0x80102030.toInt(), 0xFE102030.toInt(), 0xFF102030.toInt())) assertEquals(255, RgbColors.alpha(Seen.of(c).argb))
     }
 }

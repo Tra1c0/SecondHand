@@ -623,10 +623,12 @@ class FixedBarTest {
         leftKey(h).performClick()
         h.grid.listed.forEach {
             val pill = h.grid.pill(it)!!
-            assertEquals(androidx.core.widget.TextViewCompat.AUTO_SIZE_TEXT_TYPE_UNIFORM, androidx.core.widget.TextViewCompat.getAutoSizeTextType(pill), it.name)
-            assertEquals(1, pill.maxLines)
+            // 88c: the framework's auto size is gone (it did not work beside an icon); the pill fits its name itself: smaller, then two lines
+            // (measured on pixels and on the layout in GridPillsTest)
+            assertEquals(androidx.core.widget.TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE, androidx.core.widget.TextViewCompat.getAutoSizeTextType(pill), it.name)
+            assertEquals(2, pill.maxLines, it.name)
+            assertEquals(android.text.TextUtils.TruncateAt.END, pill.ellipsize, it.name)
         }
-        assertTrue(androidx.core.widget.TextViewCompat.getAutoSizeMinTextSize(h.grid.pill(DICTATE)!!) < androidx.core.widget.TextViewCompat.getAutoSizeMaxTextSize(h.grid.pill(DICTATE)!!))
     }
 
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {

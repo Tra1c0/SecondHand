@@ -62,9 +62,17 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     // stage 30 fix: every section is built once (as the page opens), not on each recomposition
     var symbols by remember { mutableStateOf<Diagnose.Section?>(null) }
     var lastField by remember { mutableStateOf<Diagnose.Section?>(null) }
+    // stage 90a: the card "Korrektur & Sprache"; the sizes of the learned data are read off the main thread
+    var correction by remember { mutableStateOf<Diagnose.Section?>(null) }
     // stage 61: the choice made with the button of the card (null until it is pressed), and that it was saved
     var forceChoice by remember { mutableStateOf<Boolean?>(null) }
     var forceFull by remember { mutableStateOf(false) }
+    // stage 90a: the card appears at once with "wird gezählt …"; reading the whole typing history can take up to 10 s, so it runs
+    // on its own and fills the numbers in when it is done; nothing else on the page waits for it
+    LaunchedEffect(Unit) {
+        correction = withContext(Dispatchers.IO) { Diagnose.correction(context, null) }
+        correction = withContext(Dispatchers.IO) { Diagnose.correction(context, Diagnose.correctionCounts(context)) }
+    }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
         // stage 55: the last field, first on the page; its dictionary files and the app's name off the main thread
@@ -89,7 +97,7 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     }
     val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns, helium314.keyboard.agent.RgbLighting.painterFailure) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
-    val sections = remember(lastField, symbols, emojiMix, lighting) { listOfNotNull(lastField, haptics, symbols, languages, emojiMix, lighting, phone) }
+    val sections = remember(lastField, correction, symbols, emojiMix, lighting) { listOfNotNull(lastField, correction, haptics, symbols, languages, emojiMix, lighting, phone) }
     // stage 64a: the card "Tippen" (read when the page opens and after "Zurücksetzen"), before the card of the app
     var typingVersion by remember { mutableStateOf(0) }
     val typing = remember(typingVersion) { Diagnose.typing(context, helium314.keyboard.agent.TypingPerf.snapshot(), System.currentTimeMillis()) }

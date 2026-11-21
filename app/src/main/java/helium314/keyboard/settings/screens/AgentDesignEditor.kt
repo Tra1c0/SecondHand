@@ -500,7 +500,9 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
     listOf("Hallo", "danke", "gern").forEachIndexed { i, word ->
         val center = size.width * (i * 2 + 1) / 6f
         val wordColor = if (light != null && light.lit(RgbArea.SUGGESTIONS))
-            RgbColors.label(look.suggestion, light.engine(RgbTarget.SUGGESTIONS).light(center / size.width, 0f, -1, now), true, look.strip)
+            RgbColors.label(look.suggestion, light.engine(RgbTarget.SUGGESTIONS).light(center / size.width, 0f, -1, now), true,
+                // the strip colour as seen: over the keyboard background (it may be translucent)
+                dev.agentkeyboard.core.Seen.over(look.strip, dev.agentkeyboard.core.Seen.of(look.background)))
         else look.suggestion
         val layout = measurer.measure(word, TextStyle(color = Color(wordColor), fontSize = 15.sp))
         drawText(layout, topLeft = Offset(center - layout.size.width / 2f, (stripHeight - layout.size.height) / 2f))
@@ -578,7 +580,7 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
                 RgbColors.applyLight(look.background or 0xFF000000.toInt(), backEngine.light(cx, cy, -1, now)) else look.background
             var behind = RgbColors.over(litFill, keyboardBack)
             if (fillLit && light!!.keys.hasTile) behind = RgbColors.over(withAlpha(light.keys.tileMean, RgbColors.alpha(keyLight) / 255f), behind)
-            val color = if (keyLit) RgbColors.label(themeColor, labelLight, labelLit, behind) else themeColor
+            val color = if (keyLit) RgbColors.label(themeColor, labelLight, labelLit, dev.agentkeyboard.core.Seen.of(behind)) else themeColor
             val text = if (key.kind == PreviewKey.Kind.SPACE) language else key.label
             val fontSize = when (key.kind) {
                 PreviewKey.Kind.SPACE, PreviewKey.Kind.PILL -> rowHeight * 0.26f
@@ -586,7 +588,7 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
             }
             drawLabel(measurer, text, rect, color, fontSize, look.weight)
             key.hint?.let { hint ->
-                val hintColor = if (keyLit) RgbColors.label(look.hint, labelLight, labelLit, behind) else look.hint
+                val hintColor = if (keyLit) RgbColors.label(look.hint, labelLight, labelLit, dev.agentkeyboard.core.Seen.of(behind)) else look.hint
                 val layout = measurer.measure(hint, TextStyle(color = Color(hintColor), fontSize = (rowHeight * 0.2f).toSp(), fontWeight = look.weight))
                 drawText(layout, topLeft = Offset(rect.right - layout.size.width - rect.width * 0.12f, rect.top + rect.height * 0.04f))
             }
