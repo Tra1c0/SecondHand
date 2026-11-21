@@ -285,7 +285,8 @@ class BarIconVisibilityTest {
                 assertTrue(RgbColors.contrast(off, bg) >= StripIconColors.NORMAL_CONTRAST - 0.05, "normal: $label")
                 assertTrue(RgbColors.contrast(on, bg) >= StripIconColors.NORMAL_CONTRAST - 0.05, "switched on: $label")
                 if (onColour != offColour) {
-                    val exhausted = on == Color.WHITE || on == Color.BLACK
+                    // nothing more is possible only when "on" is at white/black AND "off" has come down to the minimum contrast
+                    val exhausted = (on == Color.WHITE || on == Color.BLACK) && RgbColors.contrast(off, bg) <= StripIconColors.NORMAL_CONTRAST + 0.06
                     val apart = RgbColors.contrast(on, bg) >= RgbColors.contrast(off, bg) - 0.01 && RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02
                     assertTrue(apart || exhausted, "on and off apart where possible: $label")
                 }
@@ -295,6 +296,19 @@ class BarIconVisibilityTest {
             for (icon in colourSet) assertTrue(RgbColors.contrast(StripIconColors.ensureContrast(icon, ground, StripIconColors.MIN_CONTRAST), ground) >= StripIconColors.MIN_CONTRAST - 0.02, "circle icon ${Integer.toHexString(icon)} on ${Integer.toHexString(ground)}")
         }
         assertTrue(checked > 5000)
+    }
+
+    @Test fun aSwitchedOffToolAtTheExtremeDoesNotSwallowTheSwitchedOnOne() {
+        for ((ground, on, off) in listOf(Triple(0xFF101010.toInt(), 0xFF8AB4F8.toInt(), 0xFFFFFFFF.toInt()), Triple(0xFFF2F2F2.toInt(), 0xFF606060.toInt(), 0xFF000000.toInt()))) {
+            val colors = design(ground, on, ground, ground, ground)
+            val list = StripIconColors.guaranteed(colors, android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_activated), intArrayOf()), intArrayOf(on, off)))
+            val gotOn = list.getColorForState(intArrayOf(android.R.attr.state_activated), 0)
+            val gotOff = StripIconColors.normalOf(list)
+            val label = "ground ${Integer.toHexString(ground)} on ${Integer.toHexString(on)} off ${Integer.toHexString(off)} -> on ${Integer.toHexString(gotOn)} off ${Integer.toHexString(gotOff)}"
+            assertTrue(RgbColors.contrast(gotOn, gotOff) >= StripIconColors.MIN_STATE_STEP - 0.02, "on and off stay apart: $label")
+            assertTrue(RgbColors.contrast(gotOff, ground) >= StripIconColors.NORMAL_CONTRAST - 0.05, "off keeps the minimum: $label")
+            assertTrue(RgbColors.contrast(gotOn, ground) >= RgbColors.contrast(gotOff, ground) - 0.01, "on is not the weaker: $label")
+        }
     }
 
     @Test fun theThreeCasesOfTheSecondReviewStayInRange() {

@@ -35,8 +35,8 @@ mindestens 4,5:1 beträgt; nie unter 3:1. Die Richtung folgt dem Design (ein hel
 dunkleres dunkler; nur wenn das den Kontrast nicht erreicht, geht es zur anderen Seite; der Farbton bleibt, solange es geht).
 Ein Symbol im Akzentkreis (Mikrofon) braucht 3:1 gegen den Kreis (weiß auf Rosa bleibt weiß). Reihenfolge der Regel: erst der Mindestkontrast für jeden Zustand (er gewinnt immer), dann, nur wenn ein Design ein
 eingeschaltetes Werkzeug anders zeigt als ein ausgeschaltetes, der Abstand: das eingeschaltete geht auf seiner Seite weiter vom
-Grund weg (sein Kontrast wächst nur), bis es nicht das schwächere ist und 1,25:1 Abstand hat; reicht selbst Weiß oder Schwarz nicht,
-bleibt es dabei. Zuletzt eine harte Prüfung: kein Zustand verlässt die Rechnung unter 3:1. Die Rechnung nutzt
+Grund weg (sein Kontrast wächst nur), bis es nicht das schwächere ist und 1,25:1 Abstand hat; reicht selbst Weiß oder Schwarz nicht, kommt die
+ausgeschaltete Farbe zum Grund hin zurück (höchstens bis 4,5:1), damit beide nicht am Extrem gleich werden. Zuletzt eine harte Prüfung: kein Zustand verlässt die Rechnung unter 3:1. Die Rechnung nutzt
 `RgbColors.contrast` (dieselbe wie die Beschriftungen der RGB-Beleuchtung), und die RGB-Beleuchtung der Leistenknöpfe
 nimmt dieselbe Farbliste als Grundlage (`RgbStrip.tintOf`).
 
