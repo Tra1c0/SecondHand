@@ -86,6 +86,8 @@ public final class EmojiPalettesView extends LinearLayout
         private final Map<Integer, RecyclerView> mViews = new HashMap<>(1);
         private RecyclerView mList;
         private EmojiPalettesAdapter mRecentsAdapter;
+        /** A tab moved the list: the tab stays marked until the user scrolls himself (review M2: a short last category). */
+        private boolean mJumped;
 
         private PagerAdapter(ViewPager2 pager) {
             setHasStableIds(true);
@@ -114,6 +116,7 @@ public final class EmojiPalettesView extends LinearLayout
 
         void scrollTo(EmojiCategory.Category category, int page) {
             if (mList == null) return;
+            mJumped = true;
             ((LinearLayoutManager) mList.getLayoutManager()).scrollToPositionWithOffset(startOf(category) + page, 0);
         }
 
@@ -134,6 +137,11 @@ public final class EmojiPalettesView extends LinearLayout
             var emojiRecyclerView = getRecyclerView(view);
 
             emojiRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING) mJumped = false;
+                }
+
                 @Override
                 public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                     updateState(recyclerView);
@@ -193,6 +201,7 @@ public final class EmojiPalettesView extends LinearLayout
             if (firstVisible == RecyclerView.NO_POSITION) return;
             final int[] at = categoryAt(firstVisible);
             final EmojiCategory.Category category = EmojiCategory.Category.getEntries().get(at[0]);
+            if (mJumped) return; // the tab the user chose stays, even where the list cannot scroll that far
             if (category != mEmojiCategory.getCurrentCategory()) {
                 final boolean leavingRecents = mEmojiCategory.isInRecentTab();
                 setCurrentCategoryFromScroll(category);
@@ -201,7 +210,7 @@ public final class EmojiPalettesView extends LinearLayout
                     recentsChanged();
                 }
             }
-            mEmojiCategory.setCurrentCategoryPageId(at[1]);
+            if (at[1] != mEmojiCategory.getCurrentCategoryPageId()) mEmojiCategory.setCurrentCategoryPageId(at[1]); // review L4: not on every pixel
             // the indicator shows where in the current category the list is
             final View first = layoutManager.findViewByPosition(firstVisible);
             final float within = first == null || first.getHeight() == 0 ? 0f : Math.min(1f, -first.getTop() / (float) first.getHeight());
@@ -480,6 +489,11 @@ public final class EmojiPalettesView extends LinearLayout
             mEmojiCategory.setCurrentCategory(category);
 
             // stage 93b: a tab (or the start) moves the continuous list; scrolling calls setCurrentCategoryFromScroll instead
+            if (oldCategory == EmojiCategory.Category.RECENTS && !initial && mPager.getAdapter() instanceof PagerAdapter) {
+                // review M1: leaving the recents by a tab puts them in order, as leaving them by scrolling does
+                getRecentsKeyboard().flushPendingRecentKeys();
+                ((PagerAdapter) mPager.getAdapter()).recentsChanged();
+            }
             if (mPager.getAdapter() instanceof PagerAdapter)
                 ((PagerAdapter) mPager.getAdapter()).scrollTo(category, initial ? mEmojiCategory.getCurrentCategoryPageId() : 0);
             highlightTab(oldCategory, category);

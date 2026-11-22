@@ -7,7 +7,7 @@ Owner: „Fix bitte bei den Emojis, dass bei der Page ein durchgängiger Scroll 
 `setIsolateViewTypes(false)`) alle Kategorien nacheinander zeigt; `startOf`/`categoryAt` rechnen Listenposition ↔ Kategorie; Tabs scrollen
 (`scrollTo`), Scrollen markiert den Tab (`setCurrentCategoryFromScroll`), Seitenanzeige innerhalb der Kategorie; Zuletzt-benutzt wird beim
 Verlassen neu geordnet (`flushPendingRecentKeys`), Änderungen daran binden nicht mehr die ganze Liste neu (`recentsChanged`). Abnahme-Zeilen
-B1–B8 in `docs/EMOJI-KONZEPT.md` Abschnitt 5. Nachweis: Prüfer, GitHub-Läufe; kein Emulator-Szenario fürs Wischen (offen), nicht auf einem Telefon.
+B1–B8 in `docs/EMOJI-KONZEPT.md` Abschnitt 5. Prüfer: M1 (Tab weg von Zuletzt benutzt ordnete nicht neu) und M2 (kurze letzte Kategorie: Markierung sprang zurück) behoben, L4 (Position bei jedem Pixel gespeichert) behoben. Nachweis: GitHub-Läufe; kein Emulator-Szenario fürs Wischen (offen), nicht auf einem Telefon.
 
 ## Etappe 95 — altes Leistenlayout kam zurück (Owner, 2026-11-22)
 
