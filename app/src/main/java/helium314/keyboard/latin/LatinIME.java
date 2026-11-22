@@ -1028,8 +1028,18 @@ public class LatinIME extends InputMethodService implements
         }
     }
 
+    /** Fork, stage 93a: the field of the app is back after the emoji search: insert what was picked (at most 5 s later). */
+    private void deliverPendingEmojiSearchDone() {
+        final Intent pending = mPendingEmojiSearchDone;
+        if (pending == null || isEmojiSearch()) return;
+        mPendingEmojiSearchDone = null;
+        if (android.os.SystemClock.uptimeMillis() - mPendingEmojiSearchDoneAt > 5000) return;
+        onEmojiSearchDone(pending);
+    }
+
     void onStartInputViewInternal(final EditorInfo editorInfo, final boolean restarting) {
         mKeyboardActionListener.onCursorTrackEnd(-1); // fork, stage 87: no trackpad owner or drag carries over to another field
+        if (mPendingEmojiSearchDone != null) mHandler.post(this::deliverPendingEmojiSearchDone); // fork, stage 93a: after the field is set up
         // fork, stage 22: personal hit boxes, and the calibration field of our own settings
         helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent(), editorInfo, restarting); // stage 50: field and app for the dynamic zones
         helium314.keyboard.agent.KeyboardCommands.load(this);
@@ -2104,9 +2114,20 @@ public class LatinIME extends InputMethodService implements
                           .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK));
     }
 
+    // fork, stage 93a: the search sends its result at the tap, while the keyboard still serves the search field; it is kept
+    // until the field of the app is back (onStartInputView) and inserted there, never into the search field
+    private Intent mPendingEmojiSearchDone;
+    private long mPendingEmojiSearchDoneAt;
+
     private void onEmojiSearchDone(Intent intent) {
         Log.d(EmojiSearchActivityKt.TAG, "after activity closing. isEmojiSearch: " + isEmojiSearch() + ". Intent: " + intent +
                 (intent != null ? ". imeClosed: " + isImeClosed(intent) : "")); // stage 65: never the selected emoji
+        if (intent != null && EmojiSearchActivity.EMOJI_SEARCH_DONE_ACTION.equals(intent.getAction()) && isEmojiSearch()) {
+            mPendingEmojiSearchDone = intent;
+            mPendingEmojiSearchDoneAt = android.os.SystemClock.uptimeMillis();
+            return;
+        }
+        mPendingEmojiSearchDone = null;
         if (intent != null && EmojiSearchActivity.EMOJI_SEARCH_DONE_ACTION.equals(intent.getAction()) && ! isEmojiSearch()) {
             if (isImeClosed(intent)) {
                 requestHideSelf(0);

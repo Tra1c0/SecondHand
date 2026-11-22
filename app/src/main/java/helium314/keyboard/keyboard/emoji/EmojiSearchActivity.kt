@@ -129,6 +129,11 @@ class EmojiSearchActivity : ComponentActivity() {
     private var pressedKey: Key? = null
     private var imeVisible = false
     private var imeClosed = false
+    // fork, stage 93a: the results scroll (no limit of 16); the visible window keeps the old height of two rows (one in landscape)
+    private lateinit var resultsScroll: android.widget.ScrollView
+    private var resultsWindowHeight = 0
+    /** Stage 93a: the selection was sent at the tap already, onStop sends nothing more. */
+    private var doneSent = false
 
     private val closer = Runnable {
         if (!imeVisible) {
@@ -187,7 +192,8 @@ class EmojiSearchActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxWidth().align(Alignment.CenterVertically))
                         }
                         key(emojiPageKeyboardView) {
-                            AndroidView({ emojiPageKeyboardView }, modifier = Modifier.wrapContentHeight().fillMaxWidth())
+                            AndroidView({ resultsScroll }, modifier = Modifier
+                                .height(with(androidx.compose.ui.platform.LocalDensity.current) { resultsWindowHeight.toDp() }).fillMaxWidth())
                         }
                         val focusRequester = remember { FocusRequester() }
                         var text by remember { mutableStateOf(TextFieldValue(searchText, selection = TextRange(searchText.length))) }
@@ -271,6 +277,13 @@ class EmojiSearchActivity : ComponentActivity() {
 
     override fun onStop() {
         Log.d(TAG, "search ending. Emoji selected: ${pressedKey != null}. imeClosed: $imeClosed") // stage 65: not which emoji
+        sendDone()
+        super.onStop()
+    }
+
+    private fun sendDone() {
+        if (doneSent) return
+        doneSent = true
         val intent = Intent(EMOJI_SEARCH_DONE_ACTION).setPackage(packageName)
             .putExtra(IME_CLOSED_KEY, imeClosed)
         pressedKey?.let {
@@ -279,7 +292,6 @@ class EmojiSearchActivity : ComponentActivity() {
             RecentEmojis.add(emoji)
         }
         sendBroadcast(intent)
-        super.onStop()
     }
 
     private fun getEmoji(key: Key): String? = if (key.code == KeyCode.MULTIPLE_CODE_POINTS)
@@ -296,9 +308,11 @@ class EmojiSearchActivity : ComponentActivity() {
         val keyboardWidth = ResourceUtils.getKeyboardWidth(this, Settings.getValues())
         val layoutSet = KeyboardLayoutSet.Builder(this, null, null).setSubtype(RichInputMethodSubtype.emojiSubtype)
             .setKeyboardGeometry(keyboardWidth, EmojiLayoutParams(resources).emojiKeyboardHeight).build()
-        val keyboard = DynamicGridKeyboard.ofRowCount(prefs(), layoutSet.getKeyboard(KeyboardElement.EMOJI_RECENTS),
-            if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 1 else 2,
-            false, keyboardWidth)
+        val template = layoutSet.getKeyboard(KeyboardElement.EMOJI_RECENTS)
+        val visibleRows = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 1 else 2
+        // stage 93a: as many results as match; the window shows the old number of rows and scrolls
+        val keyboard = DynamicGridKeyboard.ofKeyCount(prefs(), template, MAX_RESULTS, false, keyboardWidth)
+        resultsWindowHeight = DynamicGridKeyboard.ofRowCount(prefs(), template, visibleRows, false, keyboardWidth).occupiedHeight + 20
         val builder = KeyboardBuilder(this, KeyboardParams())
         builder.load(keyboard.mId)
         keyboardParams = builder.mParams
@@ -312,6 +326,11 @@ class EmojiSearchActivity : ComponentActivity() {
         emojiPageKeyboardView.background = null
         colors.setBackground(emojiPageKeyboardView, ColorType.MAIN_BACKGROUND)
         emojiPageKeyboardView.setPadding(0, 10, 0, 10)
+        resultsScroll = android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            colors.setBackground(this, ColorType.MAIN_BACKGROUND)
+            addView(emojiPageKeyboardView)
+        }
         loadEmojiDefaultVersionsAndPopupSpecs(this)
 
         emojiPageKeyboardView.setEmojiViewCallback(object : EmojiViewCallback {
@@ -320,7 +339,10 @@ class EmojiSearchActivity : ComponentActivity() {
 
             override fun onReleaseKey(key: Key) {
                 pressedKey = key
+                // stage 93a: send at once (the keyboard keeps it until the field is back) and close without an animation
+                sendDone()
                 finish()
+                @Suppress("DEPRECATION") overridePendingTransition(0, 0)
             }
 
             override fun getDescription(emoji: String): String? = if (Settings.getValues().mShowEmojiDescriptions)
@@ -357,8 +379,12 @@ class EmojiSearchActivity : ComponentActivity() {
         keyboard.removeAllKeys()
         firstKey = null
         pressedKey = null
-        dictionaryFacilitator!!.getSuggestions(text.splitOnWhitespace()).filter { it.isEmoji }.forEach {
-            val emoji = getEmojiDefaultVersion(it.word)
+        // stage 93a: by name and keyword (CLDR); the dictionary's word suggestions only without an index
+        val found = if (EmojiSearchIndex.available(this))
+            EmojiSearchIndex.search(this, text, searchLanguages(), supported = { !SupportedEmojis.isUnsupported(it) }).take(MAX_RESULTS)
+        else dictionaryFacilitator!!.getSuggestions(text.splitOnWhitespace()).filter { it.isEmoji }.map { it.word }
+        found.forEach {
+            val emoji = getEmojiDefaultVersion(it)
             val popupSpec = getEmojiPopupSpec(emoji)
             val keyParams = Key.KeyParams(emoji, emoji.getCode(), if (popupSpec != null) EMOJI_HINT_LABEL else null, popupSpec,
                 Key.LABEL_FLAGS_FONT_NORMAL, keyboardParams)
@@ -368,7 +394,9 @@ class EmojiSearchActivity : ComponentActivity() {
             keyboard.addKeyLast(key)
             if (firstKey == null) firstKey = key
         }
+        emojiPageKeyboardView.requestLayout()
         emojiPageKeyboardView.invalidate()
+        resultsScroll.scrollTo(0, 0)
 
         searchText = text
         firstSearchDone = true
@@ -376,6 +404,12 @@ class EmojiSearchActivity : ComponentActivity() {
             Log.d(TAG, "IME opened in search")
             imeOpened = true
         }
+    }
+
+    /** The keyboard's language first, then the other bundled ones. */
+    private fun searchLanguages(): List<String> {
+        val current = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.locale.language }.getOrNull()
+        return (listOfNotNull(current) + EmojiSearchIndex.LANGUAGES).distinct().filter { it in EmojiSearchIndex.LANGUAGES }
     }
 
     private fun cancel() {
@@ -386,6 +420,9 @@ class EmojiSearchActivity : ComponentActivity() {
     data class PrivateImeOptions(val height: Int)
 
     companion object {
+        /** Stage 93a: more than any search needs ("herz" matches about 120). */
+        const val MAX_RESULTS = 400
+
         const val EMOJI_SEARCH_DONE_ACTION: String = "EMOJI_SEARCH_DONE"
         const val IME_CLOSED_KEY: String = "IME_CLOSED"
         const val EMOJI_KEY: String = "EMOJI"

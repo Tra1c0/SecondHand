@@ -1,3 +1,9 @@
+# Neu: Emoji-Suche
+
+- **Findet, was du meinst**: Die Emoji-Suche sucht jetzt nach den offiziellen Namen und Stichwörtern (Deutsch, Englisch, Spanisch). „herz“ bringt ❤️ nach vorn, „daumen“ 👍, „flagge deutschland“ 🇩🇪; Umlaute und Groß/klein sind egal.
+- **Keine Grenze bei 16**: Alle Treffer sind da, die Fläche scrollt.
+- **Sofort eingefügt**: Ein Tipp setzt das Emoji ein, ohne dass das Suchfenster erst langsam zugeht.
+
 # Neu: weniger falsche Korrekturen
 
 - **Abkürzungen bleiben**: Wörter nur aus Großbuchstaben (2–5 Buchstaben, etwa ETF, AVD, ÖPNV) werden nicht mehr automatisch ersetzt.
