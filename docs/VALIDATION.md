@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Etappe 95 — altes Leistenlayout kam zurück (Owner, 2026-11-22)
+
+Owner: „Es kann sein, dass random das ganz alte Layout zurückkommt, also das ohne Drag-and-drop und mit seitlich scrollen.“ Ursache (gelesen,
+nicht am Gerät nachgestellt): `SuggestionStripView.fixedBar` wird einmal beim Bau der Ansicht aus `SettingsValues.mFixedBar` gelesen; bei
+gesperrtem Gerät ist `mToolbarMode` dort HIDDEN, also `mFixedBar` falsch. Baut Android die Eingabeansicht im Sperrzustand neu (Design- oder
+Dunkelmodus-Wechsel, Antwort vom Sperrbildschirm, Neustart des Prozesses), behält die Ansicht nach dem Entsperren das alte Layout, bis sie
+neu gebaut wird. Behebung: `fixedBar` liest die Einstellung des Owners (`readToolbarMode`, `AgentPreferences.FIXED_BAR`) ohne Sperrzustand;
+die Sperre blendet die Leiste weiter aus (`LatinIME.updateSuggestionStripView`). Kein eigener Test (die Ansicht im Sperrzustand bauen braucht
+einen Robolectric-Aufbau, der fehlt); nur vom Owner am Telefon prüfbar.
+
 ## Etappe 94 — aktuelles Wort beim Löschen (Owner, 2026-11-22)
 
 Owner: „Wenn man ein Wort Buchstabe für Buchstabe löscht, wird das aktuelle Wort auch angezeigt – in seinem Zustand. Den Anzeigebug gibt es

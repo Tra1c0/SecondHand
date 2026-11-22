@@ -139,7 +139,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * left, the tools in equal cells, no scrolling and no expand arrow; suggestions and chips replace the tools,
      * see [BarState] and [FixedBar]. The other modes keep their old look.
      */
-    private val fixedBar = !isGone && Settings.getValues().mFixedBar
+    // fork, stage 95 (owner: "random kommt das ganz alte Layout zurück"): the view lives longer than the settings it was built with; built
+    // while the device was locked, SettingsValues said "hidden" and the view stayed the old scrolling bar after unlocking. The owner's
+    // choice decides; the lock only hides the strip (LatinIME.updateSuggestionStripView), it does not change its kind.
+    private val fixedBar = !isGone && Settings.readToolbarMode(context.prefs()) == ToolbarMode.EXPANDABLE
+        && context.prefs().getBoolean(helium314.keyboard.agent.AgentPreferences.FIXED_BAR, true)
     private val barState = BarState()
 
     // ---- fork, stage 89: the writing session (BarState.calm/writing), the debounce of the words and the counters of the diagnose ----

@@ -1,5 +1,7 @@
 # Neu: das Wort, das du gerade bearbeitest
 
+- **Altes Leistenlayout kommt nicht mehr zurück**: Wurde die Tastatur bei gesperrtem Telefon neu aufgebaut (Design- oder Dunkelmodus-Wechsel, Antwort vom Sperrbildschirm), blieb danach die alte, seitlich scrollende Leiste. Jetzt zählt nur deine Einstellung.
+
 - **Beim Löschen sichtbar**: Löschst du ein Wort Buchstabe für Buchstabe oder gehst du in ein Wort zurück, steht es in der Mitte der Leiste so, wie es gerade ist. War es automatisch korrigiert, steht links dein getipptes Wort – ein Tipp setzt es ein. Die Leiste bleibt dabei nicht mehr leer.
 
 # Neu: Emoji-Suche
