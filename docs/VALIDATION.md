@@ -17,8 +17,14 @@ zurück gehe um es zu ändern, wird es mir nicht angezeigt. Ich muss erst wieder
   sie, solange ein Wort zusammengesetzt wird).
 - Vergleich: AdaptKey (eigene Kotlin-Tastatur) hält Plätze beim Tippen stabil (S-03), sortiert erst nach einer Pause (S-04) und heftet bei
   anstehender Autokorrektur das getippte Wort links an (S-06; bei uns `Suggest.kt` Index 2 = links, schon vorhanden). Nicht übernommen.
-- Nachweis: Gerätetests `bar_calm_typing` (keine leere Mitte, nach dem Löschen im Wort „W“) und `revert_correction_shows_word`; Läufe
-  im Build-Log. Nicht auf einem Telefon.
+- Endgültige Regel (nach Prüfer und Tests): Der Wächter gegen späte Wiederaufnahme brach 16 Cursor-, Trackpad- und URL-Tests und ist
+  entfernt (Restrisiko L1 niedrig, wie vorher bei Cursorbewegungen). `BarState.onNeutral` bleibt wie in 89; neu `onPause()` am Ende des
+  Haltens (800 ms nach der letzten Taste) und „sichtbare Werkzeuge werden nie zur leeren Mitte“.
+- Protokolle `StripCalmLogTest` (Tempo 600 ms je Taste, Satz + Absatz + zehn Rücktasten): ohne Vorhersage, mit Vorhersage und mit
+  langsamer Verbindung je genau ein Wechsel (Werkzeuge → Wörter bei der ersten Taste), keine leere Mitte (vorher 17 / 7 / 14 Wechsel).
+- Nachweis: Gerätetests (Emulator, echte Tasten) `bar_calm_typing` (keine leere Mitte, nach dem Löschen im Wort „W“) und
+  `revert_correction_shows_word` grün in den Läufen 44971494145 und 44979055244; „SecondHand Tests“ 44979055247: agent, lint, build grün,
+  upstream nur mit den drei alten Protokollen rot (danach erneuert). Nicht auf einem Telefon.
 
 ## Etappe 89 — ruhige Leiste beim Schreiben (Stufe 1)
 
