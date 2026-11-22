@@ -103,8 +103,11 @@ jobs:
               total += int(root.get("tests", 0))
               cls = root.get("name", "").split(".")[-1]
               for case in root.iter("testcase"):
-                  if case.find("failure") is not None or case.find("error") is not None:
+                  bad = case.find("failure") if case.find("failure") is not None else case.find("error")
+                  if bad is not None:
                       failed.append(f"{cls}.{case.get('name')}")
+                      # the assertion message, so that a red run can be read from the job log (artifacts are not reachable everywhere)
+                      print(f"FAILMSG {cls}.{case.get('name')}: " + (bad.get("message") or "").replace("\n", " ")[:400])
           new = [f for f in failed if f not in known]
           too_few = total < minimum
           lines = [f"Tests: {total} (minimum {minimum}), failed: {len(failed)}, new (outside baseline): {len(new)}", ""]

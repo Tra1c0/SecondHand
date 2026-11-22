@@ -839,8 +839,9 @@ class SuggestTest {
         // caps lock -> uppercase suggestions
         // fork, stage 91 (AdaptKey D-404, G-05): a word typed with caps lock stays as typed, the uppercase corrections are offered
         val result2 = getSuggestedWords(false, "bur", CapsMode.MANUAL_LOCKED)
-        assert(!result2.mWillAutoCorrect)
-        assert(result2.mSuggestedWordInfoList.map { it.mWord }.containsAll(listOf("BUT", "BIT", "BUY")))
+        val words2 = result2.mSuggestedWordInfoList.map { it.mWord }
+        assertEquals(false, result2.mWillAutoCorrect, "caps lock: $words2")
+        assert(words2.containsAll(listOf("BUT", "BIT", "BUY"))) { "caps lock: $words2" }
 
         // score too low will correct to capitalized typed word (except if using very aggressive threshold)
         tapTypingSuggestions = suggestionResults(listOf(
