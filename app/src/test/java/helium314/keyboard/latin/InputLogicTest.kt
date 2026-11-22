@@ -800,8 +800,8 @@ class InputLogicTest {
             chainInput("world ")
             assertEquals("hello world ", text)
             setCursorPosition(2) // inside "hello"
-            // the corrected word in the editor is not shown, its typed form is left
-            assertEquals(listOf("hullo", "hull", "hallo"), stripSlots())
+            // stage 94: the corrected word as it stands in the centre, its typed form left, a similar word right
+            assertEquals(listOf("hullo", "hello", "hull"), stripSlots())
             tapSlot(0)
             assertEquals("hullo world ", text)
             assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello")) // remembered like backspace
