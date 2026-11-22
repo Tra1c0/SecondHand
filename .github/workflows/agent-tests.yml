@@ -118,6 +118,9 @@ jobs:
           sys.exit(1 if new or too_few else 0)
           EOF
 
+      - name: Strip protocols (stage 89, golden files of StripCalmLogTest)
+        if: ${{ always() }}
+        run: for f in app/build/strip-protocol-*.txt; do [ -f "$f" ] && { echo "=== $f"; cat "$f"; }; done; true
       - name: Test reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

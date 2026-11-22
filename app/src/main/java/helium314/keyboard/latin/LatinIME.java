@@ -363,7 +363,6 @@ public class LatinIME extends InputMethodService implements
                     }
                     break;
                 case MSG_RESUME_SUGGESTIONS:
-                    if (latinIme.mInputLogic.isComposingWord()) break; // fork, stage 89b: a key typed meanwhile owns the word
                     latinIme.mInputLogic.restartSuggestionsOnWordTouchedByCursor(
                             latinIme.mSettings.getCurrent(),
                             latinIme.mKeyboardSwitcher.getCurrentKeyboardScript());

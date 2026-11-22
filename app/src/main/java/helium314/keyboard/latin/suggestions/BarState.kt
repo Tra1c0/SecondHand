@@ -66,6 +66,11 @@ class BarState {
         pinned = false
     }
 
+    /** Stage 89b: a real pause with nothing to offer in the session: the tools instead of an empty words area; the session goes on. */
+    fun onPause() {
+        if (calm && writing && show == Show.CONTENT && !hasContent) show = Show.TOOLS
+    }
+
     /** The session is over (an emptied field): the next neutral update shows the tools. */
     fun endSession() { writing = false; pinned = false }
 
@@ -84,12 +89,12 @@ class BarState {
     /** [fieldEmpty]: the cursor is at the start and nothing is before it; then the session is over and the tools come back. */
     fun onNeutral(fieldEmpty: Boolean = false) {
         if (calm && writing && !fieldEmpty) {
-            // the writing session goes on, but an empty words area is never shown (stage 89b, owner: "die Leiste wird schwarz"):
-            // the strip holds the old words while typing goes on (SuggestionStripView), the tools come only after a real pause
+            // the writing session: the words area stays while words stand (the strip holds them while typing goes on); tools that show
+            // stay (stage 89b, owner: "die Leiste wird schwarz"): never from the tools to an empty words area
             hasContent = false
             stickyTools = false
             contentIsSelection = false
-            show = Show.TOOLS
+            show = if (pinned || show == Show.TOOLS) Show.TOOLS else Show.CONTENT
             return
         }
         writing = false

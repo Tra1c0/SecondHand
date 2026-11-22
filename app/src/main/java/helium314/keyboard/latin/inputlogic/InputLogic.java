@@ -1738,11 +1738,6 @@ public final class InputLogic {
         }
     }
 
-    /** Fork, stage 89b: a word is being composed; a resume posted earlier must not replace it (review L1). */
-    public boolean isComposingWord() {
-        return mWordComposer.isComposingWord();
-    }
-
     String getWordAtCursor(final SettingsValues settingsValues, final String currentKeyboardScript) {
         if (!mConnection.hasSelection()
                 && settingsValues.needsToLookupSuggestions()

@@ -153,7 +153,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     // a Handler, not View.postDelayed: that one waits for a window (a view without one, as in tests or while hidden, would never run it)
     private val calmHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var releaseScheduled = false
-    private val releaseWords = Runnable { releaseScheduled = false; staleWords = false; applyNeutral(heldRtl) }
+    private var releaseAfterPause = false
+    // stage 89b: the hold ran out without a new list: a real pause, the tools come (not an empty words area)
+    private val releaseWords = Runnable { releaseScheduled = false; staleWords = false; releaseAfterPause = true; applyNeutral(heldRtl); releaseAfterPause = false }
 
     /** Whether the session rule applies in this field: the fixed bar, and a field that can show words (not a password, number or phone field, suggestions on). */
     private fun updateCalm() {
@@ -438,7 +440,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         isExternalSuggestionVisible = false
         if (fixedBar) {
             // words, and punctuation the user asked for, replace the tools; an empty list gives the tools back
-            if (suggestions.isEmpty) barState.onNeutral(fieldEmpty) else barState.onContent()
+            if (suggestions.isEmpty) { barState.onNeutral(fieldEmpty); if (releaseAfterPause) barState.onPause() } else barState.onContent()
             fieldEmpty = false
         }
         reportToLastField(newContent = true)

@@ -138,14 +138,20 @@ class BarStateTest {
         assertEquals(Show.CONTENT, state.show)
     }
 
-    @Test fun inTheSessionNeutralShowsTheToolsNeverAnEmptyAreaAndTheSessionGoesOn() {
-        // stage 89b: the strip holds the old words while typing goes on; what reaches the state after a real pause shows the tools
+    @Test fun inTheSessionNeutralKeepsTheWordsAreaUntilTheFieldIsEmptied() {
         val state = calmState()
         state.onTyped(); state.onContent()
-        state.onNeutral() // a space with nothing to offer, after the pause
-        assertEquals(Show.TOOLS, state.show)
+        state.onNeutral() // a space with nothing to offer
+        assertEquals(Show.CONTENT, state.show)
         assertFalse(state.hasContent)
+        assertEquals(LeftKey.SHOW_TOOLS, state.leftKey)
+        state.onPause() // stage 89b: the hold of the strip ran out: the tools, the session goes on
+        assertEquals(Show.TOOLS, state.show)
         assertTrue(state.writing)
+        state.onNeutral() // and a further neutral update does not empty the bar
+        assertEquals(Show.TOOLS, state.show)
+        state.onContent(); state.onPause() // a pause with words changes nothing
+        assertEquals(Show.CONTENT, state.show)
         state.onNeutral(fieldEmpty = true)
         assertEquals(Show.TOOLS, state.show)
         assertFalse(state.writing)

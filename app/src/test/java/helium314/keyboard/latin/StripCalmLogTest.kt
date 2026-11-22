@@ -305,14 +305,14 @@ class StripCalmLogTest {
         rig.type("Hallo"); rig.settle()
         assertEquals("W", state())
         val before = rig.text
-        rig.tapFast(','.code) // the neutral update: the words of "Hallo" stand for 250 ms, outdated
+        rig.tapFast(','.code) // the neutral update: the words of "Hallo" stand for 800 ms (stage 89b), outdated
         // a view without a width gets no text in a test: a word view of the strip is stood in for by a view with the tag the layout gives it
         val view = android.widget.TextView(latinIME).apply { tag = 0 }
         strip.onClick(view)
         assertEquals(before + ",", rig.text, "nothing was picked")
         assertEquals(1, helium314.keyboard.agent.BarCalmCounters.total.droppedTaps)
-        repeat(30) { rig.idle(10) } // the debounce is over
-        assertEquals("E", state())
+        repeat(90) { rig.idle(10) } // the debounce is over: a real pause, the tools (stage 89b), never an empty words area
+        assertEquals("T", state())
     }
 
     /** "Leiste automatisch anzeigen" does not show the tools after Enter while the user writes; at the start of a field it still does. */
