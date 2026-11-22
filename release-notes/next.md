@@ -1,3 +1,10 @@
+# Neu: weniger falsche Korrekturen
+
+- **Abkürzungen bleiben**: Wörter nur aus Großbuchstaben (2–5 Buchstaben, etwa ETF, AVD, ÖPNV) werden nicht mehr automatisch ersetzt.
+- **Vorsilben bleiben**: Würde eine Korrektur die Vorsilbe tauschen („berstehen“ → „verstehen“), steht sie nur als Vorschlag in der Leiste; ein Tipp übernimmt sie.
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Wort beim Zurückgehen, keine schwarze Leiste
 
 - **Zurück ins Wort**: Löschst du zurück in ein Wort, zeigt die Leiste wieder Vorschläge dazu, auch in Apps, die einmal langsam geantwortet haben (bisher dort zehn Minuten lang nichts).

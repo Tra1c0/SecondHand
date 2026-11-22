@@ -511,6 +511,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             || suggestionResults.isEmpty() // If we don't have suggestion results, we can't evaluate the first suggestion for auto-correction
             || wordComposer.hasDigits() // If the word has digits, we never auto-correct because it's likely the word was type with a lot of care // todo: but what if user touched the number row?
             || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase) // If the word is mostly caps, we never auto-correct because this is almost certainly intentional
+            // fork, stage 91: acronyms and exchanged German prefixes stay a suggestion (rules of AdaptKey)
+            || helium314.keyboard.agent.CorrectionGuards.blocks(typedWordString, firstSuggestionInContainer?.mWord, firstSuggestionInContainer?.mSourceDict?.mLocale)
             || wordComposer.isResumed // We never auto-correct when suggestions are resumed because it would be unexpected
             // a typed command like "@math" and the words of its argument stay as typed
             || helium314.keyboard.agent.KeyboardCommands.isCommandWord(typedWordString)

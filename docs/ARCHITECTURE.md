@@ -3206,7 +3206,7 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   beginnt mit dem getippten), Formen mit Ziffern, unter zwei Zeichen, nur andere Großschreibung.
   Tests: `TypoMemoryTest`, Fälle „stage 20b“ in `SuggestTest` und `InputLogicTest`.
 - Getipptes Wort vorne (48): `K/agent/TypedWordFirst.kt` (nur im Speicher, je Feld, höchstens 32
-  Korrekturen, kein Lernspeicher), `K/agent/Abbreviations.kt` (feste Listen, keine Lerndaten);
+  Korrekturen, kein Lernspeicher), `K/agent/Abbreviations.kt` (feste Listen, keine Lerndaten); `K/agent/CorrectionGuards.kt` (Etappe 91: Veto gegen das stille Ersetzen von Abkürzungen in Großbuchstaben und von Wörtern, deren deutsche Vorsilbe die Korrektur austauschen würde; nach AdaptKey D-404/D-354, aufgerufen in `Suggest.shouldBeAutoCorrected`; Test `AT/CorrectionGuardsTest.kt`);
   Einbindung im Abschnitt „Geänderte Upstream-Dateien“ → Autokorrektur. Tests:
   `TypedWordFirstTest`, Fälle „stage 48“ in `SuggestTest` und `InputLogicTest`.
 - Korrekturen im ganzen Feld (49): Regeln rein in `C/CorrectionRules.kt` (`diff`: genau ein Wort
@@ -6751,7 +6751,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (772 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (774 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6762,12 +6762,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (100): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (101): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
-  CorrectionMemory, CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset, DesignLook,
-  DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
+  CorrectionGuards, CorrectionMemory, CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset,
+  DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
   EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips, FlatMenuView,
   FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords, FormatGuardChips, GermanVerbLemmas,
   HapticChain, InformalWordsStore, InlineAutofill, JournaledModelCall, JournaledRun,
@@ -6791,37 +6791,38 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (132): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (133): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarCalmCountersTest, BarEditModeTest,
   BarIconVisibilityTest, BarToolsTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
-  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
-  CursorGestureTrackerTest, CursorTrackDiagTest, CursorTrackpadReasonTest, DatePlaceCommandsTest,
-  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseCorrectionTest, DiagnoseScreenTest,
-  DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
-  FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest,
-  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest,
-  GridPillsTest, HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest,
-  InlineAutofillCardTest, InlineAutofillGenerationTest, InlineAutofillResponseTest,
-  InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest,
-  KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
-  LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
-  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SeenSurfaceTest,
-  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
-  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest,
-  SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest,
-  SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest,
-  TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest,
-  TypedWordFirstTest, TypingPerfTest, TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest,
-  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionGuardsTest,
+  CorrectionMemoryTest, CursorGestureTrackerTest, CursorTrackDiagTest, CursorTrackpadReasonTest,
+  DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest,
+  DiagnoseCorrectionTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
+  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, GridPillsTest, HapticChainTest,
+  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
+  InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
+  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SeenSurfaceTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest, UpdateChipTest,
+  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest

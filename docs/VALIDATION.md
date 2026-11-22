@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Etappe 91 — Schutzregeln der Autokorrektur nach AdaptKey (Owner, 2026-11-22)
+
+Auftrag: „Bau nach, was sich nachbauen lässt“ (AdaptKey, GPL-3.0). Ein Agent hat 58 Regeln aus dem Quelltext katalogisiert (Vorschlagsleiste,
+Korrekturentscheidung, Rücknahme, Bearbeiten eines Worts, Zeiten). Abgleich des Leads: Die meisten hat die AOSP-Engine schon (Rücknahme per
+Rücktaste mit Textprüfung, beschleunigtes Löschen, Echo-Schutz, Leerzeichen nach Vorschlag, Folgewörter, Nachbartasten-Kosten, „Richtige Wörter
+nie ändern“ strenger als A-01, Ziffern strenger als D-371). Gebaut: D-404 (Abkürzungen 2–5 Großbuchstaben nie ersetzen; bisher ersetzte die
+Engine sie, `isAllUpperCase` war ausgenommen) und D-354 (Austausch einer deutschen Vorsilbe nur als Vorschlag). Nachweis: `CorrectionGuardsTest`,
+GitHub-Läufe im Build-Log. Nicht übernommen, als Vorschlag offen: S-03/S-04 (stabile Plätze; bei drei Plätzen mit fester Mitte wenig Wirkung),
+D-377 (Chip bei verfehlter Rücktaste), S-05 (erkanntes Wort grün färben, ändert das Aussehen).
+
 ## Etappe 89b — Wort beim Zurückgehen, keine leere Leiste (Owner, Build 45, 2026-11-22)
 
 Rückmeldung des Owners: „die Vorschlagvorschau blendet sich random aus und die Leiste wird schwarz. Wenn ein Wort korrigiert wird und ich
