@@ -104,7 +104,8 @@ class StripCalmLogTest {
                 sample()
                 // the delayed messages run in steps of 10 ms (fake clock), so a change inside the 300 ms after the key is seen, not only its end
                 repeat(40) { rig.idle(10); Thread.sleep(2); sample() }
-                rig.settle()
+                // stage 89b: a typing pace (600 ms per key in all), not rig.settle() (1.2 s more): a pause of 800 ms brings the tools by design
+                repeat(4) { rig.idle(50); Thread.sleep(10) }
                 sample()
                 if (c == '\n') println("after ENTER: text=[" + rig.text.replace("\n","<NL>") + "] composing=[" + rig.composing + "]")
                 val label = if (c == b) "<-" else if (c == '\n') "ENTER" else if (c == ' ') "SPACE" else "$c"
@@ -150,8 +151,9 @@ class StripCalmLogTest {
         rig.predictions = emptyList()
         val rows = protocol(sentence + tenBackspaces)
         println("visible changes without predictions: ${switches(rows)}, tools: ${toolSwitches(rows)}")
+        check("no-predictions", rows) // first, so that CI prints the protocol even when a claim below fails
         assertEquals(1, toolSwitches(rows), "the tools go away with the first key and never come back: " + visible(rows))
-        check("no-predictions", rows)
+        assertEquals(0, visible(rows).count { it.startsWith("E") }, "never an empty words area (stage 89b): " + visible(rows))
     }
 
     /** The dictionary offers next words after a space. */
@@ -159,8 +161,8 @@ class StripCalmLogTest {
         rig.predictions = listOf("wie", "und", "ich")
         val rows = protocol(sentence + tenBackspaces)
         println("visible changes with predictions: ${switches(rows)}, tools: ${toolSwitches(rows)}")
-        assertEquals(1, toolSwitches(rows), visible(rows).toString())
         check("with-predictions", rows)
+        assertEquals(1, toolSwitches(rows), visible(rows).toString())
     }
 
     /** An app with a slow editor connection: every backspace asks for the neutral strip (InputLogic line 1731). */
@@ -168,8 +170,8 @@ class StripCalmLogTest {
         rig.predictions = emptyList()
         val rows = protocol(sentence + tenBackspaces, slowConnection = true)
         println("visible changes with slow connection: ${switches(rows)}, tools: ${toolSwitches(rows)}")
-        assertEquals(1, toolSwitches(rows), visible(rows).toString())
         check("slow-connection", rows)
+        assertEquals(1, toolSwitches(rows), visible(rows).toString())
     }
 
     /**
@@ -263,7 +265,8 @@ class StripCalmLogTest {
         val cache = cls.getDeclaredField("mCommittedTextBeforeComposingText").apply { isAccessible = true }.get(connection)
         (cache as StringBuilder).setLength(0)
         latinIME.setNeutralSuggestionStrip()
-        assertTrue(state() != "T", "the session goes on: " + state())
+        // stage 89b: after the pause of rig.settle() the tools show by design; the claim is that the session is not ended
+        assertTrue(strip.isWritingSession(), "the session goes on: " + state())
     }
 
     /** F5: the field is emptied and the dictionary offers next words there: the words stay, the session is over. */
@@ -323,7 +326,7 @@ class StripCalmLogTest {
         rig.settle()
         assertEquals("T", state(), "a new field: the tools")
         rig.play("Hallo wie"); rig.settle()
-        rig.tap('\n'.code); rig.settle()
+        rig.tapFast('\n'.code); rig.idle(300) // before the pause of 800 ms (stage 89b), which brings the tools by design
         assertTrue(state() != "T", "after Enter in the session: " + state())
     }
 
