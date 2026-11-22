@@ -2241,16 +2241,10 @@ public final class InputLogic {
     }
 
     /**
-     * Reverts a previous commit with auto-correction.
-     * <p>
-     * This is triggered upon pressing backspace just after a commit with auto-correction.
-     *
-     * @param inputTransaction The transaction in progress.
-     */
-    /**
-     * Fork, stage 92 (Codex analysis P0): the check of the debug branch below, in every build. The text before the cursor must be
-     * the committed word and its separator; otherwise the app changed the text meanwhile and a revert would delete the wrong
-     * characters, so the backspace acts as a normal one. When the app does not give the text, the old behaviour stays.
+     * Fork, stage 92 (Codex analysis P0): the check of the debug branch of [revertCommit], in every build. The text before the
+     * cursor must be the committed word and its separator; otherwise a revert would delete the wrong characters, so the backspace
+     * acts as a normal one. When no text is known, the old behaviour stays. The text comes from the connection's cache when it
+     * holds enough: an app that changes the text without telling the keyboard is not seen (review L1).
      */
     private boolean revertTargetIsBeforeCursor() {
         final String expected = mLastComposedWord.mCommittedWord.toString() + mLastComposedWord.mSeparatorString;
@@ -2259,6 +2253,13 @@ public final class InputLogic {
         return TextUtils.equals(expected, before.toString());
     }
 
+    /**
+     * Reverts a previous commit with auto-correction.
+     * <p>
+     * This is triggered upon pressing backspace just after a commit with auto-correction.
+     *
+     * @param inputTransaction The transaction in progress.
+     */
     private void revertCommit(final InputTransaction inputTransaction) {
         final CharSequence originallyTypedWord = mLastComposedWord.mTypedWord;
         final CharSequence committedWord = mLastComposedWord.mCommittedWord;
