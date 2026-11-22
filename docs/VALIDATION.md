@@ -6,7 +6,7 @@ Konzept `docs/EMOJI-KONZEPT.md` mit Abnahme-Zeilen; Kritiker vor dem Bau fand dr
 verworfen oder ins Suchfeld eingefügt worden (`isEmojiSearch`) → `LatinIME` hält das Ergebnis bis zum App-Feld; (2) die Ergebnisfläche scrollte
 nicht und kappte bei 16 (`DynamicGridKeyboard.addKey`) → `ofKeyCount` in einem `ScrollView`; (3) ❤️ heißt „rotes Herz“ und wäre bei „herz“
 nach hinten gerutscht → Gleichstand nach kürzerem Namen und Kategorie-Reihenfolge. Nachweis: `EmojiSearchIndexTest` (Zeilen 1–3, 6, 7),
-GitHub-Läufe im Build-Log. Offen: Zeile 4 (Zeit bis zum Text im Feld) nur am Gerät, kein Gerätetest geschrieben; 93b (durchgehende Ansicht) nicht gebaut.
+GitHub-Läufe im Build-Log. Prüfer: M1 (geschlossene Tastatur wäre beim nächsten Feld wieder versteckt worden) behoben, nur ein gewähltes Emoji wartet; L3 (Regex je Aufruf) und L4 (Lesefehler dauerhaft gemerkt) behoben. Offen: Zeile 4 (Zeit bis zum Text im Feld) nur am Gerät, kein Gerätetest geschrieben; 93b (durchgehende Ansicht) nicht gebaut.
 
 ## Etappe 92 — kein stilles Ersetzen durch Ziele nur aus dem eigenen Tippen (Codex-Analyse P1, Befund 4 des Owners)
 

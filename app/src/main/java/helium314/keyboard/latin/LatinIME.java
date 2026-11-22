@@ -2122,7 +2122,9 @@ public class LatinIME extends InputMethodService implements
     private void onEmojiSearchDone(Intent intent) {
         Log.d(EmojiSearchActivityKt.TAG, "after activity closing. isEmojiSearch: " + isEmojiSearch() + ". Intent: " + intent +
                 (intent != null ? ". imeClosed: " + isImeClosed(intent) : "")); // stage 65: never the selected emoji
-        if (intent != null && EmojiSearchActivity.EMOJI_SEARCH_DONE_ACTION.equals(intent.getAction()) && isEmojiSearch()) {
+        // only a picked emoji waits (review M1: a closed keyboard is hidden at once as before, never at the next field)
+        if (intent != null && EmojiSearchActivity.EMOJI_SEARCH_DONE_ACTION.equals(intent.getAction()) && isEmojiSearch()
+                && intent.hasExtra(EmojiSearchActivity.EMOJI_KEY) && !isImeClosed(intent)) {
             mPendingEmojiSearchDone = intent;
             mPendingEmojiSearchDoneAt = android.os.SystemClock.uptimeMillis();
             return;

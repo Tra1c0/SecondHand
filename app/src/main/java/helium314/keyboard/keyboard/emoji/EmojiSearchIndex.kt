@@ -28,15 +28,16 @@ object EmojiSearchIndex {
 
     val LANGUAGES = listOf("de", "en", "es")
     private val cache = HashMap<String, List<Entry>>()
+    private val MARKS = Regex("\\p{Mn}+")
 
     fun fold(text: String): String {
         val lower = text.lowercase(Locale.ROOT).replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-        return Normalizer.normalize(lower, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+        return Normalizer.normalize(lower, Normalizer.Form.NFD).replace(MARKS, "")
     }
 
     @Synchronized
-    fun entries(context: Context, language: String): List<Entry> = cache.getOrPut(language) {
-        runCatching {
+    fun entries(context: Context, language: String): List<Entry> = cache[language] ?: run {
+        val read = runCatching {
             context.assets.open("emoji/search_$language.tsv").bufferedReader().useLines { lines ->
                 lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapIndexedNotNull { index, line ->
                     val parts = line.split('\t')
@@ -48,7 +49,9 @@ object EmojiSearchIndex {
                     Entry(parts[0], index, name, words.distinct(), texts)
                 }.toList()
             }
-        }.getOrDefault(emptyList())
+        }
+        // a failed read is not kept: the next search tries again (review L4)
+        read.getOrNull()?.also { cache[language] = it } ?: emptyList()
     }
 
     /** True when at least one index file is there; otherwise the caller keeps the old dictionary search. */
