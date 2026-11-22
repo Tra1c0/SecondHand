@@ -363,7 +363,7 @@ bewusst keine Endung `.gz` (Fallstrick P70).
 
 ## Emoji-Suchindex (Etappe 93a)
 
-`app/src/main/assets/emoji/search_<de|en|es>.tsv` stammt aus den Unicode-CLDR-Annotationen (`cldr-json`, Pakete `cldr-annotations-full` und
+`app/src/main/assets/emoji_search/search_<de|en|es>.tsv` stammt aus den Unicode-CLDR-Annotationen (`cldr-json`, Pakete `cldr-annotations-full` und
 `cldr-annotations-derived-full`, Stand 2026-11-22), Lizenz Unicode License V3 (frei, mit Hinweis; der Hinweis steht in der ersten Zeile jeder Datei).
 Neu erzeugen: die sechs `annotations.json` als `<lang>.json` und `d_<lang>.json` in einen Ordner legen, dann
-`python3 tools/emoji/build_search_index.py <ordner> app/src/main/assets/emoji`.
+`python3 tools/emoji/build_search_index.py <ordner> app/src/main/assets/emoji_search`.

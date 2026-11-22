@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage 93a: builds app/src/main/assets/emoji/search_<lang>.tsv from the Unicode CLDR annotations (Unicode License V3).
+"""Stage 93a: builds app/src/main/assets/emoji_search/search_<lang>.tsv from the Unicode CLDR annotations (Unicode License V3).
 
 Input: the cldr-json files annotations/<lang>/annotations.json and annotationsDerived/<lang>/annotations.json
 (https://github.com/unicode-org/cldr-json, cldr-annotations-full and cldr-annotations-derived-full), passed as a folder with
@@ -9,17 +9,18 @@ those the device can draw (SupportedEmojis)."""
 import json, sys, os
 
 src, out = sys.argv[1], sys.argv[2]
+lists = os.path.join(os.path.dirname(os.path.abspath(out)), "emoji")  # the category lists of the keyboard
 os.makedirs(out, exist_ok=True)
 # only the base emojis of the keyboard's own category lists (first entry of a line), compared without U+FE0F
 def norm(e): return e.replace("\ufe0f", "")
 shown = {}  # normalized -> the form the keyboard shows, in the keyboard's order (the category files, sorted by name)
 ORDER = ["SMILEYS_AND_EMOTION", "PEOPLE_AND_BODY", "ANIMALS_AND_NATURE", "FOOD_AND_DRINK", "TRAVEL_AND_PLACES", "ACTIVITIES",
          "OBJECTS", "SYMBOLS", "FLAGS"]
-files = [f + ".txt" for f in ORDER if os.path.exists(os.path.join(out, f + ".txt"))]
-files += sorted(n for n in os.listdir(out) if n.endswith(".txt") and n[:-4].replace("_", "").isupper() and n not in files)
+files = [f + ".txt" for f in ORDER if os.path.exists(os.path.join(lists, f + ".txt"))]
+files += sorted(n for n in os.listdir(lists) if n.endswith(".txt") and n[:-4].replace("_", "").isupper() and n not in files)
 for name in files:
     if True:
-        for line in open(os.path.join(out, name), encoding="utf-8"):
+        for line in open(os.path.join(lists, name), encoding="utf-8"):
             parts = line.split()
             if parts: shown.setdefault(norm(parts[0]), parts[0])
 for lang in ("de", "en", "es"):
