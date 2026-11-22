@@ -17,7 +17,7 @@ immer noch: Ein Wort wird korrigiert, Löschtaste, um sein altes Wort links ausz
 löscht, kommt links ein ganz anderes Wort.“ Ursache (gelesen): Im Tippstil zeigt die Leiste Index 0 (das Wort im Editor) nie; ein wieder
 aufgenommenes gültiges Wort ohne Alternativen ergab eine leere Leiste, nach dem nächsten Buchstaben standen Vorschläge des gekürzten Worts.
 Regel: `CurrentWordShown` (Mitte = Wort wie es steht, links = getippte Form, danach Alternativen), nur bei Rücktaste oder wieder aufgenommenem
-Wort, nie bei anstehender Autokorrektur. Nachweis: `CurrentWordShownTest`; GitHub-Läufe im Build-Log. Nicht auf einem Telefon.
+Wort, nie bei anstehender Autokorrektur. Nachweis: `CurrentWordShownTest`; vier `InputLogicTest`-Erwartungen und die drei `StripCalmLogTest`-Protokolle (nur die Wortspalte der Rücktasten 33–42) auf die neue Regel umgestellt, sie hielten das verdeckte Wort fest. Prüfer: kein Befund ab mittlerer Schwere. GitHub-Läufe im Build-Log. Nicht auf einem Telefon.
 
 ## Etappe 93a — Emoji-Suche (Owner, 2026-11-22)
 

@@ -758,10 +758,10 @@ class InputLogicTest {
         assertEquals("hello ", text)
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("hullo", text)
-        // left the word as typed, centre and right similar words; the typed word is not repeated
-        assertEquals(listOf("hullo", "hello", "hull"), stripSlots())
+        // stage 94: the word as it stands (the typed form) in the centre, the undone correction left, a similar word right
+        assertEquals(listOf("hello", "hullo", "hull"), stripSlots())
         assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect)
-        tapSlot(0)
+        tapSlot(1)
         assertEquals("hullo", text)
         chainInput("x")
         assertEquals("hullo x", text)
@@ -774,7 +774,8 @@ class InputLogicTest {
             assertEquals("Halle ", text)
             functionalKeyPress(KeyCode.DELETE)
             assertEquals("Hallo", text)
-            assertEquals(listOf("Hallo", "Halle", "Halt"), stripSlots())
+            // stage 94: the word as it stands in the centre (here the typed form, the correction was undone), the correction left
+            assertEquals(listOf("Halle", "Hallo", "Halt"), stripSlots())
         }
         reset()
         withSimilarWords("iphone", "phone") {
@@ -783,7 +784,7 @@ class InputLogicTest {
             assertEquals("iphone ", text)
             functionalKeyPress(KeyCode.DELETE)
             assertEquals("iPhone", text)
-            assertEquals("iPhone", stripSlots()[0])
+            assertEquals("iPhone", stripSlots()[1]) // stage 94: the centre, with its case
         }
     }
 
@@ -826,7 +827,8 @@ class InputLogicTest {
     @Test fun `a word the cursor goes back to without a correction shows no extra word`() = withSimilarWords("hello", "hull") {
         chainInput("hello world ")
         setCursorPosition(2)
-        assertEquals(listOf(null, "hull", null), stripSlots()) // HeliBoard's display, unchanged
+        // stage 94 (owner): the resumed word is shown as it stands in the centre, a similar word left
+        assertEquals(listOf("hull", "hello", null), stripSlots())
         // a case-only correction ("ok" -> "OK") keeps the typed case at the first slot
         setText("")
         chainInput("ok")
