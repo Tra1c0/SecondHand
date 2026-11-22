@@ -423,9 +423,25 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             settings.mKeepValidWords, settings.mKeepUmlautVariants
         ) { t, c -> settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, t, c) }
         if (!allowed) return false
+        // stage 92 (owner's finding 4, "nichtmal" -> "nicbmal"; Codex analysis P1): a target only the owner's passive typing made
+        // (typing history, or the personal dictionary, which keeps typos automatically when that option is on) is no evidence for
+        // a silent replacement: it stays a suggestion unless a main dictionary or the built-in informal list knows it.
+        if (passiveOnlyTarget(first, results)) return false
         // stage 60: asked last, only when the correction would be applied; a correction without a locale stays outside
         val correctionLocale = first.mSourceDict.mLocale ?: return true
         return !sentenceIsOfOtherLanguage(typed, ngramContext, correctionLocale)
+    }
+
+    /** Fork, stage 92: [first] comes from the typing history or the personal dictionary only, and no main dictionary or informal list knows it. */
+    private fun passiveOnlyTarget(first: SuggestedWordInfo, results: Collection<SuggestedWordInfo>): Boolean {
+        val type = first.mSourceDict.mDictType
+        if (type != Dictionary.TYPE_USER_HISTORY && type != Dictionary.TYPE_USER) return false
+        if (first.isKindOf(SuggestedWordInfo.KIND_WHITELIST) || first.isKindOf(SuggestedWordInfo.KIND_SHORTCUT)) return false
+        val word = first.mWord
+        if (results.any { it.mSourceDict.mDictType == Dictionary.TYPE_MAIN && it.mWord.equals(word, ignoreCase = true) }) return false
+        if ((mDictionaryFacilitator as? DictionaryFacilitatorImpl)?.mainLocalesKnowing(word)?.isNotEmpty() == true) return false
+        val language = first.mSourceDict.mLocale?.language
+        return !helium314.keyboard.agent.InformalWordsStore.protects(Settings.getCurrentContext(), word, language, ForeignWords.languageOf(Settings.getValues()))
     }
 
     /**

@@ -3,6 +3,8 @@
 - **Abkürzungen bleiben**: Wörter nur aus Großbuchstaben (2–5 Buchstaben, etwa ETF, AVD, ÖPNV) werden nicht mehr automatisch ersetzt.
 - **Vorsilben bleiben**: Würde eine Korrektur die Vorsilbe tauschen („berstehen“ → „verstehen“), steht sie nur als Vorschlag in der Leiste; ein Tipp übernimmt sie.
 
+- **Keine Korrektur zu eigenen Tippfehlern**: Ein Wort, das die Tastatur nur aus deinem eigenen Tippen kennt (Verlauf, automatisch ins persönliche Wörterbuch übernommen), ersetzt nichts mehr von selbst; „nichtmal“ bleibt „nichtmal“. Es steht weiter als Vorschlag in der Leiste.
+
 Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
 
 # Neu: Wort beim Zurückgehen, keine schwarze Leiste

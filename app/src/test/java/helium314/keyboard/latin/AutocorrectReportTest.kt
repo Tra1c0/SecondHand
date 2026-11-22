@@ -30,6 +30,7 @@ import java.util.Locale
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -111,13 +112,15 @@ class AutocorrectReportTest {
         // the engine knows no "nichtmal"; its best hit is a history entry (the owner once committed "nicbmal")
         results(history("nicbmal", 600000, Locale.GERMAN), main("nicht", 300000, Locale.GERMAN))
         val words = type("nichtmal", listOf("und"))
-        assertEquals("nicbmal", words.correction(), "no rule asks whether the correction is a dictionary word")
+        // stage 92: fixed - a target only the typing history knows is offered, never set by itself
+        assertEquals(null, words.correction(), "a history-only non-word must not replace the typed word")
+        assertTrue((0 until words.size()).any { words.getWord(it) == "nicbmal" }, "it stays in the strip as a suggestion")
         // the same with the cautious level: it protects typed words, not the target of a correction
         settings(keepValid = true)
-        assertEquals("nicbmal", type("nichtmal", listOf("und")).correction())
+        assertEquals(null, type("nichtmal", listOf("und")).correction())
         // and for the apostrophe case of finding 2: "war's" becomes the learned typo "war'a"
         results(history("war'a", 600000, Locale.GERMAN), main("war", 300000, Locale.GERMAN))
-        assertEquals("war'a", type("war's", listOf("und")).correction())
+        assertEquals(null, type("war's", listOf("und")).correction())
     }
 
     @Test fun `reported finding 4 - a correct typed word that a main dictionary knows is not replaced by a history non-word`() {
