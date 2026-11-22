@@ -1729,6 +1729,8 @@ public final class InputLogic {
             }
             if (mConnection.hasSlowInputConnection()) {
                 mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+                // fork, stage 89b: a slow app no longer loses the word for ten minutes; resume once the deleting pauses (debounced, off the key)
+                mLatinIME.mHandler.postResumeSuggestions(true /* shouldDelay */);
             } else if (inputTransaction.getSettingsValues().needsToLookupSuggestions()
                     && inputTransaction.getSettingsValues().mSpacingAndPunctuations.mCurrentLanguageHasSpaces) {
                 restartSuggestionsOnWordTouchedByCursor(inputTransaction.getSettingsValues(), currentKeyboardScript);

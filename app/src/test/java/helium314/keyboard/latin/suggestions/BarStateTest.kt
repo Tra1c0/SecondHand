@@ -138,13 +138,14 @@ class BarStateTest {
         assertEquals(Show.CONTENT, state.show)
     }
 
-    @Test fun inTheSessionNeutralKeepsTheWordsAreaUntilTheFieldIsEmptied() {
+    @Test fun inTheSessionNeutralShowsTheToolsNeverAnEmptyAreaAndTheSessionGoesOn() {
+        // stage 89b: the strip holds the old words while typing goes on; what reaches the state after a real pause shows the tools
         val state = calmState()
         state.onTyped(); state.onContent()
-        state.onNeutral() // a space with nothing to offer
-        assertEquals(Show.CONTENT, state.show)
+        state.onNeutral() // a space with nothing to offer, after the pause
+        assertEquals(Show.TOOLS, state.show)
         assertFalse(state.hasContent)
-        assertEquals(LeftKey.SHOW_TOOLS, state.leftKey)
+        assertTrue(state.writing)
         state.onNeutral(fieldEmpty = true)
         assertEquals(Show.TOOLS, state.show)
         assertFalse(state.writing)
@@ -156,7 +157,8 @@ class BarStateTest {
         val state = calmState()
         state.onNeutral(); state.onTyped() // the hook calls onTyped for the delete key as well
         state.onNeutral()
-        assertEquals(Show.CONTENT, state.show)
+        assertTrue(state.writing)
+        assertEquals(Show.TOOLS, state.show)
     }
 
     @Test fun theToolsTheUserAskedForStayUntilTheNextTypedKey() {

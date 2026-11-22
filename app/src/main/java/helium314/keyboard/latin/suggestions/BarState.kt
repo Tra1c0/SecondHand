@@ -84,11 +84,12 @@ class BarState {
     /** [fieldEmpty]: the cursor is at the start and nothing is before it; then the session is over and the tools come back. */
     fun onNeutral(fieldEmpty: Boolean = false) {
         if (calm && writing && !fieldEmpty) {
-            // the writing session: the words area stays (empty), the tools only when the user asked for them
+            // the writing session goes on, but an empty words area is never shown (stage 89b, owner: "die Leiste wird schwarz"):
+            // the strip holds the old words while typing goes on (SuggestionStripView), the tools come only after a real pause
             hasContent = false
             stickyTools = false
             contentIsSelection = false
-            show = if (pinned) Show.TOOLS else Show.CONTENT
+            show = Show.TOOLS
             return
         }
         writing = false
@@ -154,6 +155,6 @@ class BarState {
          * dictionary on its own thread and one hop to the main thread; 250 ms leaves 150 ms for that. A longer time would leave outdated
          * words standing (they cannot be tapped meanwhile, see `SuggestionStripView.staleWords`).
          */
-        const val CALM_DEBOUNCE_MS = 250L
+        const val CALM_DEBOUNCE_MS = 800L
     }
 }
