@@ -16,7 +16,7 @@ Auftrag: „Bau nach, was sich nachbauen lässt“ (AdaptKey, GPL-3.0). Ein Agen
 Korrekturentscheidung, Rücknahme, Bearbeiten eines Worts, Zeiten). Abgleich des Leads: Die meisten hat die AOSP-Engine schon (Rücknahme per
 Rücktaste mit Textprüfung, beschleunigtes Löschen, Echo-Schutz, Leerzeichen nach Vorschlag, Folgewörter, Nachbartasten-Kosten, „Richtige Wörter
 nie ändern“ strenger als A-01, Ziffern strenger als D-371). Gebaut: D-404 (Abkürzungen 2–5 Großbuchstaben nie ersetzen; bisher ersetzte die
-Engine sie, `isAllUpperCase` war ausgenommen) und D-354 (Austausch einer deutschen Vorsilbe nur als Vorschlag). Nachweis: `CorrectionGuardsTest`,
+Engine sie, `isAllUpperCase` war ausgenommen) und D-354 (Austausch einer deutschen Vorsilbe nur als Vorschlag). Nachweis: `CorrectionGuardsTest`; zwei Upstream-Erwartungen in `SuggestTest` („BUR“ und Feststelltaste) auf die neue Regel umgestellt (keine Ersetzung, Vorschläge stehen weiter in der Leiste; AdaptKey D-404/G-05 genauso),
 GitHub-Läufe im Build-Log. Nicht übernommen, als Vorschlag offen: S-03/S-04 (stabile Plätze; bei drei Plätzen mit fester Mitte wenig Wirkung),
 D-377 (Chip bei verfehlter Rücktaste), S-05 (erkanntes Wort grün färben, ändert das Aussehen).
 

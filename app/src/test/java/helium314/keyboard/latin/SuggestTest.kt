@@ -477,9 +477,10 @@ class SuggestTest {
         assert(!result3.mWillAutoCorrect)
         assertEquals(listOf("BUr", "but", "bit", "buy", "😢", "Butter"), result3.mSuggestedWordInfoList.map { it.mWord })
 
+        // fork, stage 91 (AdaptKey D-404): a word of two to five capitals is never replaced automatically, the corrections are offered
         val result4 = getSuggestedWords(false, "BUR", CapsMode.OFF)
-        assert(result4.mWillAutoCorrect)
-        assertEquals(listOf("BUR", "BUT", "BUR", "BIT", "BUY", "😢", "BUTTER"), result4.mSuggestedWordInfoList.map { it.mWord })
+        assert(!result4.mWillAutoCorrect)
+        assert(result4.mSuggestedWordInfoList.map { it.mWord }.containsAll(listOf("BUR", "BUT", "BIT", "BUY")))
     }
 
     @Test fun `suggestions use manual caps modes`() {
@@ -836,9 +837,10 @@ class SuggestTest {
         assertEquals(listOf("bur", "But", "Bur", "Bit", "Buy", "😢", "Butter"), result.mSuggestedWordInfoList.map { it.mWord })
 
         // caps lock -> uppercase suggestions
+        // fork, stage 91 (AdaptKey D-404, G-05): a word typed with caps lock stays as typed, the uppercase corrections are offered
         val result2 = getSuggestedWords(false, "bur", CapsMode.MANUAL_LOCKED)
-        assert(result2.mWillAutoCorrect)
-        assertEquals(listOf("bur", "BUT", "BUR", "BIT", "BUY", "😢", "BUTTER"), result2.mSuggestedWordInfoList.map { it.mWord })
+        assert(!result2.mWillAutoCorrect)
+        assert(result2.mSuggestedWordInfoList.map { it.mWord }.containsAll(listOf("BUT", "BIT", "BUY")))
 
         // score too low will correct to capitalized typed word (except if using very aggressive threshold)
         tapTypingSuggestions = suggestionResults(listOf(
