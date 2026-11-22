@@ -1,5 +1,25 @@
 # Prüfnachweise
 
+## Etappe 89b — Wort beim Zurückgehen, keine leere Leiste (Owner, Build 45, 2026-11-22)
+
+Rückmeldung des Owners: „die Vorschlagvorschau blendet sich random aus und die Leiste wird schwarz. Wenn ein Wort korrigiert wird und ich
+zurück gehe um es zu ändern, wird es mir nicht angezeigt. Ich muss erst wieder den letzten Buchstaben löschen.“
+
+- Ursache 1 (gelesen, AOSP-Erbe, FUTO hat dieselbe Stelle `InputLogic.java` ~1666): Nach einer einzigen Leseanfrage über 200 ms gilt die
+  Verbindung zehn Minuten als langsam; jede Rücktaste zeigt dann die leere Leiste und sucht das Wort nicht. Jetzt: leere Leiste und danach
+  `postResumeSuggestions(true)` (entprellt wie eine Cursorbewegung).
+- Ursache 2 (gelesen): Nach der Rücknahme einer Autokorrektur (Rücktaste, `revertCommit`) bekam das Wort keine Vorschläge, erst die
+  nächste Rücktaste nahm es wieder auf. Jetzt wird es sofort wieder aufgenommen (wie Gboard): Die Leiste zeigt es, der nächste Buchstabe
+  hängt an das Wort an (vorher: Leerzeichen und neues Wort). Verhaltensänderung, im Bericht an den Owner genannt.
+- Ursache 3 (Folge von Build 45): In der Schreibsitzung blieb der Wörter-Bereich ohne Vorschlag leer (auf #090001 „schwarz“). Jetzt nie
+  leer: alte Wörter bleiben bis 800 ms nach der letzten Taste stehen (nicht antippbar), danach Werkzeuge.
+- Prüferbefund L1 (niedrig): eine verzögerte Wiederaufnahme konnte ein inzwischen getipptes Wort neu setzen; behoben (Handler überspringt
+  sie, solange ein Wort zusammengesetzt wird).
+- Vergleich: AdaptKey (eigene Kotlin-Tastatur) hält Plätze beim Tippen stabil (S-03), sortiert erst nach einer Pause (S-04) und heftet bei
+  anstehender Autokorrektur das getippte Wort links an (S-06; bei uns `Suggest.kt` Index 2 = links, schon vorhanden). Nicht übernommen.
+- Nachweis: Gerätetests `bar_calm_typing` (keine leere Mitte, nach dem Löschen im Wort „W“) und `revert_correction_shows_word`; Läufe
+  im Build-Log. Nicht auf einem Telefon.
+
 ## Etappe 89 — ruhige Leiste beim Schreiben (Stufe 1)
 
 **Auslöser (Owner, Build 43):** Bei Autokorrekturen, Leerzeichen, Satzzeichen und Absätzen wird die Vorschlagsleiste zur Werkzeugleiste, beim Löschen flackert sie. Konzept: `docs/LEISTE-RUHE-KONZEPT.md` (Ursache mit Aufrufketten, Regel, Kritik K1 bis K5, Abnahme-Zeilen).

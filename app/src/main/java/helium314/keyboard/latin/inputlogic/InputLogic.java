@@ -1738,6 +1738,11 @@ public final class InputLogic {
         }
     }
 
+    /** Fork, stage 89b: a word is being composed; a resume posted earlier must not replace it (review L1). */
+    public boolean isComposingWord() {
+        return mWordComposer.isComposingWord();
+    }
+
     String getWordAtCursor(final SettingsValues settingsValues, final String currentKeyboardScript) {
         if (!mConnection.hasSelection()
                 && settingsValues.needsToLookupSuggestions()
@@ -2322,6 +2327,9 @@ public final class InputLogic {
             if (usePhantomSpace) {
                 mJustRevertedACommit = true;
                 mSpaceState = SpaceState.PHANTOM;
+                // fork, stage 89b: the cursor is flush with the reverted word: resume it at once (as Gboard does), so the strip shows the
+                // typed word with its alternatives and the next letter or delete edits the word itself (owner: "wird mir nicht angezeigt")
+                mLatinIME.mHandler.postResumeSuggestions(false /* shouldDelay */);
             }
         } else {
             // For languages without spaces, we revert the typed string but the cursor is flush

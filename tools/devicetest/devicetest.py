@@ -2284,7 +2284,9 @@ def bar_calm_typing(d):
         if char == " " and len(kinds) == 7:
             shot(d, "calm_after_space")
     d.notes.append("kinds while typing: " + "".join(k for _, k in kinds))
-    d.expect_equal("the tools never come back while typing (after the first key)", [c for c, k in kinds[1:] if k == "T"], [])
+    # stage 89b: never an empty (black) words area; the tools may come only after a real pause (a dump here takes about a second), not inside a word
+    d.expect_equal("the tools never come back inside a word", [c for c, k in kinds[1:] if k == "T" and c.isalpha()], [])
+    d.expect_equal("never an empty words area while typing", [c for c, k in kinds[1:] if k == "E"], [])
     # "E" (the words area empty) is read too; inside a word it must not appear. A dump takes a second or more: an empty phase shorter than
     # that (the blink of 100 ms the unit test StripCalmLogTest samples every 10 ms) cannot be seen here.
     d.expect_equal("no empty words area inside a word", [c for c, k in kinds[1:] if k == "E" and c.isalpha()], [])
@@ -2296,7 +2298,9 @@ def bar_calm_typing(d):
         time.sleep(0.35)
         deletes.append(_strip_kind(dump()))
     d.notes.append("kinds while deleting: " + "".join(deletes))
-    d.expect_equal("the tools do not come back while deleting", [k for k in deletes if k == "T"], [])
+    d.expect_equal("never an empty words area while deleting", [k for k in deletes if k == "E"], [])
+    # the owner's case: deleting back into a word shows words for it (the cursor ends in "e" of "es")
+    d.expect_equal("back inside a word the words show", deletes[-1], "W")
     shot(d, "calm_deleted")
     # the left key: the tools, and they stay until the next typed key
     key = left_key(dump())
@@ -2330,6 +2334,26 @@ def bar_calm_typing(d):
     d.expect_field("text", now + "ab")
 
 
+def revert_correction_shows_word(d):
+    """Stage 89b, the owner's case: a delete right after an autocorrection gives the typed word back, and the bar shows words for it
+    (before: an empty bar until one more letter was deleted)."""
+    d.start("revert_correction_shows_word")
+    d.focus("text")
+    for char in "hallo jungs ":
+        d.type(char)
+    time.sleep(0.8)
+    text = d.field("text")
+    if not text.endswith("Jungs "):
+        raise CheckFailed("no autocorrection to revert; the field holds %d chars ending %r" % (len(text), text[-6:]))
+    d.press("delete")
+    time.sleep(1.0)
+    d.expect_field("text", text[:-6] + "jungs")
+    screen = dump()
+    d.notes.append("after the revert the bar shows: " + _strip_kind(screen))
+    d.expect_equal("after the revert the words show", _strip_kind(screen), "W")
+    shot(d, "revert_word_shown")
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -2338,7 +2362,7 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              # stage 88: the bar with real touches; each leaves the standard bar behind
              bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
              # stage 89: the quiet bar while writing
-             bar_calm_typing]
+             bar_calm_typing, revert_correction_shows_word]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

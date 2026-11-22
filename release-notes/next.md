@@ -1,3 +1,11 @@
+# Neu: Wort beim Zurückgehen, keine schwarze Leiste
+
+- **Zurück ins Wort**: Löschst du zurück in ein Wort, zeigt die Leiste wieder Vorschläge dazu, auch in Apps, die einmal langsam geantwortet haben (bisher dort zehn Minuten lang nichts).
+- **Autokorrektur zurücknehmen**: Rücktaste direkt nach einer Korrektur gibt dein getipptes Wort zurück, und die Leiste zeigt es sofort mit Alternativen. Das Wort bleibt bearbeitbar: Ein weiterer Buchstabe hängt an das Wort an (vorher kam ein Leerzeichen dazwischen).
+- **Keine leere Leiste mehr**: Beim Schreiben und Löschen bleiben die letzten Wörter stehen, bis neue kommen. Erst nach knapp einer Sekunde Pause ohne Vorschlag erscheinen die Werkzeuge.
+
+Geprüft mit automatischen Tests und im Emulator mit echten Tastendrücken; auf deinem Telefon noch nicht.
+
 # Neu: ruhige Leiste beim Schreiben
 
 - **Ruhige Leiste**: Sobald du in einem Feld mit Vorschlägen etwas getippt oder gelöscht hast, bleibt die Leiste im Bereich der Wörter, auch nach Leerzeichen, Satzzeichen, Absatz, Autokorrektur und beim Löschen. Ist nichts vorzuschlagen, bleibt der Bereich leer (der Pfeil links bleibt). Die Werkzeuge kommen zurück bei einem neuen Feld, einem leeren Feld, wieder geöffneter Tastatur und wenn du sie verlangst: Tipp auf den Pfeil links oder auf ein Werkzeug. Dann bleiben sie stehen, bis du das nächste Zeichen tippst (so geht auch ein zweites „Rückgängig“, und der Wiederholen-Pfeil bleibt sichtbar).
