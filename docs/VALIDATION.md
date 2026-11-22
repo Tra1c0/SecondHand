@@ -8,9 +8,9 @@ zurück gehe um es zu ändern, wird es mir nicht angezeigt. Ich muss erst wieder
 - Ursache 1 (gelesen, AOSP-Erbe, FUTO hat dieselbe Stelle `InputLogic.java` ~1666): Nach einer einzigen Leseanfrage über 200 ms gilt die
   Verbindung zehn Minuten als langsam; jede Rücktaste zeigt dann die leere Leiste und sucht das Wort nicht. Jetzt: leere Leiste und danach
   `postResumeSuggestions(true)` (entprellt wie eine Cursorbewegung).
-- Ursache 2 (gelesen): Nach der Rücknahme einer Autokorrektur (Rücktaste, `revertCommit`) bekam das Wort keine Vorschläge, erst die
-  nächste Rücktaste nahm es wieder auf. Jetzt wird es sofort wieder aufgenommen (wie Gboard): Die Leiste zeigt es, der nächste Buchstabe
-  hängt an das Wort an (vorher: Leerzeichen und neues Wort). Verhaltensänderung, im Bericht an den Owner genannt.
+- Rücknahme einer Autokorrektur: Der Code nimmt das Wort schon synchron wieder auf (`handleBackspaceEvent` nach `revertCommit`); ein
+  zusätzlicher Aufruf des Leads war wirkungslos (Prüfer) und ist wieder entfernt. Ob die Leiste danach Wörter zeigt, misst der Gerätetest
+  `revert_correction_shows_word`; mögliche Ursachen beim Owner, wenn nicht: langsame Verbindung (Ursache 1) oder die leere Mitte (Ursache 3).
 - Ursache 3 (Folge von Build 45): In der Schreibsitzung blieb der Wörter-Bereich ohne Vorschlag leer (auf #090001 „schwarz“). Jetzt nie
   leer: alte Wörter bleiben bis 800 ms nach der letzten Taste stehen (nicht antippbar), danach Werkzeuge.
 - Prüferbefund L1 (niedrig): eine verzögerte Wiederaufnahme konnte ein inzwischen getipptes Wort neu setzen; behoben (Handler überspringt

@@ -1,7 +1,7 @@
 # Neu: Wort beim Zurückgehen, keine schwarze Leiste
 
 - **Zurück ins Wort**: Löschst du zurück in ein Wort, zeigt die Leiste wieder Vorschläge dazu, auch in Apps, die einmal langsam geantwortet haben (bisher dort zehn Minuten lang nichts).
-- **Autokorrektur zurücknehmen**: Rücktaste direkt nach einer Korrektur gibt dein getipptes Wort zurück, und die Leiste zeigt es sofort mit Alternativen. Das Wort bleibt bearbeitbar: Ein weiterer Buchstabe hängt an das Wort an (vorher kam ein Leerzeichen dazwischen).
+- **Autokorrektur zurücknehmen**: Rücktaste direkt nach einer Korrektur gibt dein getipptes Wort zurück; die Leiste zeigt es jetzt auch in Apps, die einmal langsam waren, und wird dabei nicht mehr leer.
 - **Keine leere Leiste mehr**: Beim Schreiben und Löschen bleiben die letzten Wörter stehen, bis neue kommen. Erst nach knapp einer Sekunde Pause ohne Vorschlag erscheinen die Werkzeuge.
 
 Geprüft mit automatischen Tests und im Emulator mit echten Tastendrücken; auf deinem Telefon noch nicht.
