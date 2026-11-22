@@ -1586,7 +1586,8 @@ public final class InputLogic {
             updateInlineEmojiSearch();
             inputTransaction.setRequiresUpdateSuggestions();
         } else {
-            if (mLastComposedWord.canRevertCommit() && inputTransaction.getSettingsValues().mBackspaceRevertsAutocorrect) {
+            if (mLastComposedWord.canRevertCommit() && inputTransaction.getSettingsValues().mBackspaceRevertsAutocorrect
+                    && revertTargetIsBeforeCursor()) { // fork, stage 92 (Codex P0): never delete text that is not the correction
                 final String lastComposedWord = mLastComposedWord.mTypedWord;
                 revertCommit(inputTransaction);
                 StatsUtils.onRevertAutoCorrect();
@@ -2246,6 +2247,18 @@ public final class InputLogic {
      *
      * @param inputTransaction The transaction in progress.
      */
+    /**
+     * Fork, stage 92 (Codex analysis P0): the check of the debug branch below, in every build. The text before the cursor must be
+     * the committed word and its separator; otherwise the app changed the text meanwhile and a revert would delete the wrong
+     * characters, so the backspace acts as a normal one. When the app does not give the text, the old behaviour stays.
+     */
+    private boolean revertTargetIsBeforeCursor() {
+        final String expected = mLastComposedWord.mCommittedWord.toString() + mLastComposedWord.mSeparatorString;
+        final CharSequence before = mConnection.getTextBeforeCursor(expected.length(), 0);
+        if (before == null || before.length() < expected.length()) return true;
+        return TextUtils.equals(expected, before.toString());
+    }
+
     private void revertCommit(final InputTransaction inputTransaction) {
         final CharSequence originallyTypedWord = mLastComposedWord.mTypedWord;
         final CharSequence committedWord = mLastComposedWord.mCommittedWord;

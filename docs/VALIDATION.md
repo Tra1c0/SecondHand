@@ -8,7 +8,7 @@ aus `TYPE_USER_HISTORY` oder `TYPE_USER` (persönliches Wörterbuch, beim Owner 
 Slang-Liste kennt es, kein Whitelist-/Kürzel-Eintrag → nur Vorschlag. `AutocorrectReportTest` (Befund 4) erwartete bisher den Fehler und erwartet
 jetzt das behobene Verhalten (keine Ersetzung, Wort bleibt in der Leiste). Offen: gelernte Tippfehler-Paare (`TypoMemory`) als dritter Weg sind
 nicht geändert; ein bewusst eigenes Wort des persönlichen Wörterbuchs wird nicht mehr automatisch eingesetzt, nur vorgeschlagen.
-Weitere P0-Punkte der Analyse (Textprüfung vor der Rücknahme auch im Release, Lernbuchung nach unsicherem Commit) sind nicht gebaut.
+P0 Rücknahme: Die Textprüfung vor `revertCommit` lief nur im Debug-Build; jetzt in jedem Build (`revertTargetIsBeforeCursor`): Text vor dem Cursor ≠ korrigiertes Wort + Trennzeichen → normale Rücktaste; liefert die App keinen Text, bleibt das alte Verhalten. Prüfer gestartet. Nicht gebaut: Lernbuchung nach unsicherem Commit.
 
 ## Etappe 91 — Schutzregeln der Autokorrektur nach AdaptKey (Owner, 2026-11-22)
 
