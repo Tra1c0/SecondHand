@@ -126,6 +126,8 @@ public final class InputLogic {
     private final RecapitalizeStatus mRecapitalizeStatus = new RecapitalizeStatus();
 
     private int mDeleteCount;
+    /** Fork, stage 94: the last key was the delete key (read by the suggestion thread). */
+    private volatile boolean mLastKeyWasDelete;
     private boolean mAgentHistorySuppressed;
     // fork, stage 84: the strip work of a separator waits until the batch edit of the key has ended
     private boolean mCodeInputBatchOpen;
@@ -725,6 +727,7 @@ public final class InputLogic {
         InputTransaction inputTransaction = new InputTransaction(settingsValues,
                 processedEvent, SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardCapsMode));
+        mLastKeyWasDelete = processedEvent.getKeyCode() == KeyCode.DELETE; // fork, stage 94
         if (processedEvent.getKeyCode() != KeyCode.DELETE
                 || inputTransaction.getTimestamp() > mLastKeyTime + Constants.LONG_PRESS_MILLISECONDS) {
             mDeleteCount = 0;
@@ -2957,7 +2960,10 @@ public final class InputLogic {
             // fork, stage 48: the resumed corrected word shows its typed form first
             final String typedFirst = composer.isBatchMode() ? null
                     : mTypedWordFirst.typedFor(composer.getTypedWord(), composer.isResumed());
-            if (typedFirst != null) suggestedWords = helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst);
+            // fork, stage 94: while the word is edited with delete or resumed, it is shown as it stands (centre), its typed form left
+            if (!composer.isBatchMode() && composer.isComposingWord() && (composer.isResumed() || mLastKeyWasDelete))
+                suggestedWords = helium314.keyboard.agent.CurrentWordShown.arrange(suggestedWords, composer.getTypedWord(), typedFirst);
+            else if (typedFirst != null) suggestedWords = helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst);
             callback.onGetSuggestedWords(suggestedWords);
         } catch (Exception e) {
             // better go without suggestions than have the keyboard crash

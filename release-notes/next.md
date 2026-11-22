@@ -1,3 +1,7 @@
+# Neu: das Wort, das du gerade bearbeitest
+
+- **Beim Löschen sichtbar**: Löschst du ein Wort Buchstabe für Buchstabe oder gehst du in ein Wort zurück, steht es in der Mitte der Leiste so, wie es gerade ist. War es automatisch korrigiert, steht links dein getipptes Wort – ein Tipp setzt es ein. Die Leiste bleibt dabei nicht mehr leer.
+
 # Neu: Emoji-Suche
 
 - **Findet, was du meinst**: Die Emoji-Suche sucht jetzt nach den offiziellen Namen und Stichwörtern (Deutsch, Englisch, Spanisch). „herz“ bringt ❤️ nach vorn, „daumen“ 👍, „flagge deutschland“ 🇩🇪; Umlaute und Groß/klein sind egal.

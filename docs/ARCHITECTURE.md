@@ -1693,6 +1693,7 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
 - Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandTemplatesTest`, `CommandReplaceTest` und
   `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
+- **Aktuelles Wort beim Löschen (Etappe 94)**: `K/agent/CurrentWordShown.kt` ordnet die Vorschläge, solange ein Wort per Rücktaste bearbeitet oder wieder aufgenommen ist (`InputLogic.mLastKeyWasDelete`, `WordComposer.isResumed`): Mitte das Wort im jetzigen Zustand, links die getippte Form einer Korrektur (Etappe 48), danach die übrigen; eine anstehende Autokorrektur behält ihre Ordnung. Aufruf in `InputLogic.getSuggestedWords` statt `TypedWordFirst.arrange`; Test `AT/CurrentWordShownTest.kt`.
 - **Emoji-Suche (Etappe 93a)**: `K/keyboard/emoji/EmojiSearchIndex.kt` sucht nach Name und Stichwort in `assets/emoji_search/search_<de|en|es>.tsv` (Unicode CLDR, erzeugt von `tools/emoji/build_search_index.py`; Rang: ganzer Name, Wort des Namens, Stichwort, Wortanfang, enthalten; Gleichstand: sehr häufige Emojis (`COMMON`, nach Unicodes Häufigkeitsliste 2021, Reihenfolge ungefähr), kürzerer Name, Reihenfolge der Kategorien; eigener Ordner, weil Tests jede Datei in `assets/emoji/` als Kategorie-Liste lesen; Umlaute/Akzente egal); Test `AT/../keyboard/emoji/EmojiSearchIndexTest.kt`. `EmojiSearchActivity` zeigt die Treffer in einem `ScrollView` (Fenster 2 Reihen, `DynamicGridKeyboard.ofKeyCount`, `MAX_RESULTS` 400) und sendet beim Tipp sofort (`sendDone`, ohne Schließ-Animation); `LatinIME.onEmojiSearchDone` hält das Ergebnis, solange noch das Suchfeld bedient wird (`mPendingEmojiSearchDone`), und setzt es beim nächsten `onStartInputViewInternal` des App-Felds ein (`deliverPendingEmojiSearchDone`, höchstens 5 s). Ohne Index bleibt die alte Wörterbuchsuche.
 - Weitere Befehle (Etappe 24c–24f), jeder in einer eigenen Datei, Reihenfolge in `BUILT_IN`:
   - `A/ContactCommand.kt` (`@contact`): `rank` (gleich, beginnt mit, Wortanfänge, enthält; höchstens
@@ -6752,7 +6753,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (774 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (776 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6763,24 +6764,25 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (101): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (102): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
-  CorrectionGuards, CorrectionMemory, CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset,
-  DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
-  EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips, FlatMenuView,
-  FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords, FormatGuardChips, GermanVerbLemmas,
-  HapticChain, InformalWordsStore, InlineAutofill, JournaledModelCall, JournaledRun,
-  KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState,
-  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
-  PillColors, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
-  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
-  SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
-  UndoOffer, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  CorrectionGuards, CorrectionMemory, CurrentWordShown, CursorTrackDiag, CursorTrackpad,
+  DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
+  EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
+  FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
+  FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
+  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
+  LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
+  MyDesigns, OnDeviceSpeechEngine, PillColors, PlaceCommand, PromptStore, RgbKeyPainter,
+  RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
+  SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel,
+  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
+  SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
+  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6792,16 +6794,16 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (133): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (134): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarCalmCountersTest, BarEditModeTest,
   BarIconVisibilityTest, BarToolsTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
   CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionGuardsTest,
-  CorrectionMemoryTest, CursorGestureTrackerTest, CursorTrackDiagTest, CursorTrackpadReasonTest,
-  DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest,
-  DiagnoseCorrectionTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
-  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  CorrectionMemoryTest, CurrentWordShownTest, CursorGestureTrackerTest, CursorTrackDiagTest,
+  CursorTrackpadReasonTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
+  DesignTilesTest, DiagnoseCorrectionTest, DiagnoseScreenTest, DictationSessionTest,
+  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
   EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, GridPillsTest, HapticChainTest,

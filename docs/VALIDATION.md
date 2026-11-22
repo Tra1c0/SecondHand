@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Etappe 94 — aktuelles Wort beim Löschen (Owner, 2026-11-22)
+
+Owner: „Wenn man ein Wort Buchstabe für Buchstabe löscht, wird das aktuelle Wort auch angezeigt – in seinem Zustand. Den Anzeigebug gibt es
+immer noch: Ein Wort wird korrigiert, Löschtaste, um sein altes Wort links auszuwählen – die Leiste ist schwarz; sobald man den letzten Buchstaben
+löscht, kommt links ein ganz anderes Wort.“ Ursache (gelesen): Im Tippstil zeigt die Leiste Index 0 (das Wort im Editor) nie; ein wieder
+aufgenommenes gültiges Wort ohne Alternativen ergab eine leere Leiste, nach dem nächsten Buchstaben standen Vorschläge des gekürzten Worts.
+Regel: `CurrentWordShown` (Mitte = Wort wie es steht, links = getippte Form, danach Alternativen), nur bei Rücktaste oder wieder aufgenommenem
+Wort, nie bei anstehender Autokorrektur. Nachweis: `CurrentWordShownTest`; GitHub-Läufe im Build-Log. Nicht auf einem Telefon.
+
 ## Etappe 93a — Emoji-Suche (Owner, 2026-11-22)
 
 Konzept `docs/EMOJI-KONZEPT.md` mit Abnahme-Zeilen; Kritiker vor dem Bau fand drei Punkte, alle eingearbeitet: (1) sofortiges Senden wäre
