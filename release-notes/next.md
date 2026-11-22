@@ -1,3 +1,7 @@
+# Neu: Emojis in einem Zug
+
+- **Durchgehend scrollen**: Die Emoji-Ansicht ist eine einzige Liste. Am Ende einer Kategorie geht es ohne seitliches Wischen in die nächste weiter; ein Tipp auf eine Kategorie springt dorthin, die Leiste zeigt beim Scrollen, wo du bist.
+
 # Neu: das Wort, das du gerade bearbeitest
 
 - **Altes Leistenlayout kommt nicht mehr zurück**: Wurde die Tastatur bei gesperrtem Telefon neu aufgebaut (Design- oder Dunkelmodus-Wechsel, Antwort vom Sperrbildschirm), blieb danach die alte, seitlich scrollende Leiste. Jetzt zählt nur deine Einstellung.

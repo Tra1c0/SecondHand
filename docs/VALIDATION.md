@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Etappe 93b — Emojis durchgehend scrollen (Owner, 2026-11-22)
+
+Owner: „Fix bitte bei den Emojis, dass bei der Page ein durchgängiger Scroll ist. Oder gibt's dazu schon Settings?“ Geprüft: keine Einstellung
+(`Settings.PREF_EMOJI_*`). Umbau in `EmojiPalettesView.PagerAdapter`: eine Seite, deren Liste per `ConcatAdapter` (gemeinsame Ansichten,
+`setIsolateViewTypes(false)`) alle Kategorien nacheinander zeigt; `startOf`/`categoryAt` rechnen Listenposition ↔ Kategorie; Tabs scrollen
+(`scrollTo`), Scrollen markiert den Tab (`setCurrentCategoryFromScroll`), Seitenanzeige innerhalb der Kategorie; Zuletzt-benutzt wird beim
+Verlassen neu geordnet (`flushPendingRecentKeys`), Änderungen daran binden nicht mehr die ganze Liste neu (`recentsChanged`). Abnahme-Zeilen
+B1–B8 in `docs/EMOJI-KONZEPT.md` Abschnitt 5. Nachweis: Prüfer, GitHub-Läufe; kein Emulator-Szenario fürs Wischen (offen), nicht auf einem Telefon.
+
 ## Etappe 95 — altes Leistenlayout kam zurück (Owner, 2026-11-22)
 
 Owner: „Es kann sein, dass random das ganz alte Layout zurückkommt, also das ohne Drag-and-drop und mit seitlich scrollen.“ Ursache (gelesen,

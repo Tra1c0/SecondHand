@@ -77,23 +77,48 @@ public final class EmojiPalettesView extends LinearLayout
         }
     }
 
+    /**
+     * Fork, stage 93b (owner: "durchgängiger Scroll"): one page that holds every shown category one after the other
+     * (ConcatAdapter of the per-category adapters), so scrolling goes on from one category into the next; the tab strip
+     * jumps to a category and follows the scrolling. No sideways paging any more.
+     */
     private final class PagerAdapter extends RecyclerView.Adapter<PagerViewHolder> {
-        private boolean mInitialized;
-        private final Map<Integer, RecyclerView> mViews = new HashMap<>(mEmojiCategory.getShownCategories().size());
+        private final Map<Integer, RecyclerView> mViews = new HashMap<>(1);
+        private RecyclerView mList;
+        private EmojiPalettesAdapter mRecentsAdapter;
 
         private PagerAdapter(ViewPager2 pager) {
             setHasStableIds(true);
-            pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-                @Override
-                public void onPageSelected(int position) {
-                    var categoryId = (int) getItemId(position);
-                    setCurrentCategory(EmojiCategory.Category.getEntries().get(categoryId), false);
-                    var recyclerView = mViews.get(position);
-                    if (recyclerView != null) {
-                        updateState(recyclerView, categoryId);
-                    }
-                }
-            });
+            pager.setUserInputEnabled(false); // a single page: nothing to swipe to
+        }
+
+        /** The adapter position of the first page of [category] in the continuous list. */
+        int startOf(EmojiCategory.Category category) {
+            int start = 0;
+            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
+                if (properties.getCategory() == category) return start;
+                start += properties.getPageCount();
+            }
+            return 0;
+        }
+
+        /** The category and the page within it of adapter position [position]. */
+        int[] categoryAt(int position) {
+            int start = 0;
+            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
+                if (position < start + properties.getPageCount()) return new int[] { properties.getCategory().ordinal(), position - start };
+                start += properties.getPageCount();
+            }
+            return new int[] { mEmojiCategory.getCurrentCategory().ordinal(), 0 };
+        }
+
+        void scrollTo(EmojiCategory.Category category, int page) {
+            if (mList == null) return;
+            ((LinearLayoutManager) mList.getLayoutManager()).scrollToPositionWithOffset(startOf(category) + page, 0);
+        }
+
+        void recentsChanged() {
+            if (mRecentsAdapter != null) mRecentsAdapter.notifyItemRangeChanged(0, mRecentsAdapter.getItemCount());
         }
 
         @Override
@@ -110,14 +135,8 @@ public final class EmojiPalettesView extends LinearLayout
 
             emojiRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
                 @Override
-                public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                    super.onScrollStateChanged(recyclerView, newState);
-                    // Ignore this message. Only want the actual page selected.
-                }
-
-                @Override
                 public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                    updateState(recyclerView, viewHolder.mCategoryId);
+                    updateState(recyclerView);
                 }
             });
 
@@ -127,66 +146,66 @@ public final class EmojiPalettesView extends LinearLayout
 
         @Override
         public void onBindViewHolder(PagerViewHolder holder, int position) {
-            holder.mCategoryId = getItemId(position);
+            holder.mCategoryId = 0;
             var recyclerView = getRecyclerView(holder.itemView);
             mViews.put(position, recyclerView);
-            recyclerView.setAdapter(new EmojiPalettesAdapter(
-                mEmojiCategory,
-                EmojiCategory.Category.getEntries().get((int) holder.mCategoryId),
-                EmojiPalettesView.this
-            ));
-
-            if (! mInitialized) {
-                recyclerView.scrollToPosition(mEmojiCategory.getCurrentCategoryPageId());
-                mInitialized = true;
+            mList = recyclerView;
+            final var parts = new java.util.ArrayList<EmojiPalettesAdapter>();
+            mRecentsAdapter = null;
+            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
+                final var adapter = new EmojiPalettesAdapter(mEmojiCategory, properties.getCategory(), EmojiPalettesView.this);
+                if (properties.getCategory() == EmojiCategory.Category.RECENTS) mRecentsAdapter = adapter;
+                parts.add(adapter);
             }
+            // one view type for all categories: the page views are shared while scrolling through them
+            recyclerView.setAdapter(new androidx.recyclerview.widget.ConcatAdapter(
+                    new androidx.recyclerview.widget.ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(), parts));
+            recyclerView.setItemViewCacheSize(4);
+
+            // the list starts (and after a rebuild, e.g. clearKeyboardCache, goes back) where the user was
+            scrollTo(mEmojiCategory.getCurrentCategory(), mEmojiCategory.getCurrentCategoryPageId());
         }
 
         @Override
         public int getItemCount() {
-            return mEmojiCategory.getShownCategories().size();
+            return 1;
         }
 
         @Override
         public void onViewDetachedFromWindow(PagerViewHolder holder) {
-            if (holder.mCategoryId == EmojiCategory.Category.RECENTS.ordinal()) {
-                // Needs to save pending updates for recent keys when we get out of the recents
-                // category because we don't want to move the recent emojis around while the user
-                // is in the recents category.
-                getRecentsKeyboard().flushPendingRecentKeys();
-                getRecyclerView(holder.itemView).getAdapter().notifyDataSetChanged();
-            }
+            // the recent emojis are put in order when the user leaves them (see updateState), and here when the palette closes
+            getRecentsKeyboard().flushPendingRecentKeys();
+            recentsChanged();
         }
 
         @Override
         public long getItemId(int position) {
-            return mEmojiCategory.getShownCategories().get(position).getCategory().ordinal();
+            return 0;
         }
 
         private static RecyclerView getRecyclerView(View view) {
             return view.findViewById(R.id.emoji_keyboard_list);
         }
 
-        private void updateState(@NonNull RecyclerView recyclerView, long categoryId) {
-            if (categoryId != mEmojiCategory.getCurrentCategory().ordinal()) {
-                return;
-            }
-
-            final int offset = recyclerView.computeVerticalScrollOffset();
-            final int extent = recyclerView.computeVerticalScrollExtent();
-            final int range = recyclerView.computeVerticalScrollRange();
-            final float percentage = offset / (float) (range - extent);
-
-            final int currentCategorySize = mEmojiCategory.getCurrentCategoryPageCount();
-            final int a = (int) (percentage * currentCategorySize);
-            final float b = percentage * currentCategorySize - a;
-            mEmojiCategoryPageIndicatorView.setCategoryPageId(currentCategorySize, a, b);
-
+        private void updateState(@NonNull RecyclerView recyclerView) {
             LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-            final int firstCompleteVisibleBoard = layoutManager.findFirstCompletelyVisibleItemPosition();
-            final int firstVisibleBoard = layoutManager.findFirstVisibleItemPosition();
-            mEmojiCategory.setCurrentCategoryPageId(
-                    firstCompleteVisibleBoard > 0 ? firstCompleteVisibleBoard : firstVisibleBoard);
+            final int firstVisible = layoutManager.findFirstVisibleItemPosition();
+            if (firstVisible == RecyclerView.NO_POSITION) return;
+            final int[] at = categoryAt(firstVisible);
+            final EmojiCategory.Category category = EmojiCategory.Category.getEntries().get(at[0]);
+            if (category != mEmojiCategory.getCurrentCategory()) {
+                final boolean leavingRecents = mEmojiCategory.isInRecentTab();
+                setCurrentCategoryFromScroll(category);
+                if (leavingRecents) { // out of sight now: put the recent emojis in order
+                    getRecentsKeyboard().flushPendingRecentKeys();
+                    recentsChanged();
+                }
+            }
+            mEmojiCategory.setCurrentCategoryPageId(at[1]);
+            // the indicator shows where in the current category the list is
+            final View first = layoutManager.findViewByPosition(firstVisible);
+            final float within = first == null || first.getHeight() == 0 ? 0f : Math.min(1f, -first.getTop() / (float) first.getHeight());
+            mEmojiCategoryPageIndicatorView.setCategoryPageId(mEmojiCategory.getCurrentCategoryPageCount(), at[1], within);
         }
     }
 
@@ -347,7 +366,7 @@ public final class EmojiPalettesView extends LinearLayout
         if (RecentEmojis.get().isEmpty()) return;
         RecentEmojis.clear();
         getRecentsKeyboard().removeAllKeys();
-        mPager.getAdapter().notifyItemChanged(mEmojiCategory.getRecentTabId());
+        ((PagerAdapter) mPager.getAdapter()).recentsChanged();
         KeyboardSwitcher.getInstance().showToast(getResources().getString(R.string.recent_emojis_cleared), true);
     }
 
@@ -395,7 +414,7 @@ public final class EmojiPalettesView extends LinearLayout
             return;
         }
         getRecentsKeyboard().addKeyFirst(key);
-        mPager.getAdapter().notifyItemChanged(mEmojiCategory.getRecentTabId());
+        ((PagerAdapter) mPager.getAdapter()).recentsChanged();
     }
 
     private void setupBottomRowKeyboard(EditorInfo editorInfo, KeyboardActionListener keyboardActionListener) {
@@ -460,11 +479,23 @@ public final class EmojiPalettesView extends LinearLayout
         if (initial || oldCategory != category) {
             mEmojiCategory.setCurrentCategory(category);
 
-            if (mPager.getScrollState() != ViewPager2.SCROLL_STATE_DRAGGING) {
-                // Not swiping
-                mPager.setCurrentItem(mEmojiCategory.getTabIdFromCategoryId(
-                                mEmojiCategory.getCurrentCategory()), ! initial && ! isAnimationsDisabled());
-            }
+            // stage 93b: a tab (or the start) moves the continuous list; scrolling calls setCurrentCategoryFromScroll instead
+            if (mPager.getAdapter() instanceof PagerAdapter)
+                ((PagerAdapter) mPager.getAdapter()).scrollTo(category, initial ? mEmojiCategory.getCurrentCategoryPageId() : 0);
+            highlightTab(oldCategory, category);
+        }
+    }
+
+    /** Stage 93b: the list scrolled into [category]: mark its tab, do not move the list. */
+    private void setCurrentCategoryFromScroll(EmojiCategory.Category category) {
+        EmojiCategory.Category oldCategory = mEmojiCategory.getCurrentCategory();
+        if (oldCategory == category) return;
+        mEmojiCategory.setCurrentCategory(category);
+        highlightTab(oldCategory, category);
+    }
+
+    private void highlightTab(EmojiCategory.Category oldCategory, EmojiCategory.Category category) {
+        {
 
             if (Settings.getValues().isSecondaryStripVisible()) {
                 View old = mTabStrip.findViewWithTag(oldCategory);
@@ -476,11 +507,6 @@ public final class EmojiPalettesView extends LinearLayout
                     Settings.getValues().mColors.setColor((ImageView) current, ColorType.EMOJI_CATEGORY_SELECTED);
             }
         }
-    }
-
-    private boolean isAnimationsDisabled() {
-        return android.provider.Settings.Global.getFloat(getContext().getContentResolver(),
-                                                         android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1.0f) == 0.0f;
     }
 
     public void clearKeyboardCache() {

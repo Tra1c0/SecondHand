@@ -54,3 +54,27 @@ Stelle und markiert beim Scrollen die sichtbare Kategorie; „Zuletzt benutzt“
 | 8 | Passwortfeld/Inkognito | Suche | wie bisher (kein Lernen, Zuletzt-benutzt-Regel wie bisher) | neue Speicherung | Codeprüfung |
 
 G = Gerätetest im Emulator mit echten Tasten, O = nur der Owner am Telefon.
+
+## 5. Etappe 93b: durchgehende Ansicht (Konzept vor dem Bau)
+
+Owner (2026-11-22): „Fix bitte bei den Emojis, dass bei der Page ein durchgängiger Scroll ist.“ Eine Einstellung dafür gibt es nicht (geprüft:
+`Settings.PREF_EMOJI_*` kennt nur Schriftgröße, Tastenbreite, Hautfarbe, Systemgrenze).
+
+Heute: `EmojiPalettesView` hat einen waagerechten `ViewPager2`, eine Seite je Kategorie; jede Seite ist eine senkrechte `RecyclerView`, deren
+Einträge Teilseiten (`EmojiPageKeyboardView`) dieser Kategorie sind (`EmojiPalettesAdapter`).
+
+Plan: der `ViewPager2` wird durch eine einzige senkrechte `RecyclerView` ersetzt, deren Einträge die Teilseiten aller angezeigten Kategorien
+nacheinander sind (Zuletzt benutzt zuerst, dann die Reihenfolge der Kategorie-Leiste). Tipp auf eine Kategorie scrollt an deren erste
+Teilseite (ohne Animation über weite Strecken); beim Scrollen markiert die Leiste die Kategorie der obersten sichtbaren Teilseite; die
+Seitenanzeige (Balken unter der Leiste) zeigt den Fortschritt über die ganze Liste. Seitliches Wischen gibt es nicht mehr.
+
+| # | Ausgangslage | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- | --- |
+| B1 | Emoji-Ansicht, Smileys | nach unten scrollen bis ans Ende der Smileys | es geht ohne Halt in „Menschen“ weiter, die Leiste markiert „Menschen“ | Halt am Ende, seitlich wischen nötig | Robolectric (Adapter: Folge der Einträge), G (Wisch im Emulator, Bild) |
+| B2 | dto. | Tipp auf „Flaggen“ | Liste springt an den Anfang der Flaggen, Leiste markiert sie | Sprung an eine falsche Stelle, langes Durchscrollen | G |
+| B3 | dto. | Wisch nach oben aus „Menschen“ | zurück in die Smileys | — | G |
+| B4 | Zuletzt benutzt oben | Emoji tippen | eingefügt; „Zuletzt benutzt“ springt nicht unter dem Finger | Liste verschiebt sich beim Tippen | Codeprüfung (`flushPendingRecentKeys` erst beim Verlassen), G |
+| B5 | Langdruck auf ein Emoji mit Hautfarben | Variante wählen | wie bisher | Scrollen unterbricht den Langdruck | G |
+| B6 | Emoji-Ansicht neu geöffnet | — | steht wieder bei der zuletzt gewählten Kategorie | immer ganz oben | Codeprüfung |
+| B7 | ~3.700 Emojis | schnell scrollen | flüssig | Ruckeln beim Wechsel | nur O |
+| B8 | Emoji-Mixer, Löschen-Taste, ABC-Taste | wie bisher | unverändert | — | vorhandene Tests |
