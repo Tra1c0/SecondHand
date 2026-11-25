@@ -45,4 +45,7 @@
     <string name="agent_bar_action_redo">Redo</string>
     <string name="agent_bar_undo_offers_redo">%1$s. Hold for redo</string>
     <string name="agent_bar_hint_incognito">Not available: \"Always incognito\" is on</string>
+    <!-- stage 106 -->
+    <string name="agent_clipboard_toolbar_setting">Tool row in the clipboard</string>
+    <string name="agent_clipboard_toolbar_setting_summary">The keys above the clipboard history. Off: no row, more room for the history; the keys chosen below are kept.</string>
 </resources>

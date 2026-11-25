@@ -44,4 +44,7 @@
     <string name="agent_bar_action_redo">Wiederholen</string>
     <string name="agent_bar_undo_offers_redo">%1$s. Halten zum Wiederholen</string>
     <string name="agent_bar_hint_incognito">Nicht verfügbar: „Immer Inkognito“ ist eingeschaltet</string>
+    <!-- stage 106 -->
+    <string name="agent_clipboard_toolbar_setting">Werkzeugzeile in der Zwischenablage</string>
+    <string name="agent_clipboard_toolbar_setting_summary">Die Tasten über dem Verlauf der Zwischenablage. Aus: keine Zeile, mehr Platz für den Verlauf; die Tastenauswahl darunter bleibt gespeichert.</string>
 </resources>

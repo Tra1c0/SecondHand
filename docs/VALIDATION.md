@@ -1,5 +1,20 @@
 # Prüfnachweise
 
+## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
+
+Owner: „Standardmäßig auf aus. Ich brauche das alles nicht in der Zwischenablage.“ Gebaut: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (Standard aus) in
+„Knöpfe wählen und sortieren“; aus: `ClipboardHistoryView` baut keine Tasten, im Standardstil versteckt `KeyboardSwitcher.setClipboardKeyboard` den Streifen
+und die Ansicht samt Liste wird um seine Höhe größer (die Tastatur behält ihre Höhe), im flachen Look bleiben Zurück-Knopf und Titel. Die Tastenauswahl
+(`clipboard_toolbar_keys`) bleibt unberührt. „Zwischenablage leeren“ gab es sonst nirgends (nur einzelne Einträge per Wischen); jetzt bietet das Raster die
+Tasten der abgeschalteten Zeile an.
+- Tests: `FlatClipboardTest.withTheRowOffTheHeaderKeepsOnlyTheWayBack`, `…withTheRowOffTheDefaultStyleGivesTheRoomOfTheStripToTheList` (neu);
+  `clipboardViewGetsHeaderSection…` schaltet die Zeile ein (prüft weiter die Tasten des Presets). Bewusst geändert: `FixedBarTest.theClipboardClearingTool…`
+  und `theLeftKeyOpensAGridWithEveryTool…` (das Raster zeigt „Zwischenablage leeren“ jetzt standardmäßig, weil die Zeile, die es hielt, standardmäßig aus ist).
+- `FlatPreset.CLIPBOARD_KEYS` (Leeren, Einstellungen) wirkt nur, wenn die Voreinstellung „Flacher Look“ angewendet wird (`FlatPreset.values`), und die Kopfzeile nur im
+  Stil `STYLE_FLAT`. Zehn Symbole beim Owner heißen: Liste nicht vom Preset geschrieben (Preset nie angewendet oder Liste danach geändert/wiederhergestellt) oder
+  Ansicht nicht im flachen Stil (dann die ganze Zeile). Nicht umgebaut.
+- Nicht geprüft: lokal lief nichts; kein CI-Lauf bis zum Push; nicht auf einem Telefon.
+
 ## Etappe 99 — Vorschlagsleiste einheitlich, Mikrofon steht fest (Owner, 2026-11-25)
 
 Owner: „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt werden und mal nicht.“ Ursache

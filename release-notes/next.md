@@ -1,3 +1,8 @@
+# Neu: Zwischenablage ohne Tastenzeile
+
+- **Standardmäßig aus**: Über deinem Zwischenablage-Verlauf steht keine Zeile mit Tasten mehr; der Verlauf bekommt den Platz. Einschalten kannst du sie unter Einstellungen → Knöpfe wählen und sortieren → „Werkzeugzeile in der Zwischenablage“; deine bisherige Tastenauswahl ist dann wieder da.
+- **Verlauf leeren**: liegt jetzt im Raster aller Werkzeuge (Taste links in der Leiste).
+
 # Neu: Vorschlagsleiste einheitlich
 
 - **Wörter oder nichts**: Während du schreibst, zeigt die Mitte der Leiste Wörter oder bleibt leer. Sie springt nicht mehr „mal nach 0,8 Sekunden, mal nicht“ zu den Werkzeugen.

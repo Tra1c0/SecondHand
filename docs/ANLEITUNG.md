@@ -238,7 +238,9 @@ Steht „Eigene Einstellung“ darunter, ist der vierte Modus „Nur Leisten-Tas
 Befehle; ein Tipp auf einen Befehl schaltet ihn einzeln an oder aus, der Schalter oben rechts
 schaltet das Erkennen getippter Befehle ganz aus. `@contact` fragt beim Einschalten nach dem
 Zugriff auf Kontakte. Darunter: „Knöpfe wählen und sortieren“ (die bisherige Leisten-Seite mit
-Modus, Tasten, angehefteten Tasten, Zwischenablage-Tasten; bei TASTEN + VORSCHLÄGE steht dort statt
+Modus, Tasten, angehefteten Tasten, Schalter „Werkzeugzeile in der Zwischenablage“ (Standard aus: über dem Verlauf steht keine
+Tastenzeile, verlassen wie immer mit „ABC“ unten bzw. im flachen Look mit dem Zurück-Knopf; „Zwischenablage leeren“ liegt dann im
+Raster der Leiste) und, nur wenn er an ist, Zwischenablage-Tasten; bei TASTEN + VORSCHLÄGE steht dort statt
 Tasten und angehefteten Tasten „Werkzeuge in der Leiste“, die Liste der festen Leiste), „Automatisch zeigen“ (nur bei TASTEN +
 VORSCHLÄGE), „Wischen blendet aus“, „Skill-Tasten anheften“ (zeigt, wie viele der drei angeheftet
 sind) sowie Zwischenablage-Verlauf, Aufbewahrung (Regler), Bilder und Dateien, Screenshots

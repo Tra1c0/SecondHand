@@ -241,6 +241,7 @@ class FlatClipboardTest {
     }
 
     @Test fun clipboardViewGetsHeaderSectionLabelAndAListDownToTheLowerEdge() {
+        latinIME.prefs().edit().putBoolean(AgentPreferences.CLIPBOARD_TOOLBAR, true).commit() // stage 106: the row is off by default
         val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
         val strip = container.findViewById<LinearLayout>(R.id.clipboard_strip)
         // the view fetches the strip from the switcher, which has no input view in this test
@@ -275,6 +276,55 @@ class FlatClipboardTest {
         view.startClipboardHistory(ClipboardHistoryManager(latinIME), null, EditorInfo(), view.keyboardActionListener)
         assertEquals(4, strip.childCount)
         assertEquals(R.id.clipboard_list, (view.getChildAt(1) as ViewGroup).getChildAt(1).id)
+    }
+
+    /**
+     * Stage 106 (owner: "Standardmäßig auf aus"): without the row of tools the Flat header keeps only its back button and title (the way out of
+     * the view), the list keeps its height (the header strip stays), and the chosen keys stay stored.
+     */
+    @Test fun withTheRowOffTheHeaderKeepsOnlyTheWayBack() {
+        val stored = getEnabledClipboardToolbarKeys(latinIME.prefs())
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        val strip = container.findViewById<LinearLayout>(R.id.clipboard_strip)
+        KeyboardSwitcher::class.java.getDeclaredField("mClipboardStripView").apply { isAccessible = true }
+            .set(KeyboardSwitcher.getInstance(), strip)
+        val view = LayoutInflater.from(context).inflate(R.layout.clipboard_history_view, FrameLayout(context), false) as ClipboardHistoryView
+        val codes = mutableListOf<Int>()
+        view.keyboardActionListener = object : KeyboardActionListener.Adapter() {
+            override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) { codes += primaryCode }
+        }
+        view.startClipboardHistory(ClipboardHistoryManager(latinIME), null, EditorInfo(), view.keyboardActionListener)
+        assertEquals(listOf(R.id.agent_clipboard_back, R.id.agent_clipboard_title), (0 until strip.childCount).map { strip.getChildAt(it).id })
+        assertFalse(view.hidesStrip()) // the Flat header carries the back button: it stays
+        strip.findViewById<View>(R.id.agent_clipboard_back).performClick()
+        assertEquals(listOf(KeyCode.CLIPBOARD), codes)
+        assertEquals(stored, getEnabledClipboardToolbarKeys(latinIME.prefs()), "the chosen keys stay stored")
+    }
+
+    /** Stage 106, default style: without the row the strip is hidden and its height goes to the list; the bottom row ("ABC") stays the way out. */
+    @Test fun withTheRowOffTheDefaultStyleGivesTheRoomOfTheStripToTheList() {
+        latinIME.prefs().edit().clear().commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+        assertTrue(Settings.getValues().isSecondaryStripVisible)
+        assertFalse(helium314.keyboard.keyboard.FlatStyle.isActive(Settings.getValues().mColors))
+        fun open(): ClipboardHistoryView {
+            val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+            KeyboardSwitcher::class.java.getDeclaredField("mClipboardStripView").apply { isAccessible = true }
+                .set(KeyboardSwitcher.getInstance(), container.findViewById<LinearLayout>(R.id.clipboard_strip))
+            val view = LayoutInflater.from(context).inflate(R.layout.clipboard_history_view, FrameLayout(context), false) as ClipboardHistoryView
+            view.keyboardActionListener = KeyboardActionListener.Adapter()
+            view.startClipboardHistory(ClipboardHistoryManager(latinIME), null, EditorInfo(), view.keyboardActionListener)
+            view.measure(View.MeasureSpec.makeMeasureSpec(1200, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+            return view
+        }
+        val off = open()
+        latinIME.prefs().edit().putBoolean(AgentPreferences.CLIPBOARD_TOOLBAR, true).commit()
+        val on = open()
+        val strip = latinIME.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
+        assertTrue(off.hidesStrip()); assertFalse(on.hidesStrip())
+        assertEquals(on.measuredHeight + strip, off.measuredHeight, "the keyboard keeps its size: the view takes the strip's height")
+        assertEquals(on.findViewById<View>(R.id.clipboard_list).layoutParams.height + strip, off.findViewById<View>(R.id.clipboard_list).layoutParams.height)
+        assertEquals(View.VISIBLE, off.findViewById<View>(R.id.bottom_row_keyboard).visibility)
     }
 
     @Test fun withoutAStripTheClipboardViewKeepsItsBottomRow() {

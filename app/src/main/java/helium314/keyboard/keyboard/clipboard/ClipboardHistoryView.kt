@@ -81,8 +81,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val keyboardViewAttr = context.obtainStyledAttributes(attrs, R.styleable.KeyboardView, defStyle, R.style.KeyboardView)
         keyBackgroundId = keyboardViewAttr.getResourceId(R.styleable.KeyboardView_keyBackground, 0)
         keyboardViewAttr.recycle()
-        getEnabledClipboardToolbarKeys(context.prefs())
-            .forEach { toolbarKeys.add(createToolbarKey(context, it)) }
+        // stage 106: the row of tools is off by default; the chosen keys stay stored for when it is switched on
+        if (helium314.keyboard.agent.AgentPreferences.clipboardToolbarShown(context.prefs()))
+            getEnabledClipboardToolbarKeys(context.prefs()).forEach { toolbarKeys.add(createToolbarKey(context, it)) }
         fitsSystemWindows = true
     }
 
@@ -91,9 +92,17 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val res = context.resources
         // The main keyboard expands to the entire this {@link KeyboardView}.
         val width = ResourceUtils.getKeyboardWidth(context, Settings.getValues()) + paddingLeft + paddingRight
-        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom
+        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom + stripRoom()
         setMeasuredDimension(width, height)
     }
+
+    /**
+     * Stage 106: without the row of tools (and not in the Flat style, whose header holds the back button) the strip above the history is
+     * hidden ([hidesStrip], `KeyboardSwitcher.setClipboardKeyboard`); the history takes its height, so the keyboard keeps its size.
+     */
+    fun hidesStrip(): Boolean = toolbarKeys.isEmpty() && !flatStyle && Settings.getValues().isSecondaryStripVisible
+
+    private fun stripRoom(): Int = if (hidesStrip()) resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height) else 0
 
     @SuppressLint("ClickableViewAccessibility")
     private fun initialize() { // needs to be delayed for access to ClipboardStrip, which is not a child of this view
@@ -197,6 +206,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
             ClipboardLayoutParams(context).setListProperties(this)
+            layoutParams.height += stripRoom() // stage 106: the room of the hidden strip goes to the list
             if (flatStyle) // the list runs down to the lower edge
                 layoutParams.height = ResourceUtils.getSecondaryKeyboardHeight(resources, settings.current) - flatLabelHeight
 

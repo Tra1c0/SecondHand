@@ -674,7 +674,8 @@ public final class KeyboardSwitcher {
             mKeyboardView.setVisibility(View.GONE);
             mEmojiTabStripView.setVisibility(View.GONE);
             mSuggestionStripView.setVisibility(View.GONE);
-            mStripContainer.setVisibility(getSecondaryStripVisibility());
+            // fork, stage 106: without the row of tools the strip takes no room (the history takes its height)
+            mStripContainer.setVisibility(mClipboardHistoryView.hidesStrip() ? View.GONE : getSecondaryStripVisibility());
             mClipboardStripScrollView.post(() -> mClipboardStripScrollView.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
             mClipboardStripScrollView.setVisibility(View.VISIBLE);
             mEmojiPalettesView.setVisibility(View.GONE);

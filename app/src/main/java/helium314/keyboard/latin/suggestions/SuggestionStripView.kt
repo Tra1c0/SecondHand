@@ -1113,7 +1113,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val values = Settings.getValues()
         // a tool that destroys something with one tap (clear the clipboard) is only offered to a user who had it in one of the lists before
         val prefs = context.prefs()
-        val usedBefore = BarTools.read(prefs) + getEnabledToolbarKeys(prefs) + getPinnedToolbarKeys(prefs)
+        // stage 106: the row above the clipboard history is off by default; the tools it held (clearing the history among them) are still
+        // reachable here, for the user had them at hand there
+        val clipboardRow = if (helium314.keyboard.agent.AgentPreferences.clipboardToolbarShown(prefs)) emptyList()
+            else helium314.keyboard.latin.utils.getEnabledClipboardToolbarKeys(prefs)
+        val usedBefore = BarTools.read(prefs) + getEnabledToolbarKeys(prefs) + getPinnedToolbarKeys(prefs) + clipboardRow
         return BarTools.gridOrder.filter { key ->
             (key != ToolbarKey.VOICE || values.mShowsVoiceInputKey)
                 && (key != ToolbarKey.BACKGROUND_GATHERING || helium314.keyboard.latin.utils.GestureDataGatheringSettings.hasBackgroundGatheringPref(context.prefs()))

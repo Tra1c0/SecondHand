@@ -64,7 +64,9 @@ fun ToolbarScreen(
             toolbarMode == ToolbarMode.EXPANDABLE || toolbarMode == ToolbarMode.SUGGESTION_STRIP -> Settings.PREF_PINNED_TOOLBAR_KEYS
             else -> null
         },
-        if (clipboardToolbarVisible) Settings.PREF_CLIPBOARD_TOOLBAR_KEYS else null,
+        // stage 106: the row above the clipboard history is off by default; its keys are offered only while it is on
+        if (clipboardToolbarVisible) AgentPreferences.CLIPBOARD_TOOLBAR else null,
+        if (clipboardToolbarVisible && AgentPreferences.clipboardToolbarShown(prefs)) Settings.PREF_CLIPBOARD_TOOLBAR_KEYS else null,
         if (clipboardToolbarVisible) Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES else null,
         if (toolbarMode == ToolbarMode.EXPANDABLE && !fixedBar) Settings.PREF_QUICK_PIN_TOOLBAR_KEYS else null,
         if (toolbarMode == ToolbarMode.EXPANDABLE) Settings.PREF_AUTO_SHOW_TOOLBAR else null,
@@ -114,6 +116,9 @@ fun createToolbarSettings(context: Context) = listOf(
     Setting(context, Settings.PREF_PINNED_TOOLBAR_KEYS, R.string.pinned_toolbar_keys) {
         val keys = Defaults.PREF_PINNED_TOOLBAR_KEYS.filterBackgroundGatheringToolbarKeys(LocalContext.current.prefs())
         ReorderSwitchPreference(it, keys)
+    },
+    Setting(context, AgentPreferences.CLIPBOARD_TOOLBAR, R.string.agent_clipboard_toolbar_setting, R.string.agent_clipboard_toolbar_setting_summary) {
+        SwitchPreference(it, AgentPreferences.CLIPBOARD_TOOLBAR_DEFAULT) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, R.string.clipboard_toolbar_keys) {
         val keys = Defaults.PREF_CLIPBOARD_TOOLBAR_KEYS.filterBackgroundGatheringToolbarKeys(LocalContext.current.prefs())

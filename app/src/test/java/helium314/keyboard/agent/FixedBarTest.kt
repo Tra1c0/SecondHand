@@ -326,9 +326,9 @@ class FixedBarTest {
         assertTrue(toolsVisible(h)) // the tools stay in view while the grid is open
         layout(h)
 
-        // every tool of the fork, except the voice key without a voice input, the data gathering key never used and the
-        // clipboard clearing tool (one tap destroys the history, the vault and the clip) that the user never had in a list
-        val expected = BarTools.gridOrder.filter { it != VOICE && it != BACKGROUND_GATHERING && it != CLEAR_CLIPBOARD }
+        // every tool of the fork, except the voice key without a voice input and the data gathering key never used; the clipboard
+        // clearing tool is listed because the row above the clipboard history, which holds it by default, is off by default (stage 106)
+        val expected = BarTools.gridOrder.filter { it != VOICE && it != BACKGROUND_GATHERING }
         assertEquals(expected, h.grid.listed)
         assertTrue(expected.size >= 37)
         // two columns, scrollable, tools listed in rows of two
@@ -702,15 +702,27 @@ class FixedBarTest {
     // ---- review of stages 85/86 ----
 
     @Test fun theClipboardClearingToolIsOnlyInTheGridForAUserWhoHadItInAList() {
+        // stage 106 (changed on purpose): the row above the clipboard history is off by default; the clearing key it held by default is offered
+        // in the grid instead, so that it stays reachable. With the row on (it is there) the grid does not offer it by default, as before.
         var h = build()
         leftKey(h).performClick()
-        assertNull(h.grid.pill(CLEAR_CLIPBOARD)) // never by default: one tap would clear history, vault and clip
+        assertNotNull(h.grid.pill(CLEAR_CLIPBOARD), "the clipboard row is off: its clearing key is in the grid")
+        prefs.edit { putBoolean(AgentPreferences.CLIPBOARD_TOOLBAR, true) }
+        h = build()
+        leftKey(h).performClick()
+        assertNull(h.grid.pill(CLEAR_CLIPBOARD)) // with the row on, not by default: one tap would clear history, vault and clip
         // no other tool of the grid is irreversible: the rest toggles a mode, opens a window or edits text (undoable)
         assertEquals(setOf(CLEAR_CLIPBOARD), BarTools.DESTRUCTIVE)
         // in the old toolbar list ...
         prefs.edit { putString(Settings.PREF_TOOLBAR_KEYS, "CLEAR_CLIPBOARD:true|UNDO:true") }
         h = build(); leftKey(h).performClick()
         assertNotNull(h.grid.pill(CLEAR_CLIPBOARD))
+        // ... or in the clipboard row while that row is off (stage 106: the default list holds it); without it there, not offered
+        prefs.edit { remove(Settings.PREF_TOOLBAR_KEYS); putBoolean(AgentPreferences.CLIPBOARD_TOOLBAR, false)
+            putString(Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, "UNDO:true|CLEAR_CLIPBOARD:false") }
+        h = build(); leftKey(h).performClick()
+        assertNull(h.grid.pill(CLEAR_CLIPBOARD))
+        prefs.edit { putBoolean(AgentPreferences.CLIPBOARD_TOOLBAR, true) }
         // ... or in the bar
         prefs.edit { remove(Settings.PREF_TOOLBAR_KEYS) }
         setBar(listOf(UNDO, CLEAR_CLIPBOARD)); reload()

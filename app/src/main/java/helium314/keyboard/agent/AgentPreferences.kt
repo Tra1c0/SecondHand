@@ -59,6 +59,16 @@ object AgentPreferences {
      * before (arrow, scrolling toolbar, pinned keys, in the flat style the menu), as a way back until the new bar has been seen on a device.
      */
     const val FIXED_BAR = "agent_fixed_bar"
+    /**
+     * Stage 106 (owner: "Standardmäßig auf aus. Ich brauche das alles nicht in der Zwischenablage."): the row of tools above the
+     * clipboard history (default off). Off: no row and no room for it; the chosen keys (`Settings.PREF_CLIPBOARD_TOOLBAR_KEYS`) stay
+     * stored and count again when it is switched on. See [clipboardToolbarShown].
+     */
+    const val CLIPBOARD_TOOLBAR = "agent_clipboard_toolbar"
+    const val CLIPBOARD_TOOLBAR_DEFAULT = false
+
+    @JvmStatic
+    fun clipboardToolbarShown(prefs: android.content.SharedPreferences) = prefs.getBoolean(CLIPBOARD_TOOLBAR, CLIPBOARD_TOOLBAR_DEFAULT)
     /** Stage 82: copy, cut, paste and delete chips in the strip while text is selected (default on). */
     const val SELECTION_CHIPS = "agent_selection_chips_on"
     /** Stage 40: Smart Paste chips with the clipboard pill and in the clipboard history (default on). */
