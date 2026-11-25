@@ -12,8 +12,6 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
 
-- **98 Feststelltaste und Zahlenreihe**: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole
-  gelten nur für einmaliges Shift.“
 - **99 Vorschlagsleiste einheitlich**: „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt
   werden und mal nicht.“ Braucht eine Entscheidung des Owners (was steht in der Mitte, wenn es nichts vorzuschlagen gibt) und Stufe 2 von 89
   (linke Taste und Mikrofon fest). Konzept vor dem Bau.

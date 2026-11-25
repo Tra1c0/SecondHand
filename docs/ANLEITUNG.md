@@ -202,6 +202,7 @@ ist aus, solange du es nicht unter Tasten & Sprachen → „Steuerkreuz-Taste“
 schon einmal gesetzt hast, bleibt. Die Pfeile erreichst du sonst über eine Leertasten-Geste mit der Aktion „Steuerkreuz“ oder über die Werkzeug-Taste
 „Steuerkreuz“ der Leiste (falls dort eingestellt). Langes Drücken zeigt meist Varianten desselben Zeichens (`<` zeigt `‹ ≤ «`, `%` zeigt `‰ ℅`, `-` die
 Striche), bei ein paar Tasten verwandte Zeichen (`•` zeigt `♪ ♥ ♠ ♦ ♣`, `^` die Pfeile, `*` zeigt `† ‡ ★`, `°` zeigt `′ ″`). Bei eingeschalteter Zahlenreihe hat die Buchstabenseite fünf Reihen und die Symbolseiten vier höhere Reihen, die Gesamthöhe bleibt gleich. Eigene Symbol-Layouts (Tasten & Sprachen → Layouts → Symbole) und das mitgelieferte arabische bleiben unverändert.
+Zahlenreihe und Shift: Einmaliges Shift zeigt dort `! @ # $ % ^ & * ( )`; mit der Feststelltaste (Shift gesperrt) bleiben die Ziffern.
 
 ### Leiste & Befehle
 

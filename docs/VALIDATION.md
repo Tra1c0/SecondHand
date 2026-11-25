@@ -1,5 +1,16 @@
 # Prüfnachweise
 
+## Etappe 98 — Feststelltaste und Zahlenreihe (Owner, 2026-11-25)
+
+Owner: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole gelten nur für einmaliges Shift.“
+Ursache (gelesen): `assets/layouts/number_row/number_row.json` legte die Symbole unter `manualOrLocked` des `shift_state_selector`, das
+`floris/KeyData.kt` für `ALPHABET_MANUAL_SHIFTED` und `ALPHABET_SHIFT_LOCKED` wählt. Behebung: `shiftedManual` statt `manualOrLocked`; die
+Feststelltaste fällt auf `default` (Ziffern), einmaliges Shift bleibt bei den Symbolen, automatisches Shift wie bisher bei den Ziffern. Einen
+eigenen Zustand „Shift bei gesperrtem Shift“ gibt es in HeliBoard 4.2 nicht (`KeyboardElement` kennt nur die vier Buchstabenzustände).
+Nachweis: neu `SymbolPagesTest.capsLockKeepsTheDigitsOfTheNumberRow` (Material und Flach: gesperrt Ziffern mit Ziffern-Codes und großen
+Buchstaben, einmaliges Shift Symbole, ohne Shift Ziffern). Lokal ohne Android-Toolchain, nichts gebaut; GitHub-Läufe im Build-Log. Offen:
+eigene Zahlenreihen-Layouts des Owners (falls vorhanden) behalten ihr Verhalten; nicht auf einem Telefon.
+
 ## Etappe 97 — zuletzt benutzte Emojis klar abgegrenzt (Owner, 2026-11-25)
 
 Owner: „Bitte die zuletzt verwendeten Emojis klar abgegrenzt von den restlichen.“ Umsetzung in der durchgehenden Liste aus 93b: zwei kleine

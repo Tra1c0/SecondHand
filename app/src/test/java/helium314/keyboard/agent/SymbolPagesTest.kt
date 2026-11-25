@@ -188,6 +188,23 @@ class SymbolPagesTest {
         }
     }
 
+    // stage 98 (owner): "Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole gelten nur
+    // für einmaliges Shift."
+    @Test fun capsLockKeepsTheDigitsOfTheNumberRow() {
+        val digits = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        val symbols = listOf("!", "@", "#", "$", "%", "^", "&", "*", "(", ")")
+        for (look in listOf(Look.MATERIAL, Look.FLAT)) {
+            reload(look, Locale.GERMANY, numberRow = true)
+            val locked = rows(build(look, KeyboardElement.ALPHABET_SHIFT_LOCKED, Locale.GERMANY, "qwertz"))
+            assertEquals(digits, locked.first().map(::name), "$look caps lock")
+            assertEquals(digits.map { it.codePointAt(0) }, locked.first().map { it.code }, "$look caps lock types digits")
+            assertEquals("Q", locked[1].first().label, "$look caps lock: the letters stay capital")
+            val shifted = rows(build(look, KeyboardElement.ALPHABET_MANUAL_SHIFTED, Locale.GERMANY, "qwertz"))
+            assertEquals(symbols, shifted.first().map(::name), "$look single shift")
+            assertEquals(digits, rows(build(look, KeyboardElement.ALPHABET, Locale.GERMANY, "qwertz")).first().map(::name), "$look no shift")
+        }
+    }
+
     @Test fun dpadKeyOnlyAppearsWhenSwitchedOnExplicitly() {
         reload(Look.MATERIAL, Locale.GERMANY, numberRow = false)
         assertTrue(pageNames(build(Look.MATERIAL, KeyboardElement.SYMBOLS, Locale.GERMANY, "qwertz")).none { "[dpad]" in it })

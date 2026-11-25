@@ -1215,6 +1215,14 @@ des Felds auf `commitContent`, 25a),
 23g, `symbolDraw*` für 27, `typedEmoji*` für 25a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
+Feststelltaste und Zahlenreihe (Etappe 98):
+
+- `assets/layouts/number_row/number_row.json` (Upstream-Datei, jetzt geändert): die Symbole `! @ # $ % ^ & * ( )` stehen unter
+  `shiftedManual` statt `manualOrLocked` des `shift_state_selector` (`floris/KeyData.kt`). Einmaliges Shift
+  (`ALPHABET_MANUAL_SHIFTED`) zeigt sie wie bisher; Feststelltaste (`ALPHABET_SHIFT_LOCKED`) und automatisches Shift fallen auf
+  `default`, die Ziffern. Eigene Zahlenreihen-Layouts des Nutzers (`LayoutType.NUMBER_ROW`) sind nicht betroffen. Test
+  `SymbolPagesTest.capsLockKeepsTheDigitsOfTheNumberRow`.
+
 Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
 
 - `assets/layouts/symbols/symbols.txt` und `more_symbols/symbols_shifted.txt` (Upstream-Dateien, jetzt
@@ -6755,7 +6763,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (778 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (779 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6913,6 +6921,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/assets/layouts/emoji_bottom/` (2): emoji_bottom_row, emoji_bottom_row_with_action
 - `app/src/main/assets/layouts/functional/` (2): functional_keys, functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted
+- `app/src/main/assets/layouts/number_row/` (1): number_row
 - `app/src/main/assets/layouts/symbol_hints/` (1): symbols_hints
 - `app/src/main/assets/layouts/symbols/` (1): symbols
 - `app/src/main/res/drawable-v24/` (1): ic_launcher_background

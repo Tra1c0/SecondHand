@@ -1,3 +1,7 @@
+# Neu: Feststelltaste behält die Zahlen
+
+- **Zahlenreihe bei Feststelltaste**: Hast du die Großschreibung festgestellt, zeigt die Zahlenreihe wieder Zahlen. Die Symbole `! @ # …` kommen nur noch bei einmaligem Shift.
+
 # Neu: zuletzt benutzte Emojis abgegrenzt
 
 - **Klar getrennt**: Über deinen zuletzt benutzten Emojis steht „Zuletzt benutzt“, darunter trennt eine dünne Linie sie von den übrigen. Hast du noch keine benutzt, fehlt beides.
