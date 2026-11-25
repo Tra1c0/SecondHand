@@ -596,6 +596,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 return
             }
             val wordInfo = suggestedWords.getInfo(tag)
+            // stage 99 (review): picking a word is writing too; without this the tools would replace the predictions while the
+            // user taps one after the other (the pause ran from the last key only)
+            cancelPause()
+            if (barState.calmWriting) calmHandler.postDelayed(writingPause, BarState.WRITING_PAUSE_MS)
             listener.pickSuggestionManually(wordInfo)
         }
     }
