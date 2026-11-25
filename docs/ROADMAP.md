@@ -24,6 +24,10 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   Diagnose-Karte „Korrektur & Sprache“; Konzept mit Abnahme-Zeilen vor dem Bau.
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
+- **105 Satzzeichen automatisch** (Owner, 2026-11-25: „Es wäre schön, wenn zukünftig noch Satzzeichen automatisch ersetzt werden.“).
+  Umfang offen, vor dem Bau klären: fehlende Satzzeichen setzen (Punkt am Satzende, Komma vor „dass/weil/aber“, Fragezeichen nach Fragewort)
+  oder falsch getroffene ersetzen. Regel wie bei 104: nur Eindeutiges, jede Änderung mit einem Tipp rücknehmbar. Dazu als Fehlfall 10 von 101:
+  „i“ im englischen Satz wird „I“.
 - **103 Spracheingabe mit eigenem Modell (Zukunft)**: „Whisper-Modell oder eins aus der Google-Familie. Ziel: extrem schnell und zuverlässig.“
   Löst W6 ab (geparkt am 2026-11-20). Nicht jetzt.
 - **104 Semantische Nachkorrektur (Zukunft)**: „Automatische Nachkorrigierung im Falle sehr offensichtlicher semantischer Fehler nach
