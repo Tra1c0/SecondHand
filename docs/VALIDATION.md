@@ -1,5 +1,26 @@
 # Prüfnachweise
 
+## Etappe 96 — Wort links beim Zurückgehen und Löschen (Owner, 2026-11-25)
+
+Owner: „Beim Zurückgehen auf das Wort oder Zeichenlöschen bis und im Wort wird LINKS das alte Wort jederzeit angezeigt, außer: werden Zeichen
+von dem Wort aktiv gelöscht, wird das ebenfalls links im aktuellen Zustand angezeigt (löschen −n = lösche, −en = lösch). Ein Longpress auf das
+Wort, während Dinge gelöscht wurden, dauert so lange wie ein Longpress auf die Buchstaben und holt das Wort in seiner ursprünglichen Form zurück.“
+Regel: `CurrentWordShown.arrange` setzt das linke Wort an Index 2 (links), die Vorschläge der Engine an 1 (Mitte) und 3 ff.; ohne weiteren
+Vorschlag ist Index 1 das Wort selbst (eine Liste aus zwei Einträgen legt die Leiste als ein Wort über die ganze Breite aus). Links steht das
+alte Wort (getippte Form aus Etappe 48, sonst das Wort), sobald `WordBeforeDelete` für dieses Wort ein Original kennt, das Wort wie es steht.
+`WordBeforeDelete` merkt die Form vor dem ersten Löschen eines Laufs (Anfang im Editor, Form nach dem letzten Löschen) und vergisst sie bei
+jeder anderen Taste, neuem Feld, Schreibmarke außerhalb des Worts, Markierung, ganz gelöschtem Wort und nach dem Zurückholen. Langdruck:
+eigener Timer in `SuggestionStripView` (`restoreTouch`, `mKeyLongpressTimeout`) nur am linken Wort, wenn `LatinIME.canRestoreWordBeforeDelete`
+zutrifft; `InputLogic.restoreWordBeforeDelete` setzt Composer und zusammengesetzten Text in einem Batch-Edit, Schreibmarke ans Wortende.
+Nachweis: `CurrentWordShownTest` (a, b, nichts doppelt, ohne Vorschlag, Autokorrektur unberührt, leere Liste), neu `WordBeforeDeleteTest`;
+in `InputLogicTest` die vier Erwartungen aus Etappe 94 auf die neue Regel umgestellt (das alte Wort steht jetzt links statt in der Mitte;
+`tapSlot(0)` statt `tapSlot(1)`; beim Zurückgehen in „hello“ nur noch links und Mitte geprüft, rechts hängt von der Engine ab) und neu
+„deleting shows the word as it stands left and the long press restores it“. Die drei `StripCalmLogTest`-Protokolle: nur die Wortspalte der
+Rücktasten 33–42 von Hand nachgerechnet (`Un,Un` → `Un,Un,Un` usw., Einträge mit Vorhersagen unverändert), nicht lokal erzeugt; stimmt
+der CI-Lauf nicht, werden sie aus dem Job-Log erneuert. Lokal ohne Android-Toolchain, nichts gebaut; GitHub-Läufe im Build-Log. Offen:
+Langdruck nicht im Emulator, nicht auf einem Telefon; in Apps ohne zusammengesetztes Wort (Web-Ansichten, die die Komposition beenden) merkt
+die Tastatur kein Original, dort gibt es nur das Wort links, kein Zurückholen.
+
 ## Etappe 93b — Emojis durchgehend scrollen (Owner, 2026-11-22)
 
 Owner: „Fix bitte bei den Emojis, dass bei der Page ein durchgängiger Scroll ist. Oder gibt's dazu schon Settings?“ Geprüft: keine Einstellung

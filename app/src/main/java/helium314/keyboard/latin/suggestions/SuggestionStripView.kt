@@ -436,6 +436,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun applyNeutralOrWords(suggestions: SuggestedWords, isRtlLanguage: Boolean) {
         clear()
+        cancelRestore()
+        for (word in wordViews) word.setOnTouchListener(restoreTouch) // stage 96, replaced by the bin icon of a long press elsewhere
         setRtl(isRtlLanguage)
         suggestedWords = suggestions
         startIndexOfMoreSuggestions = layoutHelper.layoutAndReturnStartIndexOfMoreSuggestions(
@@ -599,6 +601,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             return true
         }
         if (staleWords) return true // stage 89: outdated words, no long press and no list of more words
+        // stage 96: the left word that can be put back has its own long press (restoreTouch), not the one of the view
+        if (restoreFired || restoreRunnable != null) return true
         AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
         return if (view is TextView && wordViews.contains(view)) {
             onLongClickSuggestion(view)
@@ -608,6 +612,60 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     // actually private stuff
+
+    // stage 96 (owner): "Ein Longpress auf das Wort, während Dinge gelöscht wurden, dauert so lange wie ein Longpress auf die
+    // Buchstaben und holt das Wort in seiner ursprünglichen Form zurück." Only for the left word while characters of it were deleted;
+    // a tap still picks it, a long press on other words stays as it was.
+    private var restoreRunnable: Runnable? = null
+    private var restoreFired = false
+
+    private fun latinIme() = if (::listener.isInitialized) listener as? helium314.keyboard.latin.LatinIME else null
+
+    /** The word of [view] if it is the left word (the word as it stands while deleting) and its form before deleting can be put back. */
+    private fun restorableWord(view: View): String? {
+        val index = view.tag as? Int ?: return null
+        val words = suggestedWords
+        if (staleWords || isExternalSuggestionVisible || words.isPunctuationSuggestions || words.mWillAutoCorrect
+            || index != helium314.keyboard.agent.CurrentWordShown.LEFT_INDEX || index >= words.size()) return null
+        val word = words.getWord(index)
+        return word.takeIf { latinIme()?.canRestoreWordBeforeDelete(it) == true }
+    }
+
+    private fun cancelRestore() {
+        restoreRunnable?.let { removeCallbacks(it) }
+        restoreRunnable = null
+    }
+
+    @SuppressLint("ClickableViewAccessibility") // the tap stays with the view (onClick); this only adds the long press timer
+    private val restoreTouch = View.OnTouchListener { view, event ->
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                cancelRestore()
+                restoreFired = false
+                val word = restorableWord(view)
+                if (word != null) {
+                    val restore = Runnable {
+                        restoreRunnable = null
+                        if (latinIme()?.restoreWordBeforeDelete(word) == true) {
+                            restoreFired = true
+                            AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
+                            view.cancelLongPress()
+                            view.isPressed = false
+                        }
+                    }
+                    restoreRunnable = restore
+                    postDelayed(restore, Settings.getValues().mKeyLongpressTimeout.toLong())
+                }
+                false
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                cancelRestore()
+                // after the word was put back the lift must not also pick the (old) word
+                if (restoreFired) { restoreFired = false; view.isPressed = false; true } else false
+            }
+            else -> restoreFired // moves after the long press belong to it
+        }
+    }
 
     private fun onLongClickToolbarKey(view: View) {
         val tag = view.tag as? ToolbarKey ?: return

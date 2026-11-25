@@ -1,3 +1,11 @@
+# Neu: Wort links beim Löschen
+
+- **Altes Wort links**: Gehst du in ein Wort zurück, steht es links in der Leiste; war es automatisch korrigiert, steht dort dein getipptes Wort. Mitte und rechts zeigen Vorschläge.
+- **Beim Löschen**: Löschst du Buchstaben aus einem Wort, steht links das Wort, wie es gerade ist („löschen“ → „lösch“).
+- **Zurückholen**: Drück lange auf dieses Wort (so lange wie auf eine Buchstabentaste), dann steht wieder das ganze Wort da („löschen“).
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Emojis in einem Zug
 
 - **Durchgehend scrollen**: Die Emoji-Ansicht ist eine einzige Liste. Am Ende einer Kategorie geht es ohne seitliches Wischen in die nächste weiter; ein Tipp auf eine Kategorie springt dorthin, die Leiste zeigt beim Scrollen, wo du bist.
@@ -6,7 +14,7 @@
 
 - **Altes Leistenlayout kommt nicht mehr zurück**: Wurde die Tastatur bei gesperrtem Telefon neu aufgebaut (Design- oder Dunkelmodus-Wechsel, Antwort vom Sperrbildschirm), blieb danach die alte, seitlich scrollende Leiste. Jetzt zählt nur deine Einstellung.
 
-- **Beim Löschen sichtbar**: Löschst du ein Wort Buchstabe für Buchstabe oder gehst du in ein Wort zurück, steht es in der Mitte der Leiste so, wie es gerade ist. War es automatisch korrigiert, steht links dein getipptes Wort – ein Tipp setzt es ein. Die Leiste bleibt dabei nicht mehr leer.
+- **Beim Löschen sichtbar**: Die Leiste bleibt beim Löschen und beim Zurückgehen in ein Wort nicht mehr leer; wo das Wort steht, regelt jetzt „Wort links beim Löschen“ oben.
 
 # Neu: Emoji-Suche
 

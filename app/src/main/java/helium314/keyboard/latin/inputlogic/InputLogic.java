@@ -112,6 +112,8 @@ public final class InputLogic {
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
     // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
+    // fork, stage 96: the word before the delete key removed its characters, for a long press on the left word
+    public final helium314.keyboard.agent.WordBeforeDelete mWordBeforeDelete = new helium314.keyboard.agent.WordBeforeDelete();
     private static final int VERB_CONTEXT_CHARS = 24;
     private static final long VERB_CONTEXT_SLOW_MS = 40;
     private static final long VERB_CONTEXT_PAUSE_MS = 4000;
@@ -134,6 +136,38 @@ public final class InputLogic {
     private boolean mNeutralStripPending;
 
     public boolean hasActiveComposition() { return mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput(); }
+
+    /**
+     * Fork, stage 96: the form [shown] had before the delete key removed its characters, or null. [shown] is the word in the left
+     * slot of the strip; it must be the composing word with the cursor at its end.
+     */
+    @Nullable
+    public String wordBeforeDelete(final String shown) {
+        if (shown == null || !mWordComposer.isComposingWord() || mWordComposer.isBatchMode()
+                || mWordComposer.isCursorFrontOrMiddleOfComposingWord() || mConnection.hasSelection()) return null;
+        final String typed = mWordComposer.getTypedWord();
+        if (!typed.equals(shown)) return null;
+        return mWordBeforeDelete.originalFor(mConnection.getExpectedSelectionStart() - typed.length(), typed);
+    }
+
+    /**
+     * Fork, stage 96 (owner): a long press on the left word while characters of it were deleted puts the word back as it was
+     * before deleting began; the cursor goes to its end and the word stays the composing word. Returns false if there is nothing
+     * to put back.
+     */
+    public boolean restoreWordBeforeDelete(final String shown) {
+        final String original = wordBeforeDelete(shown);
+        if (original == null) return false;
+        mConnection.beginBatchEdit();
+        final int[] codePoints = StringUtils.toCodePointArray(original);
+        mWordComposer.setComposingWord(codePoints, mLatinIME.getCoordinatesForCurrentKeyboard(codePoints));
+        setComposingTextInternal(getTextWithUnderline(original), 1);
+        mConnection.endBatchEdit();
+        mWordBeforeDelete.clear();
+        mLastKeyWasDelete = false;
+        mLatinIME.mHandler.postUpdateSuggestionStrip(SuggestedWords.INPUT_STYLE_TYPING);
+        return true;
+    }
     /** Stage 42: a gesture is still being processed; {@link #replaceCommandText} refuses until it is done. */
     public boolean hasPendingBatchInput() { return mInputLogicHandler.hasPendingBatchInput(); }
     public boolean acceptsTailBatchResult(long generation) { return mInputLogicHandler.acceptsTail(generation); }
@@ -341,6 +375,7 @@ public final class InputLogic {
         mEnteredText = null;
         mWordBeingCorrectedByCursor = null;
         mTypedWordFirst.clear(); // fork, stage 48
+        mWordBeforeDelete.clear(); // fork, stage 96
         mFieldCorrections.start(); // fork, stage 49
         mConnection.onStartInput();
         if (!mWordComposer.getTypedWord().isEmpty()) {
@@ -668,6 +703,8 @@ public final class InputLogic {
                     newSelStart, newSelEnd, false /* shouldFinishComposition */);
         }
 
+        // fork, stage 96: a cursor that left the word (or a selection) ends the deleting at it
+        mWordBeforeDelete.cursorMovedTo(newSelStart != newSelEnd ? -1 : newSelStart);
         // fork, stage 49: the user moved the cursor, maybe after changing a word earlier in the field
         // (review M1: not inside a composing word, a half-typed word is no state of the field)
         mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false,
@@ -728,6 +765,7 @@ public final class InputLogic {
                 processedEvent, SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardCapsMode));
         mLastKeyWasDelete = processedEvent.getKeyCode() == KeyCode.DELETE; // fork, stage 94
+        if (!mLastKeyWasDelete) mWordBeforeDelete.clear(); // fork, stage 96: any other key ends the deleting
         if (processedEvent.getKeyCode() != KeyCode.DELETE
                 || inputTransaction.getTimestamp() > mLastKeyTime + Constants.LONG_PRESS_MILLISECONDS) {
             mDeleteCount = 0;
@@ -1578,6 +1616,10 @@ public final class InputLogic {
             } else {
                 if (GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.removeLast(mWordComposer.getTypedWord());
+                // fork, stage 96: the word as it was before deleting began (the cursor is at its end here, see above)
+                if (!mConnection.hasSelection())
+                    mWordBeforeDelete.beforeDelete(mConnection.getExpectedSelectionStart() - mWordComposer.getTypedWord().length(),
+                            mWordComposer.getTypedWord());
                 mWordComposer.applyProcessedEvent(event);
                 StatsUtils.onBackspacePressed(1);
             }
@@ -1586,6 +1628,8 @@ public final class InputLogic {
             } else {
                 mConnection.commitText("", 1);
             }
+            // fork, stage 96: the word as it stands now; a word deleted completely is forgotten
+            mWordBeforeDelete.afterDelete(mWordComposer.isComposingWord() ? mWordComposer.getTypedWord() : "");
             updateInlineEmojiSearch();
             inputTransaction.setRequiresUpdateSuggestions();
         } else {
@@ -2960,10 +3004,15 @@ public final class InputLogic {
             // fork, stage 48: the resumed corrected word shows its typed form first
             final String typedFirst = composer.isBatchMode() ? null
                     : mTypedWordFirst.typedFor(composer.getTypedWord(), composer.isResumed());
-            // fork, stage 94: while the word is edited with delete or resumed, it is shown as it stands (centre), its typed form left
-            if (!composer.isBatchMode() && composer.isComposingWord() && (composer.isResumed() || mLastKeyWasDelete))
-                suggestedWords = helium314.keyboard.agent.CurrentWordShown.arrange(suggestedWords, composer.getTypedWord(), typedFirst);
-            else if (typedFirst != null) suggestedWords = helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst);
+            // fork, stage 96 (replaces 94): while the word is resumed or edited with delete, the old word stands left (the typed form
+            // of a corrected word, else the word); once characters of it were deleted, the word as it stands
+            if (!composer.isBatchMode() && composer.isComposingWord() && (composer.isResumed() || mLastKeyWasDelete)) {
+                final String current = composer.getTypedWord();
+                final String original = composer.isCursorFrontOrMiddleOfComposingWord() ? null
+                        : mWordBeforeDelete.originalFor(cursor - current.length(), current);
+                final String left = original != null ? current : typedFirst != null ? typedFirst : current;
+                suggestedWords = helium314.keyboard.agent.CurrentWordShown.arrange(suggestedWords, current, left, typedFirst);
+            } else if (typedFirst != null) suggestedWords = helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst);
             callback.onGetSuggestedWords(suggestedWords);
         } catch (Exception e) {
             // better go without suggestions than have the keyboard crash

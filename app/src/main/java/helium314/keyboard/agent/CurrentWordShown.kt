@@ -6,26 +6,39 @@ import helium314.keyboard.latin.SuggestedWords.SuggestedWordInfo
 import helium314.keyboard.latin.dictionary.Dictionary
 
 /**
- * Stage 94 (owner, 2026-11-22): "Wenn man ein Wort Buchstabe für Buchstabe löscht, wird das aktuelle Wort auch angezeigt – in seinem
- * Zustand." While a word is edited with the delete key or is resumed, the strip shows the word as it stands in the centre (index 1),
- * the typed form of a corrected word left of it (index 2, stage 48) and the other candidates after them. Before, the strip hid the
- * word being edited (index 0 is never shown in the typing style), so a resumed valid word without alternatives left the strip empty.
- * A pending autocorrection keeps its own order (the correction in the centre, the typed word left of it, see Suggest).
+ * Stage 96 (owner, 2026-11-25, replaces the order of stage 94): "Beim Zurückgehen auf das Wort oder Zeichenlöschen bis und im Wort
+ * wird LINKS das alte Wort jederzeit angezeigt, außer: werden Zeichen von dem Wort aktiv gelöscht, wird das ebenfalls links im
+ * aktuellen Zustand angezeigt."
+ *
+ * While a word is resumed or edited with the delete key, the strip shows [left] at index 2 (left of the centre, right in RTL
+ * scripts): the caller passes the old word (the typed form of a corrected word, stage 48, or the word itself) when nothing of the
+ * word was deleted, and the word as it stands ("lösch") when characters were deleted. The centre (index 1) and the right side get
+ * the engine's other candidates. If there are none, index 1 is the word as it stands, so that the strip is never empty and [left]
+ * is still shown left (a list of two would be laid out as one word over the whole strip). Index 0 stays the word in the editor
+ * (never shown in the typing style). A pending autocorrection keeps its own order (the correction in the centre, the typed word
+ * left of it, see Suggest).
  */
 object CurrentWordShown {
+    /** Index of [left] in the result: left of the centre in the typing style, see `SuggestionStripLayoutHelper`. */
+    const val LEFT_INDEX = 2
+
+    /**
+     * [current] is the word in the editor, [left] the word for the left slot, [typedFirst] the typed form of a resumed corrected
+     * word (only used for the orders this function does not change).
+     */
     @JvmStatic
-    fun arrange(words: SuggestedWords, current: String, typedFirst: String?): SuggestedWords {
-        if (current.isEmpty() || words.mWillAutoCorrect || words.isPunctuationSuggestions
+    fun arrange(words: SuggestedWords, current: String, left: String, typedFirst: String?): SuggestedWords {
+        if (current.isEmpty() || left.isEmpty() || words.mWillAutoCorrect || words.isPunctuationSuggestions
             || (!words.isEmpty && words.mInputStyle != SuggestedWords.INPUT_STYLE_TYPING && words.mInputStyle != SuggestedWords.INPUT_STYLE_RECORRECTION))
             return if (typedFirst != null) TypedWordFirst.arrange(words, typedFirst) else words
         val infos = (0 until words.size()).map { words.getInfo(it) }
         val inEditor = infos.firstOrNull()?.takeIf { it.mWord == current } ?: typed(current)
-        val others = infos.filter { it.mWord != current && it.mWord != typedFirst }
+        val others = infos.filter { it.mWord != current && it.mWord != left }.distinctBy { it.mWord }
         val list = ArrayList<SuggestedWordInfo>(others.size + 3)
         list.add(inEditor)
-        list.add(typed(current))
-        if (typedFirst != null && typedFirst != current) list.add(typed(typedFirst))
-        list.addAll(others)
+        list.add(others.firstOrNull() ?: typed(current))
+        list.add(typed(left))
+        list.addAll(others.drop(1))
         return SuggestedWords(list, words.mRawSuggestions, words.mTypedWordInfo ?: inEditor, words.mTypedWordValid, false,
             words.mIsObsoleteSuggestions, SuggestedWords.INPUT_STYLE_TYPING, words.mSequenceNumber)
     }

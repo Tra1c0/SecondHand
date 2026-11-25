@@ -12,10 +12,6 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
 
-- **96 Wort links beim Zurückgehen und Löschen** (ersetzt die Anordnung von 94). „Beim Zurückgehen auf das Wort oder Zeichenlöschen bis und im
-  Wort wird LINKS das alte Wort jederzeit angezeigt, außer: werden Zeichen von dem Wort aktiv gelöscht, wird das ebenfalls links im aktuellen
-  Zustand angezeigt (löschen −n = lösche, −en = lösch). Ein Longpress auf das Wort, während Dinge gelöscht wurden, dauert so lange wie ein
-  Longpress auf die Buchstaben und holt das Wort in seiner ursprünglichen Form zurück.“
 - **97 Zuletzt benutzte Emojis klar abgegrenzt** von den übrigen (durchgehende Liste aus 93b).
 - **98 Feststelltaste und Zahlenreihe**: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole
   gelten nur für einmaliges Shift.“

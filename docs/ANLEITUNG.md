@@ -1624,6 +1624,12 @@ Groß-/Kleinschreibung), daneben ähnliche Wörter. Ein Tipp darauf setzt es ein
 gemachte Korrekturen merken“ gilt das wie die Löschtaste. Ein richtig geschriebenes Wort ändert die
 Autokorrektur nie nur in der Großschreibung („essen“ bleibt, „Essen“ steht als Vorschlag da).
 
+Wort beim Löschen: Gehst du in ein Wort zurück, steht es links in der Leiste (war es korrigiert, dein
+getipptes Wort). Löschst du Buchstaben daraus, steht links das Wort, wie es gerade ist („lösch“). Ein
+Tipp setzt es ein; ein Langdruck darauf (so lang wie auf einer Buchstabentaste) holt das Wort zurück,
+wie es vor dem Löschen war („löschen“). Nach einer anderen Taste oder wenn du die Schreibmarke in ein
+anderes Wort setzt, gibt es nichts mehr zurückzuholen.
+
 ## Trefferzonen
 
 Einstellungen → Tippen & Korrektur → Wörter & Lernen → Gelernte Wörter → Abschnitt „Trefferzonen“

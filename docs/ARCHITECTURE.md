@@ -1693,7 +1693,7 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
 - Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandTemplatesTest`, `CommandReplaceTest` und
   `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
-- **Aktuelles Wort beim Löschen (Etappe 94)**: `K/agent/CurrentWordShown.kt` ordnet die Vorschläge, solange ein Wort per Rücktaste bearbeitet oder wieder aufgenommen ist (`InputLogic.mLastKeyWasDelete`, `WordComposer.isResumed`): Mitte das Wort im jetzigen Zustand, links die getippte Form einer Korrektur (Etappe 48), danach die übrigen; eine anstehende Autokorrektur behält ihre Ordnung. Aufruf in `InputLogic.getSuggestedWords` statt `TypedWordFirst.arrange`; Test `AT/CurrentWordShownTest.kt`.
+- **Wort links beim Zurückgehen und Löschen (Etappe 96, ersetzt 94)**: `K/agent/CurrentWordShown.kt` ordnet die Vorschläge, solange ein Wort per Rücktaste bearbeitet oder wieder aufgenommen ist (`InputLogic.mLastKeyWasDelete`, `WordComposer.isResumed`): Index 2 (links) das linke Wort als `KIND_TYPED`, Index 1 (Mitte) und 3 ff. die übrigen Vorschläge, ohne Vorschlag Index 1 = das Wort; eine anstehende Autokorrektur behält ihre Ordnung. Das linke Wort wählt `InputLogic.getSuggestedWords`: kennt `K/agent/WordBeforeDelete.kt` (Feld `InputLogic.mWordBeforeDelete`; gesetzt in `handleBackspaceEvent`, verworfen in `onCodeInput` bei jeder anderen Taste, `startInput`, `onUpdateSelection`) ein Original, das Wort wie es steht, sonst die getippte Form (Etappe 48) oder das Wort. Langdruck auf das linke Wort: `SuggestionStripView.restoreTouch` (eigener Timer, `mKeyLongpressTimeout`; `onLongClick` gibt diesen Langdruck nicht an die Liste weiterer Vorschläge) → `LatinIME.restoreWordBeforeDelete` → `InputLogic.restoreWordBeforeDelete`. Tests `AT/CurrentWordShownTest.kt`, `AT/WordBeforeDeleteTest.kt`, `InputLogicTest` („long press restores it“).
 - **Emoji-Suche (Etappe 93a)**: `K/keyboard/emoji/EmojiSearchIndex.kt` sucht nach Name und Stichwort in `assets/emoji_search/search_<de|en|es>.tsv` (Unicode CLDR, erzeugt von `tools/emoji/build_search_index.py`; Rang: ganzer Name, Wort des Namens, Stichwort, Wortanfang, enthalten; Gleichstand: sehr häufige Emojis (`COMMON`, nach Unicodes Häufigkeitsliste 2021, Reihenfolge ungefähr), kürzerer Name, Reihenfolge der Kategorien; eigener Ordner, weil Tests jede Datei in `assets/emoji/` als Kategorie-Liste lesen; Umlaute/Akzente egal); Test `AT/../keyboard/emoji/EmojiSearchIndexTest.kt`. `EmojiSearchActivity` zeigt die Treffer in einem `ScrollView` (Fenster 2 Reihen, `DynamicGridKeyboard.ofKeyCount`, `MAX_RESULTS` 400) und sendet beim Tipp sofort (`sendDone`, ohne Schließ-Animation); `LatinIME.onEmojiSearchDone` hält das Ergebnis, solange noch das Suchfeld bedient wird (`mPendingEmojiSearchDone`), und setzt es beim nächsten `onStartInputViewInternal` des App-Felds ein (`deliverPendingEmojiSearchDone`, höchstens 5 s). Ohne Index bleibt die alte Wörterbuchsuche.
 - Weitere Befehle (Etappe 24c–24f), jeder in einer eigenen Datei, Reihenfolge in `BUILT_IN`:
   - `A/ContactCommand.kt` (`@contact`): `rank` (gleich, beginnt mit, Wortanfänge, enthält; höchstens
@@ -6754,7 +6754,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (776 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (778 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6765,7 +6765,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (102): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (103): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6781,7 +6781,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel,
   SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
   SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
-  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WorkflowApprovalSummary,
+  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WordBeforeDelete, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
@@ -6795,7 +6795,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (134): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (135): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarCalmCountersTest, BarEditModeTest,
   BarIconVisibilityTest, BarToolsTest, BundledEmojiDictTest, CalculatorViewTest,
@@ -6824,9 +6824,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
   TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
   TypoMemoryTest, UndoOfferHooksTest, UndoOfferTest, UpdateCheckTest, UpdateChipTest,
-  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  UpdateOnOpenTest, UpdatePromptsTest, WordBeforeDeleteTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest

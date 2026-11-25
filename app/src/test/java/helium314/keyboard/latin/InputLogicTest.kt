@@ -758,10 +758,10 @@ class InputLogicTest {
         assertEquals("hello ", text)
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("hullo", text)
-        // stage 94: the word as it stands (the typed form) in the centre, the undone correction left, a similar word right
-        assertEquals(listOf("hello", "hullo", "hull"), stripSlots())
+        // stage 96 (replaces 94): the old word (the typed form, the correction was undone) left, the engine's words in the centre and right
+        assertEquals(listOf("hullo", "hello", "hull"), stripSlots())
         assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect)
-        tapSlot(1)
+        tapSlot(0)
         assertEquals("hullo", text)
         chainInput("x")
         assertEquals("hullo x", text)
@@ -774,8 +774,8 @@ class InputLogicTest {
             assertEquals("Halle ", text)
             functionalKeyPress(KeyCode.DELETE)
             assertEquals("Hallo", text)
-            // stage 94: the word as it stands in the centre (here the typed form, the correction was undone), the correction left
-            assertEquals(listOf("Halle", "Hallo", "Halt"), stripSlots())
+            // stage 96 (replaces 94): the old word left (the typed form, the correction was undone), the correction in the centre
+            assertEquals(listOf("Hallo", "Halle", "Halt"), stripSlots())
         }
         reset()
         withSimilarWords("iphone", "phone") {
@@ -784,7 +784,7 @@ class InputLogicTest {
             assertEquals("iphone ", text)
             functionalKeyPress(KeyCode.DELETE)
             assertEquals("iPhone", text)
-            assertEquals("iPhone", stripSlots()[1]) // stage 94: the centre, with its case
+            assertEquals("iPhone", stripSlots()[0]) // stage 96: left, with its case
         }
     }
 
@@ -800,8 +800,8 @@ class InputLogicTest {
             chainInput("world ")
             assertEquals("hello world ", text)
             setCursorPosition(2) // inside "hello"
-            // stage 94: the corrected word as it stands in the centre, its typed form left, a similar word right
-            assertEquals(listOf("hullo", "hello", "hull"), stripSlots())
+            // stage 96 (replaces 94): the old word (the typed form of the correction) left, a similar word in the centre
+            assertEquals(listOf("hullo", "hull"), stripSlots().take(2))
             tapSlot(0)
             assertEquals("hullo world ", text)
             assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello")) // remembered like backspace
@@ -827,8 +827,8 @@ class InputLogicTest {
     @Test fun `a word the cursor goes back to without a correction shows no extra word`() = withSimilarWords("hello", "hull") {
         chainInput("hello world ")
         setCursorPosition(2)
-        // stage 94 (owner): the resumed word is shown as it stands in the centre, a similar word left
-        assertEquals(listOf("hull", "hello", null), stripSlots())
+        // stage 96 (owner, replaces 94): the resumed word left, a similar word in the centre
+        assertEquals(listOf("hello", "hull", null), stripSlots())
         // a case-only correction ("ok" -> "OK") keeps the typed case at the first slot
         setText("")
         chainInput("ok")
@@ -841,6 +841,30 @@ class InputLogicTest {
         setText("OK then ")
         setCursorPosition(1)
         assertFalse("ok" in stripSlots())
+    }
+
+    // stage 96 (owner): while characters of a word are deleted it stands left as it is; a long press on it puts back the original
+    @Test fun `deleting shows the word as it stands left and the long press restores it`() {
+        chainInput("löschen")
+        functionalKeyPress(KeyCode.DELETE)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("lösch", text)
+        assertEquals("lösch", stripSlots()[0])
+        assertFalse(latinIME.restoreWordBeforeDelete("lösche")) // only the word as it stands
+        assertTrue(latinIME.canRestoreWordBeforeDelete("lösch"))
+        assertTrue(latinIME.restoreWordBeforeDelete("lösch"))
+        handleMessages()
+        checkConnectionConsistency()
+        assertEquals("löschen", text)
+        assertEquals("löschen", composingText)
+        assertFalse(latinIME.canRestoreWordBeforeDelete("löschen")) // put back once
+        // the word stays in editing: deleting starts anew from "löschen", another key ends it
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("lösche", stripSlots()[0])
+        assertTrue(latinIME.canRestoreWordBeforeDelete("lösche"))
+        chainInput("t")
+        assertEquals("löschet", text)
+        assertFalse(latinIME.canRestoreWordBeforeDelete("löschet"))
     }
 
     // stage 48 (b): where automatic capitals come from

@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Stage 94: the word being edited with delete is shown as it stands; the typed form of a corrected word left of it. */
+/** Stage 96 (replaces the order of 94): left the old word, or the word as it stands while characters of it are deleted. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
 class CurrentWordShownTest {
@@ -24,30 +24,45 @@ class CurrentWordShownTest {
 
     private fun SuggestedWords.list() = (0 until size()).map { getWord(it) }
 
-    @Test fun aResumedWordWithoutAlternativesIsShownInsteadOfAnEmptyStrip() {
-        // the owner's case: "Jungs" resumed, the engine offers nothing but the word itself (index 0, never shown)
-        val shown = CurrentWordShown.arrange(words("Jungs"), "Jungs", null)
-        assertEquals(listOf("Jungs", "Jungs"), shown.list()) // index 1 = the centre
+    @Test fun aResumedWordStandsLeftAndTheEngineWordsInTheCentreAndRight() {
+        // (a) the cursor went back into "Haus", nothing deleted: left the word, centre and right the other candidates
+        val shown = CurrentWordShown.arrange(words("Haus", "Hans", "Haut", "Bau"), "Haus", "Haus", null)
+        assertEquals(listOf("Haus", "Hans", "Haus", "Haut", "Bau"), shown.list()) // index 1 centre, 2 left, 3 right
+        assertEquals(SuggestedWordInfo.KIND_TYPED, shown.getInfo(CurrentWordShown.LEFT_INDEX).kind)
         assertFalse(shown.mWillAutoCorrect)
     }
 
-    @Test fun theTypedFormOfACorrectionStandsLeftAndTheCurrentWordInTheCentre() {
-        val shown = CurrentWordShown.arrange(words("Jung", "Junge", "Jungs", "jung"), "Jung", "jungs")
-        assertEquals(listOf("Jung", "Jung", "jungs", "Junge", "Jungs", "jung"), shown.list())
+    @Test fun theTypedFormOfAResumedCorrectionStandsLeft() {
+        // (a) "Jung" was corrected from "jungs": the old word left, the word itself is not repeated
+        val shown = CurrentWordShown.arrange(words("Jung", "Junge", "Jungs", "jungs"), "Jung", "jungs", "jungs")
+        assertEquals(listOf("Jung", "Junge", "jungs", "Jungs"), shown.list())
+    }
+
+    @Test fun whileDeletingTheWordAsItStandsStandsLeft() {
+        // (b) "löschen" minus "en": "lösch" left, the engine's words in the centre and right
+        val shown = CurrentWordShown.arrange(words("lösch", "lösche", "löscht"), "lösch", "lösch", null)
+        assertEquals(listOf("lösch", "lösche", "lösch", "löscht"), shown.list())
     }
 
     @Test fun nothingIsRepeated() {
-        val shown = CurrentWordShown.arrange(words("hallo", "hallo", "Hallo"), "hallo", "hallo")
-        assertEquals(listOf("hallo", "hallo", "Hallo"), shown.list())
+        val shown = CurrentWordShown.arrange(words("hallo", "hallo", "Hallo", "Hallo"), "hallo", "hallo", "hallo")
+        assertEquals(listOf("hallo", "Hallo", "hallo"), shown.list())
+    }
+
+    @Test fun withoutOtherWordsTheWordStillStandsLeft() {
+        // the owner's case of 94: "Jungs" resumed, the engine offers nothing but the word itself; a list of two would only fill the centre
+        val shown = CurrentWordShown.arrange(words("Jungs"), "Jungs", "Jungs", null)
+        assertEquals(listOf("Jungs", "Jungs", "Jungs"), shown.list())
     }
 
     @Test fun aPendingAutocorrectionKeepsItsOrder() {
         val pending = words("bur", "but", "bit", autoCorrect = true)
-        assertEquals(pending.list(), CurrentWordShown.arrange(pending, "bur", null).list())
+        assertEquals(pending.list(), CurrentWordShown.arrange(pending, "bur", "bur", null).list())
     }
 
-    @Test fun anEmptyListStillShowsTheWord() {
-        val shown = CurrentWordShown.arrange(SuggestedWords.getEmptyInstance(), "Haus", null)
-        assertEquals(listOf("Haus", "Haus"), shown.list())
+    @Test fun anEmptyListStillShowsTheWordLeft() {
+        val shown = CurrentWordShown.arrange(SuggestedWords.getEmptyInstance(), "Haus", "Haus", null)
+        assertEquals(listOf("Haus", "Haus", "Haus"), shown.list())
+        assertEquals("Haus", shown.getWord(CurrentWordShown.LEFT_INDEX))
     }
 }

@@ -1866,6 +1866,18 @@ public class LatinIME extends InputMethodService implements
         }
     }
 
+    /** Fork, stage 96: whether a long press on [word] in the left slot of the strip can put back its form before deleting. */
+    public boolean canRestoreWordBeforeDelete(final String word) {
+        return !mAgentEditorController.isBlockingInput() && mInputLogic.wordBeforeDelete(word) != null;
+    }
+
+    /** Fork, stage 96: the long press on the left word, see {@link InputLogic#restoreWordBeforeDelete}. */
+    public boolean restoreWordBeforeDelete(final String word) {
+        if (mAgentEditorController.isBlockingInput() || mInputLogic.wordBeforeDelete(word) == null) return false;
+        helium314.keyboard.agent.UndoOffer.onTextChange(); // stage 88: the text changes
+        return mInputLogic.restoreWordBeforeDelete(word);
+    }
+
     // Called from {@link SuggestionStripView} through the {@link SuggestionStripView#Listener}
     // interface
     @Override
