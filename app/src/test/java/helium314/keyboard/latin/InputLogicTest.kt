@@ -850,7 +850,9 @@ class InputLogicTest {
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("lösch", text)
-        assertEquals("lösch", stripSlots()[0])
+        val shown = inputLogic.mSuggestedWords
+        assertEquals("lösch", stripSlots()[0], "words " + (0 until shown.size()).map { shown.getWord(it) } + " style " + shown.mInputStyle
+            + " auto " + shown.mWillAutoCorrect + " composing " + composingText)
         assertFalse(latinIME.restoreWordBeforeDelete("lösche")) // only the word as it stands
         assertTrue(latinIME.canRestoreWordBeforeDelete("lösch"))
         assertTrue(latinIME.restoreWordBeforeDelete("lösch"))
