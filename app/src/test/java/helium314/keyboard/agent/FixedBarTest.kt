@@ -880,6 +880,99 @@ class FixedBarTest {
         assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
     }
 
+    // ---- stage 99: left key and circle stand fixed, only the middle changes ----
+
+    /** A plain text field: the rule of the writing session applies (BarState.calm). */
+    private fun textField() {
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+            InputAttributes(EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+    }
+
+    private fun endCircle(h: Harness): ImageButton? = h.strip.findViewById(R.id.agent_bar_end_circle)
+    private fun View.topIn(root: View): Int = generateSequence(this) { it.parent as? View }.takeWhile { it !== root }.sumOf { it.top }
+    private fun idle(ms: Long) = org.robolectric.shadows.ShadowLooper.idleMainLooper(ms, java.util.concurrent.TimeUnit.MILLISECONDS)
+
+    /**
+     * The owner's bar (settings, clipboard, undo, the microphone circle at the end) at 320, 360 and 411 dp, default and flat look: while
+     * the middle shows words, nothing or chips, the circle covers the pixels of the row's circle and the left key stays; a tap on it is
+     * the tool. Chips leave room for it from 340 dp on (at 320 dp they take the whole middle).
+     */
+    @Test fun theLeftKeyAndTheCircleStandWhereTheyAreWhileOnlyTheMiddleChanges() {
+        for (flat in listOf(false, true)) for (dp in listOf(320, 360, 411)) {
+            if (flat) flatPreset()
+            setBar(listOf(SETTINGS, CLIPBOARD, UNDO, DICTATE))
+            reload(); textField()
+            val h = build()
+            val width = Math.round(dp * 3.25f)
+            val label = "flat=$flat dp=$dp"
+            h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+            layoutAt(h, width)
+            val rowCircle = assertNotNull(FixedBar.endCircleOf(toolbar(h)), label)
+            val place = Triple(rowCircle.leftIn(h.root), rowCircle.topIn(h.root), rowCircle.width)
+            val leftPlace = leftKey(h).leftIn(h.root)
+            assertTrue(endCircle(h)?.visibility != View.VISIBLE, "$label: the tools show, only the row's circle")
+
+            h.strip.onTyped() // a key of the session
+            h.strip.setSuggestions(words("hallo", "halli", "hallodri"), false)
+            layoutAt(h, width)
+            val end = assertNotNull(endCircle(h), label)
+            assertTrue(suggestionsVisible(h) && !toolsVisible(h), label)
+            assertEquals(View.VISIBLE, end.visibility, label)
+            assertTrue(FixedBar.isCircle(end), label)
+            assertEquals(place, Triple(end.leftIn(h.root), end.topIn(h.root), end.width), "$label: the circle beside the words is where the row has it")
+            assertEquals(leftPlace, leftKey(h).leftIn(h.root), "$label: the left key stays")
+            val words = h.strip.findViewById<View>(R.id.suggestions_strip)
+            assertTrue(words.leftIn(h.root) >= leftKey(h).leftIn(h.root) + leftKey(h).width && words.leftIn(h.root) + words.width <= end.leftIn(h.root),
+                "$label: the words lie between the left key and the circle")
+            h.codes.clear()
+            assertTrue(end.performClick(), label)
+            assertEquals(listOf(helium314.keyboard.latin.utils.getCodeForToolbarKey(DICTATE)), h.codes, "$label: one tap is the dictation")
+
+            // nothing offered in the session: after the short debounce the middle is empty, the tools do not come, the circle stays
+            h.strip.onTyped()
+            h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+            idle(helium314.keyboard.latin.suggestions.BarState.CALM_DEBOUNCE_MS + 50)
+            layoutAt(h, width)
+            assertTrue(suggestionsVisible(h) && !toolsVisible(h), "$label: empty middle, not the tools")
+            assertEquals(View.VISIBLE, end.visibility, label)
+            assertEquals(place.first, end.leftIn(h.root), label)
+
+            // a pause without a key: the tools, the circle is the row's again; the next key: the words area again
+            idle(helium314.keyboard.latin.suggestions.BarState.WRITING_PAUSE_MS)
+            assertTrue(toolsVisible(h) && !suggestionsVisible(h), "$label: after the pause the tools")
+            assertEquals(View.GONE, end.visibility, label)
+            h.strip.onTyped()
+            h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+            assertTrue(suggestionsVisible(h) && !toolsVisible(h), "$label: the next key brings the words area back")
+            assertEquals(View.VISIBLE, end.visibility, label)
+
+            // chips: the circle beside them where the bar is wide enough
+            h.strip.setExternalSuggestionView(android.widget.TextView(context).apply { text = "Chip" }, false)
+            layoutAt(h, width)
+            assertEquals(dp >= 340, end.visibility == View.VISIBLE, "$label: chips and the circle")
+            h.strip.setToolbarVisibility(true)
+            assertEquals(View.GONE, end.visibility, "$label: the tools show the row's own circle")
+            h.strip.onKeyboardHidden()
+        }
+    }
+
+    /** A bar without a microphone key at the end has no circle beside the words; a field without words (password) keeps the old bar. */
+    @Test fun noCircleWithoutAMicrophoneAtTheEndAndNoneInAFieldWithoutWords() {
+        setBar(listOf(SETTINGS, CLIPBOARD, UNDO))
+        reload(); textField()
+        var h = build()
+        h.strip.onTyped()
+        h.strip.setSuggestions(words("hallo"), false)
+        assertTrue(endCircle(h) == null || endCircle(h)!!.visibility != View.VISIBLE)
+        setBar(listOf(SETTINGS, CLIPBOARD, UNDO, DICTATE))
+        reload()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo().apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD }, false, latinIME.packageName))
+        h = build()
+        h.strip.setExternalSuggestionView(android.widget.TextView(context).apply { text = "Autofill" }, false)
+        assertTrue(endCircle(h)?.visibility != View.VISIBLE, "a password field: as before")
+    }
+
     private companion object {
         const val WIDTH = 1200
         const val STRIP = 130

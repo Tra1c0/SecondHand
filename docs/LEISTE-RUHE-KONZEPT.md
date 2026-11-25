@@ -199,7 +199,7 @@ Nachweis: **U** = Robolectric (`StripCalmLogTest`, `BarStateTest`, `FixedBarTest
 je Rücktaste der Weg (im Wort, Wiederaufnahme, langsame Verbindung); `onStartInput` mit und ohne `restarting`; ob die Verbindung gerade als langsam gilt; „Leiste automatisch anzeigen/verbergen“, Folgewortvorschläge, Personalisierung an oder aus;
 Zahl der verworfenen Tipps auf veraltete Wörter.
 
-## 9. Stufe 2 (nicht gebaut, auf Zeichen des Leads): linke Taste und Kreis stehen fest
+## 9. Stufe 2 (gebaut in Etappe 99, anders als hier geplant: Abschnitt 10): linke Taste und Kreis stehen fest
 
 **Ziel (E3):** Linke Taste und Akzent-Kreis (Mikrofon, wenn er in der Leiste liegt) stehen fest, auch neben den Wörtern; nur die Mitte wechselt zwischen Werkzeugen und Wörtern, wie Gboard.
 
@@ -219,3 +219,62 @@ Zahl der verworfenen Tipps auf veraltete Wörter.
 | S2 | dasselbe, 320 dp / 360 dp | Wort tippen | zwei bis drei Wörter lesbar, nichts überlappt | abgeschnittene Wörter ohne Platz | Render-Test, B |
 | S3 | Diktat mitten im Satz | Kreis tippen | ein Tipp | zwei Tipps | G |
 | S4 | Anpassen-Modus | ziehen | wie Etappe 88, Kreis am Ende | Plätze verschieben sich | `BarEditModeTest`, G |
+
+## 10. Etappe 99: Wörter oder nichts, Werkzeuge nach der Pause, Kreis fest (gebaut)
+
+**Will (Owner, 2026-11-25):** „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt werden und mal nicht.“
+„Die Leiste kann gerne zu Werkzeugen wechseln, wenn eindeutig nicht mehr geschrieben wird. Mikrofon sollte unabhängig von den Vorschlägen da stehen bleiben.“
+„In der Mitte der Leiste stehen andere für das Wort plausible Schreibweisen, ein prognostiziertes Wort, was zu dem Satz passt, oder gar nichts.“
+
+**Ursache des „mal so, mal so“ (gelesen):** 89b ließ die alten Wörter 800 ms ab der letzten Taste stehen und schaltete danach auf die Werkzeuge, aber nur, wenn
+die Wörterbuchsuche gerade nichts hatte (`BarState.onPause`: `show == CONTENT && !hasContent`). Ob nach 0,8 s die Werkzeuge kamen, hing also am Wörterbuch, nicht am Owner.
+
+**Regel (Etappe 99, ersetzt 89b Ursache 3 und Abschnitt 6 „Variante B bleibt verworfen“):**
+1. **Linke Taste und Kreis stehen fest** (Stufe 2, Abschnitt 9). Endet die Leiste mit einem Mikrofon-Werkzeug (Spracheingabe oder Diktieren, der Akzent-Kreis), steht dieser
+   Kreis auch neben Wörtern und leerer Mitte, auf denselben Pixeln wie in der Werkzeugzeile. Nur die Mitte wechselt.
+2. **In der Schreibsitzung zeigt die Mitte Wörter oder nichts.** Kein Wechsel zu den Werkzeugen, weil gerade nichts vorgeschlagen wird. Zwischen zwei Listen bleibt nur die
+   Entprellung aus Regel 5: `BarState.CALM_DEBOUNCE_MS` = **250 ms** ab der letzten Taste (89: 250 ms, 89b: 800 ms), in der Frist nicht antippbar. Danach ist die Mitte leer.
+3. **Werkzeuge von selbst** wie bisher bei neuem Feld, leerem Feld, wieder geöffneter Tastatur, und neu **nach `BarState.WRITING_PAUSE_MS` = 4 s ohne Taste**, egal ob Wörter
+   stehen oder nicht. Die nächste Taste beendet die Pause; die Aktualisierung dieser Taste zeigt die Mitte wieder (Wörter oder leer). Auf Wunsch weiter sofort (linke Taste, `pinned`).
+4. Etappe 96 bleibt (linker Wortplatz: altes Wort bzw. Wort wie es steht, Langdruck holt das Original).
+5. **Chips** (Auswahl-Aktionen, Zwischenablage-Pille, Autofill, Update, Befehle) behalten ihren Rang in der Mitte; die Pause nimmt keinen Chip weg. Der Kreis steht neben Chips,
+   wenn die Leiste mindestens **340 dp** breit ist; darunter haben Chips die ganze Mitte.
+6. Felder ohne Vorschläge (Passwort, Zahl, Telefon, Vorschläge aus, App-Vervollständigung) und die anderen Leistenmodi: unverändert, auch kein Kreis neben Chips.
+
+**Entscheidungen und warum:**
+- **4 s:** Pausen zwischen zwei Tasten liegen beim Tippen weit unter einer Sekunde; Denkpausen im Satz von ein bis drei Sekunden sind alltäglich (deshalb verwarf 89 die 1,5 s
+  der Variante B). Vier Sekunden ohne Taste heißt eindeutig „schreibt nicht mehr“. Mit dem festen Kreis braucht das Diktat die Pause nicht.
+- **Die Pause hängt nicht am Inhalt der Mitte** (einfachste vorhersehbare Regel): Gerade die Abhängigkeit vom Wörterbuch war die Quelle. Ausnahme nur für Chips, weil der Owner sie
+  sonst nach vier Sekunden verlöre (Auswahl-Aktionen bei markiertem Text); offene Liste weiterer Wörter, Raster, Anpassen-Modus und Emoji-Reihe bleiben ebenfalls unberührt.
+- **Werkzeuge nach der Pause bleiben, bis eine Taste oder neuer Inhalt kommt** (`BarState.resting`): ein neutraler Aufruf ohne Taste nimmt sie nicht weg. Neuer Inhalt ohne Taste
+  (Wiederaufnahme nach Cursorbewegung, Pille, Chip) zeigt sich wie nach dem Feldstart.
+- **Kreis als zweiter Knopf statt Umbau der Zeile** (Abweichung vom Eingriffsplan in Abschnitt 9): Der Code legt nahe, die Zeile nicht anzufassen. Ein zweiter Knopf für dasselbe Werkzeug
+  (`FixedBar.arrangeEnd`, Id `agent_bar_end_circle`) liegt am Ende der Leiste, mit derselben Größe, demselben Rand zum Bildschirm und denselben Farben wie der letzte Platz der Zeile, und
+  ist nur sichtbar, wenn die Zeile verborgen ist. So bleiben die Plätze der Werkzeuge, das Ziehen, `slotCentres`, `BarEditor.slotCountAfterDrop` und der Anpassen-Modus genau wie in 88
+  (P473); im Anpassen-Modus und im Raster zeigt die Leiste ohnehin die Zeile mit ihrem Kreis. Tipp: das Werkzeug; Langdruck: wie am Platz der Zeile; nicht verfügbar: dieselbe Sperre, der
+  Grund kommt als kurze Meldung (die Zeile für den Hinweis ist dann verborgen).
+- **Chips gegen Kreis bei 340 dp:** Mitte = Breite − linke Taste (40 + 6 dp) − Kreis (40 + 6 dp). Bei 320 dp bleiben 228 dp, zu wenig für eine Pille mit Text oder Autofill mit Schließkreuz;
+  bei 360 dp 268 dp, bei 411 dp 319 dp. Wörter bekommen den Kreis immer (bei 320 dp drei Wörter zu je ≈ 76 dp, sonst zeigt die Leiste eins über die Mitte, wie bisher).
+
+**Kritik (selbst gespielt): wo die Regel den Wortlaut erfüllt und der Owner trotzdem scheitert.**
+- **K99-1, leere Mitte wirkt „schwarz“** (Rückmeldung zu Build 45). Jetzt stehen links die Taste und rechts der Kreis daneben; ohne Mikrofon am Ende steht rechts nichts.
+  Entscheidung: hingenommen (der Owner hat das Mikrofon am Ende); zeigt der Owner es als Loch, ist der nächste Schritt eine dezente Linie, nicht die Werkzeuge.
+- **K99-2, Owner liest nach dem Tippen vier Sekunden nach und will dann ein Wort der Mitte antippen**: es sind die Werkzeuge. Entscheidung: hingenommen, die nächste Taste (auch die Rücktaste)
+  bringt die Mitte zurück; die Wörter eines fertigen Worts sind nach vier Sekunden selten noch gemeint.
+- **K99-3, Diktat-Ergebnis setzt keine Sitzung** (Diktat tippt nicht über Tasten): nach dem Diktat zeigt die Leiste, was vorher war; vier Sekunden nach der letzten Taste die Werkzeuge.
+  Der Kreis steht in beiden Fällen an derselben Stelle, ein zweites Diktat ist ein Tipp. Entscheidung: so gelassen.
+
+**Abnahme-Zeilen Etappe 99** (Nachweis: U = Robolectric, G = Gerätetest `bar_calm_typing`, B = Bild, O = nur der Owner am Telefon):
+
+| # | Ausgangslage beim Owner | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- | --- |
+| 99-1 | Feld, Leiste mit Einstellungen, Zwischenablage, Rückgängig, Mikrofon-Kreis; dunkles Design; ohne Folgewortvorhersage | Satz „Hallo, wie geht es dir. Gut“ tippen | Mitte: Wörter oder leer, nie Werkzeuge; Kreis und linke Taste nach jeder Taste an derselben Stelle | Werkzeuge nach Satzzeichen oder 0,8 s; Kreis verschwindet | U (`StripCalmLogTest.sentenceWithoutPredictions`, `atASlowPaceTheToolsNeverCome…`), G |
+| 99-2 | dasselbe mit Folgewortvorhersage | denselben Satz langsam (1,5 s je Taste) | wie 99-1 | „mal so, mal so“ je nach Vorhersage | U (`atASlowPace…`, beide Fälle) |
+| 99-3 | mitten im Satz, Wörter stehen bzw. Mitte leer | 4 s keine Taste | Werkzeuge in der Mitte, in beiden Fällen | Werkzeuge nur ohne Wörter | U (`aPauseShowsTheTools…`, `BarStateTest`), G |
+| 99-4 | nach der Pause (Werkzeuge) | nächste Taste (Buchstabe, Leerzeichen, Rücktaste) | Mitte wieder Wörter oder leer | Werkzeuge bleiben | U, G |
+| 99-5 | mitten im Satz, Wörter stehen | Kreis antippen | ein Tipp startet das Diktat | zwei Tipps (Pfeil, dann Kreis) | U (`FixedBarTest.theLeftKeyAndTheCircleStand…`), O |
+| 99-6 | Wort teilweise gelöscht (Etappe 96) | Rücktaste, Langdruck aufs linke Wort | links das Wort wie es steht, Langdruck holt das Original; Kreis bleibt | Werkzeuge beim Löschen | U (`StripCalmLogTest`, Etappe 96), G |
+| 99-7 | Anpassen-Modus | Werkzeug in die Leiste ziehen | wie Etappe 88, Kreis am Ende der Zeile, Plätze unverändert | Plätze verschoben, doppelter Kreis | U (`BarEditModeTest` unverändert), G (`bar_edit_*`) |
+| 99-8 | 320, 360, 411 dp | Wort tippen | Wörter zwischen linker Taste und Kreis, nichts überlappt, Kreis auf den Pixeln der Zeile | Kreis verschoben, Wörter darunter | U (`FixedBarTest`), B (`owner-99-words-*dp.png`) |
+| 99-9 | Kopie jünger als drei Minuten (Pille), 411 dp bzw. 320 dp | Leerzeichen | Pille in der Mitte, Kreis daneben ab 340 dp, bei 320 dp Pille über die ganze Mitte; Pause nimmt die Pille nicht weg | Pille verdrängt nach 4 s | U (`FixedBarTest`, `aPauseDoesNotTakeAwayAChip`) |
+| 99-10 | Passwortfeld, Zahlfeld | tippen | wie vorher (Werkzeuge, kein Kreis neben Chips) | leere Mitte | U (`aPasswordFieldKeepsTheTools`, `FixedBarTest.noCircle…`) |

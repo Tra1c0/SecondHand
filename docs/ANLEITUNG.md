@@ -214,10 +214,11 @@ du in einem Tipp, was sie zeigt:
 - **NUR VORSCHLÄGE**: nur Vorschläge und angeheftete Knöpfe.
 - **VERSTECKT**: keine Leiste, mehr Platz für Tasten.
 
-**Die Leiste beim Schreiben (ab Etappe 89).** In der Voreinstellung „Tasten + Vorschläge“ bleibt die Leiste, sobald du in einem Feld mit
-Vorschlägen etwas getippt oder gelöscht hast, im Bereich der Wörter; ist nichts vorzuschlagen, bleibt er leer, links bleibt der Pfeil.
-Die Werkzeuge siehst du bei einem neuen oder leeren Feld und nach einem Tipp auf den Pfeil links oder auf ein Werkzeug; dann bleiben sie
-stehen, bis du das nächste Zeichen tippst (so kannst du mehrmals „Rückgängig“ tippen und siehst den Wiederholen-Pfeil). Wie oft die Leiste
+**Die Leiste beim Schreiben (ab Etappe 89, seit Etappe 99 einheitlich).** In der Voreinstellung „Tasten + Vorschläge“ zeigt die Mitte der Leiste,
+sobald du in einem Feld mit Vorschlägen etwas getippt oder gelöscht hast, Wörter oder nichts, nie die Werkzeuge. Links bleibt der Pfeil, rechts
+der Mikrofon-Kreis (wenn deine Leiste mit dem Mikrofon endet): ein Tipp darauf diktiert auch mitten im Satz. Tippst du 4 Sekunden lang nichts,
+zeigt die Mitte die Werkzeuge; die nächste Taste bringt die Wörter zurück. Die Werkzeuge siehst du außerdem bei einem neuen oder leeren Feld und
+nach einem Tipp auf den Pfeil links oder auf ein Werkzeug; dann bleiben sie stehen, bis du das nächste Zeichen tippst (so kannst du mehrmals „Rückgängig“ tippen und siehst den Wiederholen-Pfeil). Wie oft die Leiste
 wechselt und warum, zeigt Einstellungen → Diagnose → Karte „Leiste“ (nur Zahlen).
 
 **Wenn die Leiste flackert: so liest du die Karte „Leiste“ ab.** Öffne die App, in der es flackert, schreibe ein langes Wort (zehn Buchstaben oder

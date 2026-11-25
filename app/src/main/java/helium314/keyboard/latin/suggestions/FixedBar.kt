@@ -181,19 +181,42 @@ internal object FixedBar {
                 return@forEachIndexed
             }
             val circle = lastIsCircle && view === slots.last()
-            val width = if (circle) s.circleCell else s.cell
             view.id = R.id.agent_bar_tool
-            view.layoutParams = LinearLayout.LayoutParams(width, s.height).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
-            // the glyph is scaled into one box for every tool, so that they all look equally big
-            view.setPadding((width - s.glyph) / 2, (s.height - s.glyph) / 2, (width - s.glyph) / 2, (s.height - s.glyph) / 2)
-            view.scaleType = if (s.centred) ImageView.ScaleType.CENTER else ImageView.ScaleType.FIT_CENTER
-            if (flat) view.background = null else colors.setBackground(view, ColorType.STRIP_BACKGROUND)
-            view.setTag(R.id.agent_bar_circle, null)
-            view.setTag(R.id.agent_bar_tint, tint)
-            view.setTag(R.id.agent_bar_icon_bg, stripBackground)
-            if (circle) circle(view, flat, colors, s, tint)
-            applyIcon(view)
+            styleSlot(view, circle, flat, colors, s, tint, stripBackground)
         }
+    }
+
+    /** The size, the glyph box, the colours and (for [circle]) the accent circle of one slot button; its layout params are new [LinearLayout] ones. */
+    private fun styleSlot(view: ImageButton, circle: Boolean, flat: Boolean, colors: Colors, s: Sizes, tint: ColorStateList, stripBackground: Int) {
+        val width = if (circle) s.circleCell else s.cell
+        view.layoutParams = LinearLayout.LayoutParams(width, s.height).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
+        // the glyph is scaled into one box for every tool, so that they all look equally big
+        view.setPadding((width - s.glyph) / 2, (s.height - s.glyph) / 2, (width - s.glyph) / 2, (s.height - s.glyph) / 2)
+        view.scaleType = if (s.centred) ImageView.ScaleType.CENTER else ImageView.ScaleType.FIT_CENTER
+        if (flat) view.background = null else colors.setBackground(view, ColorType.STRIP_BACKGROUND)
+        view.setTag(R.id.agent_bar_circle, null)
+        view.setTag(R.id.agent_bar_tint, tint)
+        view.setTag(R.id.agent_bar_icon_bg, stripBackground)
+        if (circle) circle(view, flat, colors, s, tint)
+        applyIcon(view)
+    }
+
+    /** The circle at the right end of the row (the last slot, when it is a microphone key), or null. */
+    fun endCircleOf(toolbar: ViewGroup): ImageButton? = slots(toolbar).lastOrNull()?.takeIf { isCircle(it) }
+
+    /**
+     * Fork, stage 99 (stage 2 of `docs/LEISTE-RUHE-KONZEPT.md`): the circle at the right end stays where it is while the middle shows
+     * words or chips. [end] is a second button for the same tool, the last child of the strip's [wrapper] (after the words area),
+     * shown only while the tool row is hidden. It gets the size, the colours and the circle of the row's last slot and the same
+     * margin to the edge as the row ([Sizes.rowMarginEnd]), so it covers exactly the pixels of that slot: nothing moves when the
+     * middle changes. The places of the tools are not changed by it (the row and its slots are as before, see P473).
+     * Call after [arrange]; [count] is the number of visible slots of the row.
+     */
+    fun arrangeEnd(end: ImageButton, flat: Boolean, colors: Colors, count: Int) {
+        val s = sizes(end, flat, count)
+        end.id = R.id.agent_bar_end_circle
+        styleSlot(end, true, flat, colors, s, StripIconColors.guaranteed(colors, end.context), StripIconColors.background(colors))
+        (end.layoutParams as LinearLayout.LayoutParams).marginEnd = s.rowMarginEnd
     }
 
     private fun circle(button: ImageButton, flat: Boolean, colors: Colors, s: Sizes, tint: ColorStateList) {

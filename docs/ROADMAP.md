@@ -12,9 +12,6 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
 
-- **99 Vorschlagsleiste einheitlich**: „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt
-  werden und mal nicht.“ Braucht eine Entscheidung des Owners (was steht in der Mitte, wenn es nichts vorzuschlagen gibt) und Stufe 2 von 89
-  (linke Taste und Mikrofon fest). Konzept vor dem Bau.
 - **100 Symbole ohne Verzögerung**: „Symbole/Zeichen braucht dringend Schnelligkeit. Aktuell ca. eine halbe Sekunde. Ziel mehr oder weniger
   instant.“ Erst messen (Karte „Tippen“, welcher Weg: Symbolseite öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben), dann beheben; 84 hat
   nur das Einfügen bei Wortende-Zeichen behandelt.

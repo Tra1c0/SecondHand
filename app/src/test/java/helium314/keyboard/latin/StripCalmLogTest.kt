@@ -104,7 +104,7 @@ class StripCalmLogTest {
                 sample()
                 // the delayed messages run in steps of 10 ms (fake clock), so a change inside the 300 ms after the key is seen, not only its end
                 repeat(40) { rig.idle(10); Thread.sleep(2); sample() }
-                // stage 89b: a typing pace (600 ms per key in all), not rig.settle() (1.2 s more): a pause of 800 ms brings the tools by design
+                // a typing pace (600 ms per key in all, stage 89b); the pause that brings the tools (stage 99: 4 s) is far away
                 repeat(4) { rig.idle(50); Thread.sleep(10) }
                 sample()
                 if (c == '\n') println("after ENTER: text=[" + rig.text.replace("\n","<NL>") + "] composing=[" + rig.composing + "]")
@@ -146,14 +146,19 @@ class StripCalmLogTest {
 
     // ---- the protocol of the new rule (stage 89): golden files plus counted claims ----
 
-    /** No next-word predictions: the words area is empty after most spaces. */
+    /**
+     * No next-word predictions: the words area is empty after most spaces. Stage 99: an empty middle is allowed (left key and circle stand
+     * beside it), the tools are not (stage 89b showed them 800 ms after the last key when nothing was offered: "mal so, mal so").
+     */
     @Test fun sentenceWithoutPredictions() {
         rig.predictions = emptyList()
         val rows = protocol(sentence + tenBackspaces)
         println("visible changes without predictions: ${switches(rows)}, tools: ${toolSwitches(rows)}")
         check("no-predictions", rows) // first, so that CI prints the protocol even when a claim below fails
         assertEquals(1, toolSwitches(rows), "the tools go away with the first key and never come back: " + visible(rows))
-        assertEquals(0, visible(rows).count { it.startsWith("E") }, "never an empty words area (stage 89b): " + visible(rows))
+        assertTrue(visible(rows).count { it == "E" } >= 1, "stage 99: nothing offered after a space or a full stop shows an empty middle: " + visible(rows))
+        assertEquals(0, rows.drop(1).count { r -> r.split("|").let { it[0].length == 1 && it[0][0].isLetter() && it[2] == "E" } },
+            "a letter always ends on words (the stub offers the typed word): " + rows)
     }
 
     /** The dictionary offers next words after a space. */
@@ -265,7 +270,7 @@ class StripCalmLogTest {
         val cache = cls.getDeclaredField("mCommittedTextBeforeComposingText").apply { isAccessible = true }.get(connection)
         (cache as StringBuilder).setLength(0)
         latinIME.setNeutralSuggestionStrip()
-        // stage 89b: after the pause of rig.settle() the tools show by design; the claim is that the session is not ended
+        // the claim is that the session is not ended (what the middle shows depends on the time since the last key)
         assertTrue(strip.isWritingSession(), "the session goes on: " + state())
     }
 
@@ -308,14 +313,64 @@ class StripCalmLogTest {
         rig.type("Hallo"); rig.settle()
         assertEquals("W", state())
         val before = rig.text
-        rig.tapFast(','.code) // the neutral update: the words of "Hallo" stand for 800 ms (stage 89b), outdated
+        rig.tapFast(','.code) // the neutral update: the words of "Hallo" stand for 250 ms (stage 99), outdated
         // a view without a width gets no text in a test: a word view of the strip is stood in for by a view with the tag the layout gives it
         val view = android.widget.TextView(latinIME).apply { tag = 0 }
         strip.onClick(view)
         assertEquals(before + ",", rig.text, "nothing was picked")
         assertEquals(1, helium314.keyboard.agent.BarCalmCounters.total.droppedTaps)
-        repeat(90) { rig.idle(10) } // the debounce is over: a real pause, the tools (stage 89b), never an empty words area
+        repeat(30) { rig.idle(10) } // the debounce is over: the middle is empty (stage 99), not the tools
+        assertEquals("E", state())
+        rig.idle(BarState.WRITING_PAUSE_MS) // four seconds without a key: the tools
         assertEquals("T", state())
+    }
+
+    // ---- stage 99: words or nothing while writing, the tools only after a pause ----
+
+    /**
+     * The rule does not depend on what the dictionary offers (owner: "mal nach ca. 0,8 Sekunden durch die Leiste ersetzt und mal nicht"):
+     * with and without predictions, at a slow typing pace (1.5 s per key, longer than the old 800 ms), the tools never come while typing.
+     */
+    @Test fun atASlowPaceTheToolsNeverComeWithOrWithoutPredictions() {
+        for (predictions in listOf(emptyList(), listOf("wie", "und", "ich"))) {
+            rig.predictions = predictions
+            val kinds = paced("Hallo, wie geht es. Gut", 1500)
+            assertEquals(0, kinds.dropWhile { it == "T" }.count { it == "T" }, "predictions=$predictions: " + kinds.joinToString(""))
+        }
+    }
+
+    /** After the pause the tools show, with words standing or not; the next key brings the words area back (never the tools again by itself). */
+    @Test fun aPauseShowsTheToolsWhateverTheMiddleShowsAndTheNextKeyBringsTheWordsBack() {
+        for (lastKey in listOf('o', ' ')) { // words stand after "Hallo"; after "Hallo " the middle is empty
+            rig.predictions = emptyList()
+            rig.startField("", restarting = true)
+            rig.settle()
+            rig.play("Hallo" + if (lastKey == ' ') " " else "")
+            assertTrue(state() != "T", "while typing: " + state())
+            // the last key was 1.5 s ago (300 ms of the tap, 1.2 s of settle()): 3.5 s without a key is still writing
+            rig.idle(BarState.WRITING_PAUSE_MS - 2000)
+            assertTrue(state() != "T", "before the pause ($lastKey): " + state())
+            rig.idle(1000)
+            assertEquals("T", state(), "after the pause ($lastKey)")
+            assertTrue(strip.isWritingSession(), "the session goes on")
+            rig.tapFast(' '.code) // nothing offered after it: the middle, empty, not the tools
+            rig.settle()
+            assertEquals("E", state(), "the next key brings the words area back ($lastKey)")
+            rig.play("w")
+            assertEquals("W", state())
+        }
+    }
+
+    /** A chip (here the selection chips) keeps its place in the middle through the pause; the pause is about words. */
+    @Test fun aPauseDoesNotTakeAwayAChip() {
+        rig.predictions = emptyList()
+        rig.startField("", restarting = true)
+        rig.settle()
+        rig.play("Hallo wie")
+        strip.setExternalSuggestionView(android.widget.TextView(latinIME).apply { text = "Chip" }, false)
+        assertEquals("C", state())
+        rig.idle(BarState.WRITING_PAUSE_MS + 500)
+        assertEquals("C", state())
     }
 
     /** "Leiste automatisch anzeigen" does not show the tools after Enter while the user writes; at the start of a field it still does. */
@@ -326,7 +381,7 @@ class StripCalmLogTest {
         rig.settle()
         assertEquals("T", state(), "a new field: the tools")
         rig.play("Hallo wie"); rig.settle()
-        rig.tapFast('\n'.code); rig.idle(300) // before the pause of 800 ms (stage 89b), which brings the tools by design
+        rig.tapFast('\n'.code); rig.idle(300) // long before the pause of 4 s (stage 99), which brings the tools by design
         assertTrue(state() != "T", "after Enter in the session: " + state())
     }
 

@@ -383,6 +383,67 @@ class BarIconVisibilityTest {
         assertTrue(java.io.File("build/owner-bars/owner-5-standard.png").length() > 1000)
     }
 
+    /**
+     * Stage 99: the strip while the middle shows words, in the owner's design (ground #090001, symbols white, accent #DA3658, left disc
+     * #500C0D) at 320, 360 and 411 dp: the left key, three words, and the circle at the right end, where the tool row has it
+     * ([FixedBar.arrangeEnd]). Written to `build/owner-bars/owner-99-words-<dp>dp.png` to look at; the claims: the circle beside the
+     * words covers the pixels of the row's circle, its fill is the accent and its icon is readable on it.
+     */
+    @Test fun theWordsBesideTheFixedCircleAreWrittenAsPicturesToLookAt() {
+        val keys = listOf(ToolbarKey.SETTINGS, ToolbarKey.CLIPBOARD, ToolbarKey.UNDO, ToolbarKey.VOICE)
+        for (dp in listOf(320, 360, 411)) {
+            val width = Math.round(dp * 3.25f)
+            val row = row(keys, owner)
+            val wrapper = row.wrapper
+            val expand = wrapper.getChildAt(0) as ImageButton
+            val disc = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.toolbar_expand_key_background)!!.mutate()
+            disc.colorFilter = android.graphics.PorterDuffColorFilter(owner.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), android.graphics.PorterDuff.Mode.SRC_IN)
+            expand.background = disc
+            expand.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_arrow_left)!!.mutate())
+            expand.scaleType = android.widget.ImageView.ScaleType.CENTER
+            expand.colorFilter = android.graphics.PorterDuffColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN)
+            fun measure() {
+                wrapper.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(HEIGHT, View.MeasureSpec.EXACTLY))
+                wrapper.layout(0, 0, width, HEIGHT)
+            }
+            measure()
+            val container = row.toolbar.parent as View
+            val rowCircle = row.buttons.last()
+            assertTrue(FixedBar.isCircle(rowCircle))
+            val rowLeft = container.left + rowCircle.left
+            val rowTop = container.top + rowCircle.top
+            // the middle shows words: the tool row goes, the words area and the circle beside it come (as SuggestionStripView.applyBarState does)
+            container.visibility = View.GONE
+            val words = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER }
+            listOf("Hallo", "Hallöchen", "Halle").forEach { w ->
+                words.addView(android.widget.TextView(context).apply { text = w; setTextColor(Color.WHITE); textSize = 18f; gravity = android.view.Gravity.CENTER; maxLines = 1 },
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+            }
+            wrapper.addView(words, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+            val end = createToolbarKey(context, ToolbarKey.VOICE, FixedBar.newButton(context))
+            wrapper.addView(end)
+            FixedBar.arrangeEnd(end, false, owner, keys.size)
+            measure()
+            assertEquals(rowLeft, end.left, "$dp dp: the circle beside the words stands where the row has it")
+            assertEquals(rowTop, end.top, "$dp dp: and at the same height")
+            assertTrue(FixedBar.isCircle(end))
+            assertTrue(words.right <= end.left && words.left >= expand.right, "$dp dp: the words lie between the left key and the circle")
+            val picture = Bitmap.createBitmap(width, HEIGHT, Bitmap.Config.ARGB_8888)
+            Canvas(picture).apply { drawColor(row.bg); wrapper.draw(this) }
+            val accent = owner.get(ColorType.ACTION_KEY_BACKGROUND)
+            // a point inside the circle (diameter 34 dp) and outside the glyph box (24 dp): the accent, opaque
+            val fillSeen = picture.getPixel(end.left + end.width / 2, end.top + end.height / 2 + Math.round(14.5f * 3.25f))
+            assertTrue(maxOf(abs(Color.red(fillSeen) - Color.red(accent)), abs(Color.green(fillSeen) - Color.green(accent)), abs(Color.blue(fillSeen) - Color.blue(accent))) <= 8,
+                "$dp dp: the accent circle is drawn, seen ${Integer.toHexString(fillSeen)}")
+            val glyph = android.graphics.Rect(end.left + end.paddingLeft, end.top + end.paddingTop, end.right - end.paddingRight, end.bottom - end.paddingBottom)
+            val ink = inkColour(picture, glyph, accent or 0xFF000000.toInt())
+            assertTrue(ink != null && RgbColors.contrast(ink.first, accent or 0xFF000000.toInt()) >= StripIconColors.MIN_CONTRAST - 0.2, "$dp dp: the icon on the circle")
+            val out = Bitmap.createBitmap(width, HEIGHT * 2, Bitmap.Config.ARGB_8888)
+            Canvas(out).apply { drawColor(row.bg); drawBitmap(picture, 0f, HEIGHT / 2f, null) }
+            java.io.File("build/owner-bars").apply { mkdirs() }.resolve("owner-99-words-${dp}dp.png").outputStream().use { out.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
+
     @Test fun theForkIconsThatWereBlackAreTintedLikeAnyOther() {
         // the build 41 bug: AGENT and SKILL_1 were pure black in the owner's design
         val row = row(listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.SKILL_1, ToolbarKey.UNDO, ToolbarKey.DICTATE, ToolbarKey.CHAR_ART, ToolbarKey.SKILL_2, ToolbarKey.SKILL_3), owner)

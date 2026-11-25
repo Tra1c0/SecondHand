@@ -40,6 +40,7 @@
     <item type="id" name="agent_bar_circle" />
     <item type="id" name="agent_bar_gap" />
     <item type="id" name="agent_bar_tool" />
+    <item type="id" name="agent_bar_end_circle" />
     <item type="id" name="agent_bar_tint" />
     <item type="id" name="agent_bar_icon_bg" />
     <item type="id" name="agent_bar_off" />

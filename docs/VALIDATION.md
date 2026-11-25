@@ -1,5 +1,23 @@
 # Prüfnachweise
 
+## Etappe 99 — Vorschlagsleiste einheitlich, Mikrofon steht fest (Owner, 2026-11-25)
+
+Owner: „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt werden und mal nicht.“ Ursache
+(gelesen): 89b schaltete 800 ms nach der letzten Taste nur dann auf die Werkzeuge, wenn das Wörterbuch gerade nichts hatte. Regel und Abnahme-Zeilen:
+`docs/LEISTE-RUHE-KONZEPT.md` Abschnitt 10 (Mitte Wörter oder leer, Entprellung 250 ms, Werkzeuge nach 4 s ohne Taste unabhängig vom Inhalt, Kreis
+fest als zweiter Knopf `agent_bar_end_circle`, Chips neben dem Kreis ab 340 dp).
+- Tests neu: `BarStateTest` (Pause mit und ohne Wörter, `resting`, gepinnt, außerhalb der Sitzung), `FixedBarTest.theLeftKeyAndTheCircleStand…` (320/360/411 dp,
+  Standard- und flacher Look: Kreis auf den Pixeln der Zeile, Tipp = Diktieren, leere Mitte nach der Frist, Werkzeuge nach der Pause, nächste Taste, Chips)
+  und `…noCircleWithoutAMicrophone…`, `StripCalmLogTest` (`atASlowPaceTheToolsNeverCome…`, `aPauseShowsTheTools…`, `aPauseDoesNotTakeAwayAChip`),
+  `BarIconVisibilityTest.theWordsBesideTheFixedCircle…` (Bilder `build/owner-bars/owner-99-words-<dp>dp.png` in der Palette des Owners).
+- Bewusst geänderte Erwartungen: `BarStateTest.inTheSessionNeutral…` und `aDeleteInAFieldWithText…` (leere Mitte statt Werkzeuge), `StripCalmLogTest.sentenceWithoutPredictions`
+  („nie leer“ aus 89b ersetzt durch „mindestens einmal leer, nie Werkzeuge, ein Buchstabe endet nie leer“), `aTapOnOutdatedWordsInsertsNothing` (nach der Frist „E“, nach 4 s „T“).
+  Die drei Protokolle `app/src/test/resources/stage89/strip-protocol-*.txt` sind **nicht** erneuert (lokal keine Toolchain): mit 250 ms statt 800 ms
+  erscheint „E“ nach Komma, Leerzeichen und Punkt; sie werden aus dem Job-Log („=== app/build/strip-protocol-…“) des ersten CI-Laufs erneuert.
+- Gerätetest `bar_calm_typing` angepasst: nie „T“ beim Tippen und Löschen, „E“ nur außerhalb eines Worts, Kreis nach jeder Taste an derselben Stelle (wenn die Leiste
+  des Emulators mit einem Mikrofon endet, sonst Notiz), nach 4,5 s Pause „T“ (Bild `calm_pause_tools`), nächste Taste nicht „T“.
+- Nicht geprüft: lokal lief nichts (kein Gradle, kein Emulator); kein CI-Lauf bis zum Push; nicht auf einem Telefon; Bilder nicht angesehen.
+
 ## Etappe 98 — Feststelltaste und Zahlenreihe (Owner, 2026-11-25)
 
 Owner: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole gelten nur für einmaliges Shift.“

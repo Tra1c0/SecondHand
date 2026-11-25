@@ -157,9 +157,24 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     // a Handler, not View.postDelayed: that one waits for a window (a view without one, as in tests or while hidden, would never run it)
     private val calmHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var releaseScheduled = false
-    private var releaseAfterPause = false
-    // stage 89b: the hold ran out without a new list: a real pause, the tools come (not an empty words area)
-    private val releaseWords = Runnable { releaseScheduled = false; staleWords = false; releaseAfterPause = true; applyNeutral(heldRtl); releaseAfterPause = false }
+    // the hold ran out without a new list: the middle is emptied (stage 99: no tools for that, the left key and the circle stand beside it)
+    private val releaseWords = Runnable { releaseScheduled = false; staleWords = false; applyNeutral(heldRtl) }
+    // stage 99: no key for BarState.WRITING_PAUSE_MS in the session: the middle shows the tools
+    private val writingPause = Runnable { onWritingPause() }
+
+    private fun cancelPause() { calmHandler.removeCallbacks(writingPause) }
+
+    /** Stage 99 ("wenn eindeutig nicht mehr geschrieben wird"): the pause ran out; the tools come whatever the middle shows, except chips. */
+    private fun onWritingPause() {
+        if (!fixedBar || !barState.calmWriting || barState.pinned || barState.show == BarState.Show.TOOLS) return
+        // chips keep their rank in the middle (a selection, the pill, a command, autofill): the rule is about words, not about them;
+        // nothing changes under an open grid, the edit mode, the recent emojis or the list of more words either
+        if (editor != null || gridOpen() || emojisShown() || isExternalSuggestionVisible || isShowingMoreSuggestionPanel) return
+        if (staleWords) { cancelHeldWords(); applyNeutral(heldRtl) }
+        barState.onPause()
+        applyBarState()
+        reportToLastField(newContent = false)
+    }
 
     /** Whether the session rule applies in this field: the fixed bar, and a field that can show words (not a password, number or phone field, suggestions on). */
     private fun updateCalm() {
@@ -176,6 +191,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (!fixedBar) return
         updateCalm()
         barState.onTyped()
+        // stage 99: the pause runs from the last key
+        cancelPause()
+        if (barState.calmWriting) calmHandler.postDelayed(writingPause, BarState.WRITING_PAUSE_MS)
         // the words that wait for the next list get their time from the last key, not from the neutral update: at a normal typing pace the
         // bar does not blink empty between two words, only in a real pause
         if (staleWords) {
@@ -228,6 +246,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /** The number-layout state the tools were last dimmed for (stage 79b). */
     private var numberLayoutShown = false
     private var voiceShown: Boolean? = null
+    /** Stage 99: the circle of the row's last microphone key beside the words (see [arrangeEndCircle]); null without such a circle. */
+    private var endCircle: ImageButton? = null
     private var leftKeyText = 0
     private var leftKeyCircle = false
     private val undoOfferListener: () -> Unit = { updateUndoOffer() } // called on the main thread by the key handling
@@ -446,7 +466,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         isExternalSuggestionVisible = false
         if (fixedBar) {
             // words, and punctuation the user asked for, replace the tools; an empty list gives the tools back
-            if (suggestions.isEmpty) { barState.onNeutral(fieldEmpty); if (releaseAfterPause) barState.onPause() } else barState.onContent()
+            if (suggestions.isEmpty) barState.onNeutral(fieldEmpty) else barState.onContent()
             fieldEmpty = false
         }
         reportToLastField(newContent = true)
@@ -581,6 +601,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     override fun onLongClick(view: View): Boolean {
+        // stage 99: the circle beside the words is the row's last slot: the same long press (its own action, or customizing)
+        if (fixedBar && view === endCircle) FixedBar.endCircleOf(toolbar)?.let { return onLongClick(it) }
         if (fixedBar && view === toolbarExpandKey) {
             if (editor == null && (barState.show == BarState.Show.TOOLS || gridOpen())) enterEdit()
             return true
@@ -818,6 +840,39 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val colors = Settings.getValues().mColors
         FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, colors)
         if (editor != null) FixedBar.markEditing(toolbar, flatStyle, colors, ghost)
+        arrangeEndCircle(colors)
+    }
+
+    /**
+     * Stage 99 (stage 2 of `docs/LEISTE-RUHE-KONZEPT.md`): the circle of the row's last microphone key also stands beside the words
+     * and chips, at the same pixels ([FixedBar.arrangeEnd]); a second button for the same tool, after the words area. Built again when
+     * the row's circle changes (another tool, the voice key hidden), removed when the row has no circle.
+     */
+    private fun arrangeEndCircle(colors: Colors) {
+        val wrapper = findViewById<ViewGroup>(R.id.suggestions_strip_wrapper) ?: return
+        val key = FixedBar.endCircleOf(toolbar)?.tag as? ToolbarKey
+        val old = endCircle
+        if (old != null && (key == null || old.tag != key)) { wrapper.removeView(old); endCircle = null }
+        if (key == null) return
+        val end = endCircle ?: createToolbarKey(context, key, FixedBar.newButton(context)).also {
+            it.setOnClickListener(this)
+            it.setOnLongClickListener(this)
+            it.visibility = GONE
+            wrapper.addView(it)
+            endCircle = it
+        }
+        FixedBar.arrangeEnd(end, flatStyle, colors, FixedBar.slots(toolbar).size)
+        end.visibility = if (endCircleShown()) VISIBLE else GONE
+    }
+
+    /** Whether the circle stands beside the middle now: the middle shows words, nothing or chips (chips only where the bar is wide enough). */
+    private fun endCircleShown(): Boolean {
+        // only where the session rule applies (stage 99, rule 6): a password, number or phone field and fields without suggestions stay as they were
+        if (endCircle == null || !barState.calm || emojisShown() || barState.show == BarState.Show.TOOLS || gridOpen() || editor != null) return false
+        if (!isExternalSuggestionVisible) return true
+        // chips win over the circle on a narrow bar (320 dp): their row needs the room; from CHIPS_WITH_CIRCLE_MIN_DP on both fit
+        val px = if (width > 0) width else resources.displayMetrics.widthPixels
+        return px / resources.displayMetrics.density >= CHIPS_WITH_CIRCLE_MIN_DP
     }
 
     private fun updateKeys() {
@@ -860,6 +915,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         helium314.keyboard.agent.UndoOffer.reset()
         closeGrid()
         cancelHeldWords()
+        cancelPause()
         barState.reset()
         applyBarState()
     }
@@ -903,6 +959,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /** A tap on a tool in the "off" look: not a dead tap, the strip says why (stage 88). */
     private fun showUnavailableHint(view: View) {
         val reason = FixedBar.reasonOf(view) ?: return
+        // stage 99: the circle beside the words has no tool row in view to carry the line
+        if (!toolbarContainer.isVisible) { KeyboardSwitcher.getInstance().showToast(reasonText(reason), true); return }
         FixedBar.showHint(toolbarContainer as ViewGroup, reasonText(reason), Settings.getValues().mColors)
     }
 
@@ -916,6 +974,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         // stage 79b: what the last field left in the bar state (a sticky choice of the tools for a selection, content that is
         // gone) must not hold the chips of the new field back; its own content comes with its first strip update
         cancelHeldWords()
+        cancelPause()
         barState.reset()
         applyBarState()
     }
@@ -938,6 +997,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val tools = barState.show == BarState.Show.TOOLS || gridOpen()
         toolbarContainer.isVisible = tools && !emojis
         suggestionsStrip.isVisible = !tools && !emojis
+        endCircle?.isVisible = endCircleShown() // stage 99: the circle stands beside the words
         pinnedKeys.visibility = GONE
         if (DEBUG_SUGGESTIONS) {
             for (view in debugInfoViews) view.visibility = suggestionsStrip.visibility
@@ -957,6 +1017,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number, alwaysIncognito())
             FixedBar.setAvailable(button, reason, editor != null, labelOf(key)) { reason?.let { unavailableLabelOf(key, it) } }
             if (key == ToolbarKey.UNDO) applyUndoOffer(button)
+        }
+        // stage 99: the circle beside the words is available exactly like the row's last slot (a lock in a private field, and the same hint)
+        endCircle?.let { button ->
+            val key = button.tag as? ToolbarKey ?: return@let
+            val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number, alwaysIncognito())
+            FixedBar.setAvailable(button, reason, editor != null, labelOf(key)) { reason?.let { unavailableLabelOf(key, it) } }
         }
     }
 
@@ -1337,6 +1403,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         private const val DEBUG_INFO_TEXT_SIZE_IN_DIP = 6.5f
         private const val BAR_ZONE_BELOW_DP = 40f
         private const val SLOT_GLIDE_MS = 140L
+        /** Stage 99: from this bar width on, chips leave room for the circle beside them (360 dp: 268 dp for the chips; 320 dp: only 228 dp). */
+        private const val CHIPS_WITH_CIRCLE_MIN_DP = 340f
         private val TAG = SuggestionStripView::class.java.simpleName
     }
 }

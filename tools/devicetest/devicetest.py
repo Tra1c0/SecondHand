@@ -1670,6 +1670,9 @@ def prompt_folders(d):
 
 BAR_TOOL_ID = KEYBOARD_PACKAGE + ":id/agent_bar_tool"
 LEFT_KEY_ID = KEYBOARD_PACKAGE + ":id/suggestions_strip_toolbar_key"
+# stage 99: the circle of the last microphone tool beside the words (a second button at the same place); not a slot of the tool row
+END_CIRCLE_ID = KEYBOARD_PACKAGE + ":id/agent_bar_end_circle"
+MIC_LABELS = ("Spracheingabe", "Voice input", "Diktieren", "Dictate")
 GRID_NODE_IDS = {"hint": "agent_tool_grid_hint", "undo": "agent_tool_grid_undo", "reset": "agent_tool_grid_reset",
                  "reset_yes": "agent_tool_grid_reset_yes", "reset_no": "agent_tool_grid_reset_no"}
 EDIT_LABELS = ("Anpassen", "Customize")
@@ -1687,7 +1690,7 @@ def bar_slots(screen):
         strip = screen.keyboard_node("suggestion_strip_view")
         if strip is not None:
             found = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.cls.endswith("ImageButton")
-                     and n.rid != LEFT_KEY_ID and n.desc and strip.left <= n.center[0] < strip.right
+                     and n.rid != LEFT_KEY_ID and n.rid != END_CIRCLE_ID and n.desc and strip.left <= n.center[0] < strip.right
                      and strip.top <= n.center[1] < strip.bottom]
     return sorted(found, key=lambda n: n.left)
 
@@ -2267,8 +2270,19 @@ def _strip_kind(screen):
     return "E"
 
 
+def _end_circle(screen):
+    """Stage 99: the circle at the right end: the row's last slot while the tools show, else the button beside the words (or None)."""
+    beside = [n for n in screen.nodes if n.rid == END_CIRCLE_ID and n.visible]
+    if beside:
+        return beside[0]
+    slots = bar_slots(screen)
+    return slots[-1] if slots and (slots[-1].desc or "").startswith(MIC_LABELS) else None
+
+
 def bar_calm_typing(d):
     """Stage 89, the quiet bar while writing, with real key touches: a sentence with punctuation, ten deletes, the tools on request.
+    Stage 99: words or nothing while typing (never the tools), the microphone circle at the same place after every key when the bar
+    ends with one, the tools after a pause of four seconds, the next key brings the words area back.
     The bar is read after every key (a dump takes a moment: a change that lasts less than that is not seen here; the unit test
     StripCalmLogTest samples every 10 ms). The Enter key is not typed (the test field is a single line: Enter would be the editor
     action), the paragraph is covered by the unit test."""
@@ -2276,32 +2290,50 @@ def bar_calm_typing(d):
     d.focus("text")
     ensure_tools(d)
     d.expect_equal("a new field shows the tools", _strip_kind(dump()), "T")
+    first = _end_circle(dump())
+    circle = None if first is None else (first.center, first.desc)
+    d.notes.append("microphone circle at the end: " + ("yes, at %s" % (circle[0],) if circle else "no (the bar of this emulator does not end with one)"))
     kinds = []
+    circles = []
     for char in "Hallo, wie geht es dir. Gut":
         d.type(char)
         time.sleep(0.35)
-        kinds.append((char, _strip_kind(dump())))
+        screen = dump()
+        kinds.append((char, _strip_kind(screen)))
+        c = _end_circle(screen)
+        circles.append(None if c is None else (c.center, c.desc))
         if char == " " and len(kinds) == 7:
             shot(d, "calm_after_space")
     d.notes.append("kinds while typing: " + "".join(k for _, k in kinds))
-    # stage 89b: never an empty (black) words area; the tools may come only after a real pause (a dump here takes about a second), not inside a word
-    d.expect_equal("the tools never come back inside a word", [c for c, k in kinds[1:] if k == "T" and c.isalpha()], [])
-    d.expect_equal("never an empty words area while typing", [c for c, k in kinds[1:] if k == "E"], [])
-    # "E" (the words area empty) is read too; inside a word it must not appear. A dump takes a second or more: an empty phase shorter than
-    # that (the blink of 100 ms the unit test StripCalmLogTest samples every 10 ms) cannot be seen here.
+    # stage 99: words or nothing while typing, never the tools (a dump takes about a second, far below the pause of four seconds)
+    d.expect_equal("the tools never come while typing", [c for c, k in kinds[1:] if k == "T"], [])
+    # "E" (the middle empty) is allowed after a space or punctuation, not inside a word (the dictionary offers the typed word)
     d.expect_equal("no empty words area inside a word", [c for c, k in kinds[1:] if k == "E" and c.isalpha()], [])
     d.notes.append("empty words area after punctuation or space: %d of %d keys" % (sum(1 for c, k in kinds if k == "E"), len(kinds)))
+    if circle is not None:
+        d.expect_equal("the microphone circle stands at the same place after every key", [i for i, c in enumerate(circles) if c is None or c[0] != circle[0]], [])
     shot(d, "calm_typed")
     deletes = []
     for _ in range(10):
         d.press("delete")
         time.sleep(0.35)
-        deletes.append(_strip_kind(dump()))
+        screen = dump()
+        deletes.append(_strip_kind(screen))
+        if circle is not None:
+            c = _end_circle(screen)
+            d.expect_equal("the circle stays while deleting", None if c is None else c.center, circle[0])
     d.notes.append("kinds while deleting: " + "".join(deletes))
-    d.expect_equal("never an empty words area while deleting", [k for k in deletes if k == "E"], [])
+    d.expect_equal("never the tools while deleting", [k for k in deletes if k == "T"], [])
     # the owner's case: deleting back into a word shows words for it (the cursor ends in "e" of "es")
     d.expect_equal("back inside a word the words show", deletes[-1], "W")
     shot(d, "calm_deleted")
+    # stage 99: a pause of four seconds without a key: the tools; the next key: the words area again
+    time.sleep(4.5)
+    d.expect_equal("after a pause of four seconds the tools", _strip_kind(dump()), "T")
+    shot(d, "calm_pause_tools")
+    d.press("delete")
+    time.sleep(0.6)
+    d.expect_equal("the next key brings the words area back", _strip_kind(dump()) != "T", True)
     # the left key: the tools, and they stay until the next typed key
     key = left_key(dump())
     if key is None:

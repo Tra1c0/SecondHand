@@ -145,12 +145,22 @@ class BarStateTest {
         assertEquals(Show.CONTENT, state.show)
         assertFalse(state.hasContent)
         assertEquals(LeftKey.SHOW_TOOLS, state.leftKey)
-        state.onPause() // stage 89b: the hold of the strip ran out: the tools, the session goes on
+        state.onNeutral() // stage 99: a further neutral update keeps the empty middle (no tools because nothing is offered)
+        assertEquals(Show.CONTENT, state.show)
+        state.onPause() // stage 99: the pause of four seconds without a key: the tools, the session goes on
         assertEquals(Show.TOOLS, state.show)
         assertTrue(state.writing)
-        state.onNeutral() // and a further neutral update does not empty the bar
+        assertTrue(state.resting)
+        assertEquals(LeftKey.GRID, state.leftKey)
+        state.onNeutral() // a neutral update without a key does not take the tools away
         assertEquals(Show.TOOLS, state.show)
-        state.onContent(); state.onPause() // a pause with words changes nothing
+        state.onTyped() // the next key ends the rest
+        assertFalse(state.resting)
+        state.onNeutral() // and its update shows the words area, empty or not
+        assertEquals(Show.CONTENT, state.show)
+        state.onContent(); state.onPause() // stage 99: a pause with words shows the tools too (89b did not: "mal so, mal so")
+        assertEquals(Show.TOOLS, state.show)
+        state.onTyped(); state.onContent()
         assertEquals(Show.CONTENT, state.show)
         state.onNeutral(fieldEmpty = true)
         assertEquals(Show.TOOLS, state.show)
@@ -164,7 +174,36 @@ class BarStateTest {
         state.onNeutral(); state.onTyped() // the hook calls onTyped for the delete key as well
         state.onNeutral()
         assertTrue(state.writing)
-        assertEquals(Show.TOOLS, state.show)
+        // stage 99 (changed on purpose): words or nothing while writing; 89b kept the tools of the field start here
+        assertEquals(Show.CONTENT, state.show)
+        assertFalse(state.hasContent)
+    }
+
+    @Test fun thePauseDoesNotDependOnWhatIsOfferedAndNotOnAPinnedChoice() {
+        for (words in listOf(true, false)) {
+            val state = calmState()
+            state.onTyped(); if (words) state.onContent() else state.onNeutral()
+            state.onPause()
+            assertEquals(Show.TOOLS, state.show, "words=$words")
+        }
+        val pinned = calmState()
+        pinned.onTyped(); pinned.onContent(); pinned.onLeftKey()
+        pinned.onPause()
+        assertTrue(pinned.pinned); assertFalse(pinned.resting) // the user's choice stays what it was
+        val outside = BarState() // not a calm field: no session, no pause
+        outside.onTyped(); outside.onContent(); outside.onPause()
+        assertEquals(Show.CONTENT, outside.show)
+        val notWriting = calmState() // a field opened with text, nothing typed yet
+        notWriting.onContent(); notWriting.onPause()
+        assertEquals(Show.CONTENT, notWriting.show)
+    }
+
+    @Test fun contentAfterThePauseComesBackLikeAfterTheFieldStart() {
+        val state = calmState()
+        state.onTyped(); state.onNeutral(); state.onPause()
+        state.onContent() // a resume after a cursor move, a pill: content wins over tools nobody asked for
+        assertEquals(Show.CONTENT, state.show)
+        assertFalse(state.resting)
     }
 
     @Test fun theToolsTheUserAskedForStayUntilTheNextTypedKey() {
@@ -187,6 +226,7 @@ class BarStateTest {
         assertFalse(state.pinned)
         state.onLeftKey(); state.onTyped() // tools, then a key: back to the session
         state.onNeutral(); state.onToolsRequested() // the tools show (auto show, selection)
+        assertTrue(state.resting) // forced tools stay until the next key or content
         state.onToolTapped()
         assertTrue(state.pinned)
         state.onNeutral(); assertEquals(Show.TOOLS, state.show)

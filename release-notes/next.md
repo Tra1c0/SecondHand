@@ -1,3 +1,11 @@
+# Neu: Vorschlagsleiste einheitlich
+
+- **Wörter oder nichts**: Während du schreibst, zeigt die Mitte der Leiste Wörter oder bleibt leer. Sie springt nicht mehr „mal nach 0,8 Sekunden, mal nicht“ zu den Werkzeugen.
+- **Mikrofon bleibt stehen**: Links die Taste, rechts der Mikrofon-Kreis stehen fest an ihrem Platz, auch neben den Wörtern. Diktieren mitten im Satz ist ein Tipp.
+- **Werkzeuge nach einer Pause**: Tippst du 4 Sekunden nichts, kommen die Werkzeuge in die Mitte; die nächste Taste bringt die Wörter zurück.
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Feststelltaste behält die Zahlen
 
 - **Zahlenreihe bei Feststelltaste**: Hast du die Großschreibung festgestellt, zeigt die Zahlenreihe wieder Zahlen. Die Symbole `! @ # …` kommen nur noch bei einmaligem Shift.
