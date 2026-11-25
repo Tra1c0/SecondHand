@@ -361,6 +361,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   keine Gruppe der Sprache). Tests: `CT/SwappedLettersTest.kt`, `SuggestTest.kt` („stage 75 …“),
   `InputLogicTest.kt` („revert swapped letters autocorrect on delete“).
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
+- Autokorrektur nach den Fehlfällen des Owners (Etappe 101, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`): rein in `C/`: `GermanVerbForms.kt` (regelmäßige Form eines Verbs der Liste), `OtherLanguageWord.kt` (Schutz eines gewöhnlichen Worts einer anderen aktivierten Sprache), `EnglishI.kt` („i“ → „I“), `NeighborKeys.kt` (eine Nachbartaste, QWERTZ/QWERTY), `SentenceLanguage.evidenceOfFrequencies` (Satzbeleg mit Vorsprung 60). `A/OtherLanguageDictionaries.kt`: Hauptwörterbücher der anderen aktivierten Sprachen nur lesend, geöffnet auf `ForeignWords.worker`, geschlossen mit `ForeignWords.closeDictionaries` (nicht mit dessen Leerlauf), `source` in Tests ersetzbar. `A/CorrectionGuards.blocksTarget` (Ziel nur aus Großbuchstaben, fremder Akzent) als Veto in `Suggest.shouldBeAutoCorrected`. In `Suggest.kt`: `isUnknownGermanVerbForm` (in `guardAllows` und `applySwappedLetters`), `isCommonWordOfOtherLanguage` (in `guardAllows` nach `passiveOnlyTarget`), `applyEnglishI` und `applyNeighborKey` (vor bzw. nach `applySwappedLetters`, an `mContextualAutocorrection`), Hilfen `activeLanguages`, `frequencyIn`, `sentenceLean`. Tests: `AutocorrectReportTest` „stage 101 …“, `CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest`, `AT/CorrectionGuardsTest`.
 - Untersuchung Autokorrektur (2026-11-21, keine Produktänderung): `AutocorrectReportTest.kt` hält mit festen Engine-Ergebnissen fest, was `Suggest`/`CorrectionGuard` heute tun (Ziel „nicbmal“ aus dem Verlauf ohne Wörterbuch-Prüfung, „i“ → „I“ bei „Richtige Wörter nie ändern“ blockiert, englischer Tippfehler im englischen Satz → deutsches Wort); Namen „reported finding N“. `tools/devicetest/devicetest.py`: Szenarien `reported_finding_*` (nur mit `--only` bzw. Workflow-Eingabe `only`) tippen mit echten Berührungen, schreiben Zeilen `PROBE …` ins Log und halten das heutige Verhalten fest (dokumentiert, nicht gutgeheißen).
 - Diagnose „Korrektur & Sprache“ (Etappe 90a): `Diagnose.correction` (Part `CORRECTION`, Karte direkt nach „Letztes Feld“ in `AgentDiagnoseScreen`) liest nur Einstellungen (`TypingAutocorrect.current`, Schalter, Layout und zweite Sprachen je aktivem Subtyp) und Zahlen aus `Diagnose.correctionCounts` (Hintergrund-Thread, `runCatching`, nicht lesbar = null = „unbekannt"): Verlaufswörter je Sprache, `TypoMemory`, `FieldCorrectionMemory`, `RejectedCorrections`. Kein Wort. Test `AT/DiagnoseCorrectionTest.kt`; Texte `agent_diagnose_corr_*` in `agent_diagnose_strings.xml`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
@@ -6763,7 +6764,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (779 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (788 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6774,7 +6775,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (103): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (104): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6785,14 +6786,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
-  MyDesigns, OnDeviceSpeechEngine, PillColors, PlaceCommand, PromptStore, RgbKeyPainter,
-  RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel,
-  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
-  SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
-  TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WordBeforeDelete, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  MyDesigns, OnDeviceSpeechEngine, OtherLanguageDictionaries, PillColors, PlaceCommand, PromptStore,
+  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
+  ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels,
+  SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog,
+  SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration,
+  TouchModel, TypedWordFirst, TypingPerf, TypoMemory, UndoOffer, WordBeforeDelete,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6839,12 +6840,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (56): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (60): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, CursorTrack, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
-  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, GermanVerbAgreement,
-  InformalWords, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
-  MathExpression, ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols,
-  Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns,
+  EmojiSynonyms, EnglishI, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection,
+  GermanVerbAgreement, GermanVerbForms, InformalWords, InkDots, InkRecognizer, InkSymbols,
+  InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelBudget, ModelProvider,
+  NeighborKeys, OtherLanguageWord, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places,
+  Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns,
   SentenceLanguage, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
   SwappedLetters, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
   UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
@@ -6853,18 +6855,19 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (55): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (59): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest,
-  EmojiMixTest, EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
-  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest,
-  PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest,
-  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest,
-  RgbPatternsTest, SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest,
-  StyledTranslationTest, SwappedLettersTest, SymbolTableTest, TimerParserTest, ToolTest,
-  TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowContractTest, WorkflowTest
+  EmojiMixTest, EnglishITest, EventParserTest, FieldReportTest, ForcedCorrectionTest,
+  GermanVerbAgreementTest, GermanVerbFormsTest, InformalWordsTest, InkAreaTest, InkBenchmarkTest,
+  InkDotFlowTest, InkDotsTest, InkFingerModel, InkLogicTest, InkRecognizerTest, InkTimingTest,
+  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest,
+  NeighborKeysTest, OtherLanguageWordTest, OwnInkSymbolsTest, PendingBatchGateTest,
+  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
+  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
+  SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
+  SwappedLettersTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
+  UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
+  WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

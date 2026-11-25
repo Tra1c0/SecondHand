@@ -1,3 +1,14 @@
+# Neu: Autokorrektur nach deinen Beispielen
+
+- **Verben bleiben**: „ich übermittle“, „ich marschiere“, „ich faselte“, „ich fiedel“ werden nicht mehr in andere Wörter verwandelt.
+- **Englisch auf dem deutschen Layout**: Gewöhnliche englische Wörter wie „God“, „sucks“, „cooled“ bleiben stehen, solange der Satz nicht deutsch ist. „fur“ wird weiter zu „für“.
+- **Keine Abkürzungen und fremden Akzente**: „aif“ wird nicht mehr „AIF“, „alr“ nicht „ALR“, „lame“ nicht „Lamé“. Das gemeinte Wort steht in der Leiste.
+- **Häufige Tippfehler**: „icj“ wird „ich“, auch wenn du den Tippfehler schon öfter getippt hast (nicht, wenn er in deinem persönlichen Wörterbuch steht).
+- **„i“ wird „I“**: im englischen Satz und auf dem englischen Layout, auch „i'm“ → „I'm“. Am Satzanfang auf Deutsch bleibt „i“ klein.
+- **Noch nicht**: „mur“ bleibt (das Wörterbuch kennt es), „gah“ wird weiter „gab“.
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Feststelltaste behält die Zahlen
 
 - **Zahlenreihe bei Feststelltaste**: Hast du die Großschreibung festgestellt, zeigt die Zahlenreihe wieder Zahlen. Die Symbole `! @ # …` kommen nur noch bei einmaligem Shift.

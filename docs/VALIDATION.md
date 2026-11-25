@@ -1,5 +1,23 @@
 # Prüfnachweise
 
+## Etappe 101 — Autokorrektur nach den Fehlfällen des Owners (2026-11-25)
+
+Konzept mit belegten Ursachen, Regeln, Abnahme-Zeilen und Kritiker: `docs/AUTOKORREKTUR-101-KONZEPT.md` (Wörterbuch-Befunde gelesen aus
+`main_{de,en-US,es}.dict` mit dem Leser aus `tools/build_informal_words.py`). Gebaut: A Verbformen (`GermanVerbForms`, Schutz in `guardAllows`
+und bei Buchstabendrehern), B Wörter anderer aktivierter Sprachen (`OtherLanguageDictionaries` lädt deren Hauptwörterbücher nur lesend auf dem
+Hintergrund-Thread von `ForeignWords`; `OtherLanguageWord`, Satzbeleg `SentenceLanguage.evidenceOfFrequencies`), C Ziel in Großbuchstaben oder mit
+fremdem Akzent (`CorrectionGuards.blocksTarget`, Veto in `shouldBeAutoCorrected`), D Nachbartaste (`NeighborKeys`, `Suggest.applyNeighborKey`),
+Fall 10 „i“ (`EnglishI`, `Suggest.applyEnglishI`). Abweichungen von den Hypothesen des Leads: „auf → AIF“ ist eine Groß-/Klein-Korrektur von
+getipptem „aif“ zum Hauptwörterbuch-Eintrag „AIF“ (nicht Verlauf); „mur“ schützt BEHUTSAM (Hauptwörterbuch 56), nicht der Verlauf; „mur → nur“ ist
+bewusst nicht gebaut (68 seltene echte Wörter hätten dieselbe Form, z. B. „gebt“ → „geht“). Bewusst geänderter Test: `AutocorrectReportTest`
+„reported finding 3 … (level Behutsam)“ erwartet jetzt „I“ (mit satzbezogener Autokorrektur; ohne sie das alte Verhalten). Ebenso die Erwartung des
+Gerätetests `reported_finding_3_level_gentle` („And I “; nicht gelaufen). Neue Tests:
+`AutocorrectReportTest` „stage 101 …“ (je Fehlfall, Einstellungen des Owners, feste Treffer mit Wörterbuchtyp und Sprache, Kontrollfälle),
+`CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest` (Häufigkeiten),
+`AT/CorrectionGuardsTest` (Ziele). Lokal ohne Android-Toolchain, nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Offen: Fall 9
+„gah“, „mocb“, „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Wörter im persönlichen Wörterbuch“); kein Gerät,
+echte Wörterbücher nur aus den Dateien gelesen, nicht in der laufenden Engine.
+
 ## Etappe 98 — Feststelltaste und Zahlenreihe (Owner, 2026-11-25)
 
 Owner: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole gelten nur für einmaliges Shift.“

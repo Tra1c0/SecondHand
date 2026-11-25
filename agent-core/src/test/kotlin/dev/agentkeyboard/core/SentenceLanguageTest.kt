@@ -27,4 +27,16 @@ class SentenceLanguageTest {
         assertEquals(Evidence.NEUTRAL, SentenceLanguage.evidenceOf(knownByL1 = true, knownByOther = true))
         assertEquals(Evidence.NEUTRAL, SentenceLanguage.evidenceOf(knownByL1 = false, knownByOther = false))
     }
+
+    // stage 101: frequencies as in the real German / English main dictionaries
+    @Test fun `classification by frequencies with a clear lead`() {
+        assertEquals(Evidence.ONLY_L2, SentenceLanguage.evidenceOfFrequencies(97, 181)) // but
+        assertEquals(Evidence.ONLY_L2, SentenceLanguage.evidenceOfFrequencies(75, 151)) // story
+        assertEquals(Evidence.ONLY_L1, SentenceLanguage.evidenceOfFrequencies(211, 129)) // die
+        assertEquals(Evidence.NEUTRAL, SentenceLanguage.evidenceOfFrequencies(160, 201)) // was
+        assertEquals(Evidence.NEUTRAL, SentenceLanguage.evidenceOfFrequencies(78, 118)) // cool
+        assertEquals(Evidence.ONLY_L1, SentenceLanguage.evidenceOfFrequencies(162, -1)) // damit
+        assertEquals(Evidence.ONLY_L2, SentenceLanguage.evidenceOfFrequencies(-1, 0)) // a word only the other knows, even with 0
+        assertEquals(Evidence.NEUTRAL, SentenceLanguage.evidenceOfFrequencies(-1, -1))
+    }
 }

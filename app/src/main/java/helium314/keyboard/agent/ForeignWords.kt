@@ -143,7 +143,7 @@ object ForeignWords {
         session = sessions.incrementAndGet()
         // second review (a): Android 14+ hardly sends low-memory levels any more; dictionaries unused for long are closed
         val last = lastCheck
-        if (last != 0L && clock() - last >= IDLE_MILLIS) closeDictionaries()
+        if (last != 0L && clock() - last >= IDLE_MILLIS) closeOwnDictionaries()
     }
 
     /**
@@ -411,6 +411,12 @@ object ForeignWords {
      * Also forgets which could not be loaded (second review c).
      */
     @JvmStatic fun closeDictionaries() {
+        closeOwnDictionaries()
+        // stage 101: the read-only lookups of the other languages follow the same occasions (not the idle time of this store)
+        OtherLanguageDictionaries.close()
+    }
+
+    private fun closeOwnDictionaries() {
         lastCheck = 0L
         runCatching { worker.execute { runCatching { Dictionaries.close() } } }
     }
