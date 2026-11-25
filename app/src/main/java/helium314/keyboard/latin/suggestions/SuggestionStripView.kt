@@ -651,7 +651,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun restorableWord(view: View): String? {
         val index = view.tag as? Int ?: return null
         val words = suggestedWords
-        if (staleWords || isExternalSuggestionVisible || words.isPunctuationSuggestions || words.mWillAutoCorrect
+        // with a pending autocorrection the typed word stands at the same index (left), so the long press works there too (review)
+        if (staleWords || isExternalSuggestionVisible || words.isPunctuationSuggestions
             || index != helium314.keyboard.agent.CurrentWordShown.LEFT_INDEX || index >= words.size()) return null
         val word = words.getWord(index)
         return word.takeIf { latinIme()?.canRestoreWordBeforeDelete(it) == true }
