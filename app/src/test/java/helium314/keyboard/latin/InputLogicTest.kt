@@ -844,7 +844,8 @@ class InputLogicTest {
     }
 
     // stage 96 (owner): while characters of a word are deleted it stands left as it is; a long press on it puts back the original
-    @Test fun `deleting shows the word as it stands left and the long press restores it`() {
+    @Test fun `deleting shows the word as it stands left and the long press restores it`() = withSimilarWords("Lösung", locale = Locale.GERMAN) {
+        // withSimilarWords: the test computes suggestions only with it (first CI run: the left slot was null without)
         chainInput("löschen")
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE)
