@@ -41,4 +41,6 @@
     <string name="agent_emoji_mixer_partner">Mix with %s</string>
     <string name="agent_emoji_mixer_blocked">The emoji mixer is off in this field</string>
     <string name="agent_emoji_mixer_recent">Recently mixed</string>
+    <!-- stage 97: heading above the recent emojis in the emoji palette -->
+    <string name="emoji_recents_heading">Recently used</string>
 </resources>

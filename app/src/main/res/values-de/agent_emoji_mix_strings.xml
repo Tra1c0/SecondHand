@@ -35,4 +35,6 @@
     <string name="agent_emoji_mixer_partner">Mit %s mischen</string>
     <string name="agent_emoji_mixer_blocked">Der Emoji-Mixer ist in diesem Feld aus</string>
     <string name="agent_emoji_mixer_recent">Zuletzt gemischt</string>
+    <!-- stage 97: heading above the recent emojis in the emoji palette -->
+    <string name="emoji_recents_heading">Zuletzt benutzt</string>
 </resources>

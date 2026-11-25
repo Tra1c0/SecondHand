@@ -1,3 +1,7 @@
+# Neu: zuletzt benutzte Emojis abgegrenzt
+
+- **Klar getrennt**: Über deinen zuletzt benutzten Emojis steht „Zuletzt benutzt“, darunter trennt eine dünne Linie sie von den übrigen. Hast du noch keine benutzt, fehlt beides.
+
 # Neu: Wort links beim Löschen
 
 - **Altes Wort links**: Gehst du in ein Wort zurück, steht es links in der Leiste; war es automatisch korrigiert, steht dort dein getipptes Wort. Mitte und rechts zeigen Vorschläge.

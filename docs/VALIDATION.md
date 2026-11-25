@@ -1,5 +1,18 @@
 # Prüfnachweise
 
+## Etappe 97 — zuletzt benutzte Emojis klar abgegrenzt (Owner, 2026-11-25)
+
+Owner: „Bitte die zuletzt verwendeten Emojis klar abgegrenzt von den restlichen.“ Umsetzung in der durchgehenden Liste aus 93b: zwei kleine
+Adapter (`RecentsMarkAdapter`, Überschrift „Zuletzt benutzt“/„Recently used“ und eine 1-dp-Linie mit Rand, beide in `ColorType.KEY_TEXT` mit
+Alpha 70 % bzw. 40 %, also hell auf dunklem Grund) vor und nach dem Adapter der Zuletzt-Kategorie im `ConcatAdapter`; eigene View-Typen 1
+und 2 (die Emoji-Seiten behalten Typ 0, `setIsolateViewTypes(false)`). Die Positionsrechnung (`startOf`/`categoryAt` in `PagerAdapter`)
+liegt jetzt in `EmojiListPositions` (Überschrift gehört zur ersten, Linie zur letzten Seite der Zuletzt-Kategorie; ein Tipp auf den Tab
+„Zuletzt“ zeigt die Überschrift mit). Ohne zuletzt benutzte Emojis haben beide Adapter keinen Eintrag; das erste Emoji bzw. „Zuletzt
+löschen“ blendet sie über `recentsChanged` ein bzw. aus. Unverändert: Die leere Zuletzt-Seite selbst ist wie bisher eine Reihe hoch
+(`DynamicGridKeyboard.getOccupiedHeight`). Nachweis: `EmojiListPositionsTest` (mit und ohne Abgrenzung, längerer Zuletzt-Block). Lokal ohne
+Android-Toolchain, nichts gebaut; GitHub-Läufe im Build-Log. Offen: Aussehen (Abstände, Kontrast im dunklen Design des Owners) nicht im
+Emulator angesehen, nicht auf einem Telefon.
+
 ## Etappe 96 — Wort links beim Zurückgehen und Löschen (Owner, 2026-11-25)
 
 Owner: „Beim Zurückgehen auf das Wort oder Zeichenlöschen bis und im Wort wird LINKS das alte Wort jederzeit angezeigt, außer: werden Zeichen

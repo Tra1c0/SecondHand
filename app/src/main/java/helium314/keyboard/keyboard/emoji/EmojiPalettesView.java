@@ -86,6 +86,9 @@ public final class EmojiPalettesView extends LinearLayout
         private final Map<Integer, RecyclerView> mViews = new HashMap<>(1);
         private RecyclerView mList;
         private EmojiPalettesAdapter mRecentsAdapter;
+        // stage 97: heading above and divider below the recent emojis, shown only while there are recent emojis
+        private RecentsMarkAdapter mRecentsHeading;
+        private RecentsMarkAdapter mRecentsDivider;
         /** A tab moved the list: the tab stays marked until the user scrolls himself (review M2: a short last category). */
         private boolean mJumped;
 
@@ -94,34 +97,53 @@ public final class EmojiPalettesView extends LinearLayout
             pager.setUserInputEnabled(false); // a single page: nothing to swipe to
         }
 
-        /** The adapter position of the first page of [category] in the continuous list. */
-        int startOf(EmojiCategory.Category category) {
-            int start = 0;
-            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
-                if (properties.getCategory() == category) return start;
-                start += properties.getPageCount();
+        /**
+         * Positions in the continuous list: the pages of the shown categories one after the other, and (stage 97) the heading and
+         * the divider of the recent emojis around their pages while they are shown, see EmojiListPositions.
+         */
+        private EmojiListPositions positions() {
+            final java.util.List<EmojiCategory.CategoryProperties> shown = mEmojiCategory.getShownCategories();
+            final int[] pageCounts = new int[shown.size()];
+            int recentsIndex = -1;
+            for (int i = 0; i < shown.size(); i++) {
+                pageCounts[i] = shown.get(i).getPageCount();
+                if (shown.get(i).getCategory() == EmojiCategory.Category.RECENTS) recentsIndex = i;
             }
-            return 0;
+            return new EmojiListPositions(pageCounts, recentsIndex, mRecentsHeading != null && mRecentsHeading.getVisible());
+        }
+
+        private int indexOf(EmojiCategory.Category category) {
+            final java.util.List<EmojiCategory.CategoryProperties> shown = mEmojiCategory.getShownCategories();
+            for (int i = 0; i < shown.size(); i++) if (shown.get(i).getCategory() == category) return i;
+            return -1;
         }
 
         /** The category and the page within it of adapter position [position]. */
         int[] categoryAt(int position) {
-            int start = 0;
-            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
-                if (position < start + properties.getPageCount()) return new int[] { properties.getCategory().ordinal(), position - start };
-                start += properties.getPageCount();
-            }
-            return new int[] { mEmojiCategory.getCurrentCategory().ordinal(), 0 };
+            final int[] at = positions().at(position);
+            if (at == null) return new int[] { mEmojiCategory.getCurrentCategory().ordinal(), 0 };
+            return new int[] { mEmojiCategory.getShownCategories().get(at[0]).getCategory().ordinal(), at[1] };
         }
 
         void scrollTo(EmojiCategory.Category category, int page) {
             if (mList == null) return;
             mJumped = true;
-            ((LinearLayoutManager) mList.getLayoutManager()).scrollToPositionWithOffset(startOf(category) + page, 0);
+            final int index = indexOf(category);
+            // page 0 of the recent emojis starts with their heading (stage 97)
+            final int target = index < 0 ? 0 : positions().scrollTarget(index, page);
+            ((LinearLayoutManager) mList.getLayoutManager()).scrollToPositionWithOffset(target, 0);
+        }
+
+        private boolean hasRecents() {
+            return !getRecentsKeyboard().getSortedKeys().isEmpty();
         }
 
         void recentsChanged() {
             if (mRecentsAdapter != null) mRecentsAdapter.notifyItemRangeChanged(0, mRecentsAdapter.getItemCount());
+            // stage 97: the first recent emoji brings the heading and the divider, clearing them takes them away
+            final boolean shown = hasRecents();
+            if (mRecentsHeading != null) mRecentsHeading.updateVisible(shown);
+            if (mRecentsDivider != null) mRecentsDivider.updateVisible(shown);
         }
 
         @Override
@@ -158,14 +180,25 @@ public final class EmojiPalettesView extends LinearLayout
             var recyclerView = getRecyclerView(holder.itemView);
             mViews.put(position, recyclerView);
             mList = recyclerView;
-            final var parts = new java.util.ArrayList<EmojiPalettesAdapter>();
+            final var parts = new java.util.ArrayList<RecyclerView.Adapter<? extends RecyclerView.ViewHolder>>();
             mRecentsAdapter = null;
+            mRecentsHeading = null;
+            mRecentsDivider = null;
+            final boolean recents = hasRecents();
             for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
                 final var adapter = new EmojiPalettesAdapter(mEmojiCategory, properties.getCategory(), EmojiPalettesView.this);
-                if (properties.getCategory() == EmojiCategory.Category.RECENTS) mRecentsAdapter = adapter;
-                parts.add(adapter);
+                if (properties.getCategory() == EmojiCategory.Category.RECENTS) {
+                    // stage 97: "Zuletzt benutzt" above the recent emojis and a divider below them (positions: EmojiListPositions)
+                    mRecentsAdapter = adapter;
+                    mRecentsHeading = new RecentsMarkAdapter(true, recents);
+                    mRecentsDivider = new RecentsMarkAdapter(false, recents);
+                    parts.add(mRecentsHeading);
+                    parts.add(adapter);
+                    parts.add(mRecentsDivider);
+                } else parts.add(adapter);
             }
-            // one view type for all categories: the page views are shared while scrolling through them
+            // one view type for all categories: the page views are shared while scrolling through them (heading and divider have
+            // view types of their own)
             recyclerView.setAdapter(new androidx.recyclerview.widget.ConcatAdapter(
                     new androidx.recyclerview.widget.ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(), parts));
             recyclerView.setItemViewCacheSize(4);
