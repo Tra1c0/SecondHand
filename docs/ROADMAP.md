@@ -8,6 +8,36 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 ## Beschlossen, noch nicht gebaut
 
+### Runde 4 (Auftrag des Owners, 2026-11-25)
+
+Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
+
+- **96 Wort links beim Zurückgehen und Löschen** (ersetzt die Anordnung von 94). „Beim Zurückgehen auf das Wort oder Zeichenlöschen bis und im
+  Wort wird LINKS das alte Wort jederzeit angezeigt, außer: werden Zeichen von dem Wort aktiv gelöscht, wird das ebenfalls links im aktuellen
+  Zustand angezeigt (löschen −n = lösche, −en = lösch). Ein Longpress auf das Wort, während Dinge gelöscht wurden, dauert so lange wie ein
+  Longpress auf die Buchstaben und holt das Wort in seiner ursprünglichen Form zurück.“
+- **97 Zuletzt benutzte Emojis klar abgegrenzt** von den übrigen (durchgehende Liste aus 93b).
+- **98 Feststelltaste und Zahlenreihe**: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole
+  gelten nur für einmaliges Shift.“
+- **99 Vorschlagsleiste einheitlich**: „Vorschläge nochmal komplett überarbeiten, weil sie mal nach ca. 0,8 Sekunden durch die Leiste ersetzt
+  werden und mal nicht.“ Braucht eine Entscheidung des Owners (was steht in der Mitte, wenn es nichts vorzuschlagen gibt) und Stufe 2 von 89
+  (linke Taste und Mikrofon fest). Konzept vor dem Bau.
+- **100 Symbole ohne Verzögerung**: „Symbole/Zeichen braucht dringend Schnelligkeit. Aktuell ca. eine halbe Sekunde. Ziel mehr oder weniger
+  instant.“ Erst messen (Karte „Tippen“, welcher Weg: Symbolseite öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben), dann beheben; 84 hat
+  nur das Einfügen bei Wortende-Zeichen behandelt.
+- **101 Autokorrektur nach dem Satz**: „Die Autokorrektur spackt immer noch, fast alles gefühlt zufällig. Fertige Pakete nachbauen oder
+  implementieren, dass die Tastatur anhand der Sätze erkennt, welche Korrektur sinnvoll ist.“ Baut auf 90 (Konzept, Schritt 0 offen), 91, 92 und
+  der Codex-Analyse (P1 Lernkonsistenz, Request-Vertrag) auf. Braucht konkrete Fehlfälle des Owners (getippt → wurde zu → erwartet) oder seine
+  Diagnose-Karte „Korrektur & Sprache“; Konzept mit Abnahme-Zeilen vor dem Bau.
+- **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
+  Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
+- **103 Spracheingabe mit eigenem Modell (Zukunft)**: „Whisper-Modell oder eins aus der Google-Familie. Ziel: extrem schnell und zuverlässig.“
+  Löst W6 ab (geparkt am 2026-11-20). Nicht jetzt.
+- **104 Semantische Nachkorrektur (Zukunft)**: „Automatische Nachkorrigierung im Falle sehr offensichtlicher semantischer Fehler nach
+  Wahrscheinlichkeiten, etwa ‚mit der Polen Zeit‘ → ‚mit der Polizei‘. Nur bei Dingen, die eindeutig sind. Die Regeln müssen festgelegt werden.“
+  Hängt an 101 bzw. 103.
+
+
 - **Runde 3 (Auftrag des Owners, 2026-11-20, Vergleich mit Gboard auf dem Xiaomi 15).** Bestandsaufnahme mit
   Codestellen: `docs/RUNDE3-BESTANDSAUFNAHME.md`. Etappen, jede einzeln geprüft:
   - **81 Symbolseiten wie Gboard, unabhängig vom Stil: gebaut** (steht in `docs/FEATURES.md`, Nachweis in
