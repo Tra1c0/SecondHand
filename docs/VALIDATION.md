@@ -11,7 +11,10 @@ Fall 10 „i“ (`EnglishI`, `Suggest.applyEnglishI`). Abweichungen von den Hypo
 getipptem „aif“ zum Hauptwörterbuch-Eintrag „AIF“ (nicht Verlauf); „mur“ schützt BEHUTSAM (Hauptwörterbuch 56), nicht der Verlauf; „mur → nur“ ist
 bewusst nicht gebaut (68 seltene echte Wörter hätten dieselbe Form, z. B. „gebt“ → „geht“). Bewusst geänderter Test: `AutocorrectReportTest`
 „reported finding 3 … (level Behutsam)“ erwartet jetzt „I“ (mit satzbezogener Autokorrektur; ohne sie das alte Verhalten). Ebenso die Erwartung des
-Gerätetests `reported_finding_3_level_gentle` („And I “; nicht gelaufen). Neue Tests:
+Gerätetests `reported_finding_3_level_gentle` („And I “; nicht gelaufen). Erster GitHub-Lauf (45718027096): agent, build, lint grün; upstream mit
+dem schon auf dem Basiszweig neuen Fehler „deleting shows the word …“ (Etappe 96) und neu `TypingEquivalenceTest` (das „i“ von „it's“ bekam
+auf dem englischen Stub-Layout eine Autokorrektur-Anzeige). Danach gilt die „i“-Regel auf dem englischen Layout nur mit „Richtige Wörter nie
+ändern“ (sonst setzt das Wörterbuch „I“ selbst), das Transkript bleibt unverändert. Neue Tests:
 `AutocorrectReportTest` „stage 101 …“ (je Fehlfall, Einstellungen des Owners, feste Treffer mit Wörterbuchtyp und Sprache, Kontrollfälle),
 `CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest` (Häufigkeiten),
 `AT/CorrectionGuardsTest` (Ziele). Lokal ohne Android-Toolchain, nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Offen: Fall 9

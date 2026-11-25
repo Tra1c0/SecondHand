@@ -139,7 +139,8 @@ oder das Gedächtnis (eigenes Wort nach drei Mal) bzw. eine Rücknahme mit „R�
 Behebung 1 aus Etappe 90 ist nicht gebaut, Test „reported finding 3“).
 
 **Regel (korrigiert, an „satzbezogene Autokorrektur“, `EnglishI` in `agent-core`, `Suggest.applyEnglishI`):** Getippt „i“, „i'm“, „i'll“, „i'd“,
-„i've“ (auch mit ’) wird zu „I“, „I'm“ … auf dem englischen Layout immer, auf jedem anderen Layout nur, wenn Englisch eine aktive oder andere
+„i've“ (auch mit ’) wird zu „I“, „I'm“ … auf dem englischen Layout, wenn „Richtige Wörter nie ändern“ an ist (sonst setzt das Wörterbuch
+selbst „I“ über seine Whitelist, unverändert), auf jedem anderen Layout nur, wenn Englisch eine aktive oder andere
 aktivierte Sprache ist und der Satz Englisch belegt: mindestens ein voriges Wort führt Englisch (Satzbeleg oben), keines die Tastatursprache.
 „im“, „ill“, „id“ werden nie berührt. Am Satzanfang und nach „ich“ bleibt „i“ klein (Dialekt „i hob“).
 

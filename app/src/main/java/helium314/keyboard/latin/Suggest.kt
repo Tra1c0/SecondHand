@@ -531,7 +531,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
 
     /**
      * Fork, stage 101 (owner: "the i in English is still lower case"): puts "I" ("I'm", "I'll", "I'd", "I've") first for the
-     * typed lower case form and returns true ([EnglishI]): on the English keyboard always, on another keyboard only with
+     * typed lower case form and returns true ([EnglishI]): on the English keyboard when "Richtige Wörter nie ändern" blocks the
+     * dictionary's whitelist entry (otherwise the engine sets it itself), on another keyboard only with
      * English active or enabled and an English sentence so far. With "satzbezogene Autokorrektur" on, like the verb rule.
      */
     private fun applyEnglishI(typed: String, ngramContext: NgramContext, suggestions: ArrayList<SuggestedWordInfo>,
@@ -544,6 +545,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val wanted = EnglishI.capitalized(typed) ?: return false
         val context = Settings.getCurrentContext()
         val keyboard = mDictionaryFacilitator.mainLocale.language
+        // on the English keyboard the dictionary's own whitelist entry sets "I"; only "Richtige Wörter nie ändern" blocks it there
+        // (the dictionary knows "i" as a word), so the rule steps in only then and leaves the engine's behaviour alone otherwise
+        if (keyboard == "en" && !settings.mKeepValidWords) return false
         if (keyboard != "en") {
             val active = activeLanguages()
             if ("en" !in active && "en" !in OtherLanguageDictionaries.languages(context, active)) return false
