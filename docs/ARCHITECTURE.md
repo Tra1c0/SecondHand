@@ -1198,6 +1198,8 @@ eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgra
   `getExtractedText` in `copyText` (sein `getSelectedText` zählt, einmal) und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen).
   Der Zähler wirft nie. `LatinIME.onEvent` zählt jeden Tastenbefehl, auch Dauerfeuer und Pfeile des Touchpads (verzerrt nur die Karte „Tippen“).
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
+- `LatinIME.java` und `MainKeyboardView.java` (104/105): `KeyLatency.eventStarted`/`eventEnded` am Anfang und Ende von `onEvent`,
+  `KeyLatency.touch` am Anfang von `onTouchEvent` (Messpunkte, aus ohne Log-Eigenschaft).
 - `LatinIME.java` (82): `getAgentSelection` (markierter Bereich, sonst null), `getAgentEditorGeneration` (Nummer der Editor-Sitzung,
   `AndroidEditorAdapter.generation`), `tryShowSelectionChips` (ohne Eingriff in die Werkzeugleiste, nicht mit `mAutoShowToolbar`) in
   `setSuggestedWords` (nach den Symbol-Chips, vor dem Screenshot-Chip, nicht für Wischtipp-Stile `UPDATE_BATCH`/`TAIL_BATCH` und
@@ -2546,6 +2548,12 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   Rumpf in eine `…Now`-Funktion gewandert und die öffentliche Funktion ruft sie über `measure`. Karte: `Diagnose.typing`
   (`Part.TYPING`), in `AgentDiagnoseScreen` als eigene Liste `shown` vor „App und Telefon“ eingefügt (`sections`
   bleibt, wie es war), Knopf `agent_diagnose_typing_reset`. Tests: `AT/TypingPerfTest.kt`.
+- Messpunkte der Tastenlatenz (Etappen 104/105): `A/KeyLatency.kt` schreibt je Taste eine Zeile mit Art (Buchstabe, Leerzeichen,
+  Enter, Löschen, sonst), Zeit vom Ende der Berührung (`MotionEvent.getEventTime`) bis zum Ende von `LatinIME.onEvent` und Dauer
+  von `onEvent` in den Log (Tag `SHLatency`), nur Zahlen und nur, solange `adb shell setprop log.tag.SHLatency DEBUG` gesetzt ist
+  (Prüfung höchstens alle 3 s); `retro` die Dauer einer Satzprüfung. Aufrufe: `MainKeyboardView.onTouchEvent` (`touch`),
+  `LatinIME.onEvent` (`eventStarted`, `eventEnded`). Ausgewertet vom Emulator-Szenario `typing_latency` (Zeilen `METRIC`, dazu
+  `dumpsys gfxinfo`).
   64b (P1, P2, P7, P8, P10, P13), Tests `AT/StripRequestsTest.kt`: `A/LockState.kt` ist der gemeinsame Sperrzustand.
   `LockState.normal` (Gerät gesperrt oder Speicher des Nutzers nicht entsperrt, wie `Memory`, `MemoryChips`,
   `ForeignWords`, `FieldSuggestionChips`, `SmartPasteChips` und `TouchModel.load` ihn fragten; deren Prüf-Hooks
@@ -6775,7 +6783,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (795 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (796 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6786,7 +6794,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (105): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (106): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6795,10 +6803,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
   FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
   FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
-  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
-  LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
-  MyDesigns, OnDeviceSpeechEngine, OtherLanguageDictionaries, PillColors, PlaceCommand, PromptStore,
-  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
+  JournaledModelCall, JournaledRun, KeyLatency, KeyboardCommands, KeyboardProfileStore, LastField,
+  LearningData, LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings,
+  MyData, MyDesigns, OnDeviceSpeechEngine, OtherLanguageDictionaries, PillColors, PlaceCommand,
+  PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
   SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
   SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolGridView,

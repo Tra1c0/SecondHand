@@ -1682,6 +1682,7 @@ public class LatinIME extends InputMethodService implements
     // completely replace #onCodeInput.
     public void onEvent(@NonNull final Event event) {
         helium314.keyboard.agent.TypingPerf.keyPress(); // fork, stage 64: a key press starts (numbers only, never throws)
+        helium314.keyboard.agent.KeyLatency.eventStarted(); // fork, stages 104/105: measurement, off unless its log tag is on
         if (mAgentEditorController.isBlockingInput()) return;
         // stage 42: while a typed command asks for a value (snippet fields), Enter moves on instead of sending
         if (event.getCodePoint() == Constants.CODE_ENTER && helium314.keyboard.agent.KeyboardCommands.onEnter(this)) return;
@@ -1695,6 +1696,7 @@ public class LatinIME extends InputMethodService implements
         updateStateAfterInputTransaction(completeInputTransaction);
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
         helium314.keyboard.agent.SelectionChips.afterKey(this, event.getKeyCode()); // stage 82
+        helium314.keyboard.agent.KeyLatency.eventEnded(event.getCodePoint(), event.getKeyCode()); // fork, stages 104/105
     }
 
     public void onTextInput(@Nullable String rawText) {

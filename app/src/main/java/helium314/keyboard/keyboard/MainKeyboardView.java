@@ -605,6 +605,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(final MotionEvent event) {
+        helium314.keyboard.agent.KeyLatency.touch(event.getActionMasked(), event.getEventTime()); // fork, stages 104/105: measurement
         if (getKeyboard() == null) {
             return false;
         }

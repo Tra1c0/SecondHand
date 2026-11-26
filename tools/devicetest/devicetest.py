@@ -2387,6 +2387,85 @@ def revert_correction_shows_word(d):
     shot(d, "revert_word_shown")
 
 
+# ------------------------------------------------------------------- measurement (stages 104/105, numbers only)
+LATENCY_TAG = "SHLatency"  # KeyLatency.TAG in the keyboard: on only while this run sets the log property
+# lower case, no noun, no clause that the sentence check or the punctuation would touch: the field must hold what was typed
+LATENCY_TEXT = " ich habe heute leider nicht so viel geschafft aber morgen mache ich weiter und dann schauen wir mal"
+
+
+def _percentile(values, p):
+    if not values:
+        return -1
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, max(0, int(math.ceil(p * len(ordered))) - 1))]
+
+
+def _latency_lines():
+    out = adb("logcat", "-d", "-s", LATENCY_TAG + ":D", timeout=60, check=False)
+    keys, retro = {}, []
+    for line in out.splitlines():
+        found = re.search(r"key=(\w+) touch_ms=(-?\d+) work_us=(\d+)", line)
+        if found:
+            keys.setdefault(found.group(1), []).append((int(found.group(2)), int(found.group(3))))
+            continue
+        found = re.search(r"retro=(\w+) work_us=(\d+)", line)
+        if found:
+            retro.append((found.group(1), int(found.group(2))))
+    return keys, retro
+
+
+def _gfx_summary():
+    out = shell("dumpsys gfxinfo %s" % KEYBOARD_PACKAGE, timeout=60, check=False)
+    wanted = ("Total frames rendered", "Janky frames", "50th percentile", "90th percentile", "95th percentile",
+              "99th percentile", "Number Slow UI thread", "Number Frame deadline missed")
+    seen, parts = set(), []
+    for line in out.splitlines():
+        line = line.strip()
+        for key in wanted:
+            if line.startswith(key) and key not in seen:
+                seen.add(key)
+                parts.append(line.replace(" ", ""))
+    return "; ".join(parts) or "no gfxinfo summary"
+
+
+def typing_latency(d):
+    """Measures each key with real touches (time from the end of the touch to the end of the keyboard's work on it, and
+    the frames of the keyboard), then checks that the field holds the typed text. Writes METRIC lines to the log."""
+    shell("setprop log.tag.%s DEBUG" % LATENCY_TAG, check=False)
+    try:
+        d.start("typing_latency")
+        d.focus("text")
+        d.type("und")
+        d.wait_for_suggestions()
+        time.sleep(3.5)  # the keyboard checks the log property at most every 3 s
+        adb("logcat", "-c", timeout=30, check=False)
+        shell("dumpsys gfxinfo %s reset" % KEYBOARD_PACKAGE, timeout=60, check=False)
+        d.type(LATENCY_TEXT)
+        time.sleep(1.5)
+        keys, retro = _latency_lines()
+        frames = _gfx_summary()
+    finally:
+        shell("setprop log.tag.%s INFO" % LATENCY_TAG, check=False)
+    for kind in ("letter", "space"):
+        rows = keys.get(kind, [])
+        touch = [t for t, _w in rows if t >= 0]
+        work = [w for _t, w in rows]
+        log("METRIC typing_latency %s n=%d touch_ms median=%d p95=%d max=%d | work_us median=%d p95=%d max=%d" % (
+            kind, len(rows), _percentile(touch, 0.5), _percentile(touch, 0.95), max(touch or [-1]),
+            _percentile(work, 0.5), _percentile(work, 0.95), max(work or [-1])))
+    if retro:
+        work = [w for _o, w in retro]
+        outcomes = {}
+        for outcome, _w in retro:
+            outcomes[outcome] = outcomes.get(outcome, 0) + 1
+        log("METRIC typing_latency retro n=%d work_us median=%d p95=%d max=%d outcomes=%s" % (
+            len(retro), _percentile(work, 0.5), _percentile(work, 0.95), max(work), outcomes))
+    log("METRIC typing_latency frames %s" % frames)
+    d.notes.append("letters %d, spaces %d" % (len(keys.get("letter", [])), len(keys.get("space", []))))
+    d.expect_field("text", "Und" + LATENCY_TEXT)
+    d.expect_equal("a latency line for every space", len(keys.get("space", [])) >= LATENCY_TEXT.count(" "), True)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -2395,7 +2474,9 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              # stage 88: the bar with real touches; each leaves the standard bar behind
              bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
              # stage 89: the quiet bar while writing
-             bar_calm_typing, revert_correction_shows_word]
+             bar_calm_typing, revert_correction_shows_word,
+             # stages 104/105: key latency and frames (METRIC lines), before and after the sentence check
+             typing_latency]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
