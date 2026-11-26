@@ -207,8 +207,11 @@ class ShelfUi(
         }
 
         override fun swipeDirs(holder: RecyclerView.ViewHolder): Int {
-            val card = cardOf(holder) ?: return 0 // folders are not swiped: one stray swipe must not empty a collection
-            return if (card.pinned || drag.capturing) 0 else androidx.recyclerview.widget.ItemTouchHelper.LEFT
+            val card = cardOf(holder)
+            val dirs = if (card == null || card.pinned || drag.capturing) 0 else androidx.recyclerview.widget.ItemTouchHelper.LEFT
+            // no content: whether a tile may be swiped and why not (device test diagnosis of 102b)
+            android.util.Log.d(SWIPE_TAG, "dirs=$dirs card=${card != null} pinned=${card?.pinned} capturing=${drag.capturing}")
+            return dirs // folders are not swiped: one stray swipe must not empty a collection
         }
 
         override fun swiped(holder: RecyclerView.ViewHolder) {
@@ -216,6 +219,7 @@ class ShelfUi(
             val position = holder.bindingAdapterPosition
             val card = cardOf(holder)
             val next = card?.let { ScreenshotShelf.dismiss(Shelf.state, it.shot.id) } ?: Shelf.state
+            android.util.Log.d(SWIPE_TAG, "swiped card=${card != null} changed=${next !== Shelf.state}")
             // changed meanwhile (pinned, gone): the tile comes back to its place instead of staying swiped out
             if (next === Shelf.state) { if (position >= 0) adapter?.notifyItemChanged(position); return }
             Shelf.apply(next)
@@ -799,5 +803,6 @@ class ShelfUi(
         const val LIFT_MS = 350L
         private const val FRAME_MS = 16L
         private const val GRID_COLUMNS = 3
+        const val SWIPE_TAG = "ShelfSwipe"
     }
 }

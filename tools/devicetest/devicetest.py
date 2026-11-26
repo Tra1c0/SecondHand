@@ -3076,8 +3076,13 @@ def screenshot_shelf_swipe(d):
     start_x = cell.right - 10
     # a quick swipe (well before the 350 ms of a lift); control: a short and slow one, below the distance and the speed of a swipe
     end_x, millis = (cell.right - (cell.right - cell.left) // 4, 800) if d.control else (5, 120)
+    shell("logcat -c", check=False)
     shell("input swipe %d %d %d %d %d" % (start_x, y, end_x, y, millis), check=False)
     time.sleep(1.5)
+    # what the swipe logic answered (no content): read when it fails
+    swipe_log = shell("logcat -d -s ShelfSwipe:D", check=False, timeout=40)
+    log("INFO swipe %s→%s in %d ms at y %d, cell %s: %s" % (start_x, end_x, millis, y, cell.box,
+        " | ".join(l.split(": ", 1)[-1] for l in swipe_log.splitlines() if "ShelfSwipe" in l)[-600:] or "no line"))
     screen = dump()
     after = [n.desc for n in folder_cells(screen)]
     d.expect_equal("the swiped screenshot left the folder (%s)" % shelf_report(screen), after, before[1:])
