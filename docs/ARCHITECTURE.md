@@ -4155,6 +4155,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Diagnose (Untersuchung clipboard_pill): `foreground_info` in `devicetest.py` schreibt als INFO-Zeilen die fortgesetzte Aktivität
   (`dumpsys activity activities`) und die letzten Aktivitätsstarts (nur Komponentennamen aus `START u0` im Log des ActivityTaskManager),
   wenn eine Wartezeit abläuft oder `field_…`/`copy_…` fehlt, sowie einmal nach dem Home-Druck in `_open_settings_and_switch_on`. Keine Feldinhalte.
+- Messpunkte der Zwischenablage (Etappe 102): `A/UiPerf.kt` merkt den Start (`mark`: Zwischenablage-Taste in
+  `KeyboardSwitcher.setClipboardKeyboard`, Medienänderung in `ScreenshotChip.mediaChanged`, Tipp auf einen Ordner) und schreibt beim
+  nächsten gezeichneten Bild der Ansicht eine Zeile `AgentPerf: <name> ms=<n> <Zähler>` (`reportAtNextDraw`; nur Zeiten und
+  Anzahlen). Die Probe `screenshot_perf` in `devicetest.py` (nur mit `--only`) erzeugt Screenshots, öffnet die Zwischenablage dreimal,
+  macht einen neuen Screenshot, scrollt und schreibt `PERF`-Zeilen mit diesen Zeiten und `dumpsys gfxinfo` (Bilder, Janky, Perzentile).
+  Helfer dort: `make_screenshot` (`screencap` in `Pictures/Screenshots` oder `DCIM/Screenshots`, wartet auf die ID im Medienspeicher,
+  sonst Scan), `delete_screenshot_files`, `shelf_setup` (Bildberechtigung per `pm grant`, „Zwischenablage-Verlauf“ und „Screenshots
+  anbieten“ einmal je Lauf), `open_clipboard`, `perf_lines`, `gfx_reset`/`gfx_stats`, `swipe_list`.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -6775,7 +6783,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (795 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (796 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6786,7 +6794,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (105): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (106): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6802,9 +6810,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
   SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
   SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolGridView,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, UndoOffer,
-  WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, UiPerf,
+  UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,

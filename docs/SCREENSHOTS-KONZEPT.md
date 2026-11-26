@@ -97,14 +97,16 @@ Tasten der Tastatur (`CharArtKeys`, wie in der Zeichen-Kunst); nichts geht in di
 **E9 Ziehen (wie Startbildschirm, eigene Logik, kein Systemziehen; vgl. `docs/LEISTE-KONZEPT.md` Abschnitt 6).**
 - Langdruck 350 ms auf eine Karte oder Kachel hebt sie an (Haptik nach den Tastatur-Einstellungen, Kachel leicht größer). Wird
   vorher mehr als die Berührungstoleranz bewegt, scrollt die Liste wie immer.
-- Loslassen ohne Bewegung nach dem Anheben = anheften/abheften (wie der Langdruck auf Clips heute). Ein kurzer Tipp fügt ein
-  (Karte) bzw. öffnet (Kachel).
+- Loslassen ohne Bewegung nach dem Anheben ändert nichts, sondern zeigt wie auf dem Startbildschirm eine kleine Aktionszeile an der
+  Karte: „Anheften“/„Lösen“, bei Ordnern dazu „Umbenennen“. Die nächste Berührung irgendwo schließt sie. Ein kurzer Tipp fügt ein
+  (Karte) bzw. öffnet (Kachel). Ordnerkacheln werden nicht gezogen (die Liste ist nach Zeit geordnet), nur Screenshots.
 - Ab der Toleranz zieht eine Kopie unter dem Finger mit; die Karte am Ursprung bleibt blass stehen (Platzhalter). Am oberen und
   unteren Rand scrollt die Liste mit.
 - Ablageziele in der Liste: andere Karte (Akzentrahmen: „Ordner erstellen“, beide in neuen Ordner, das Ziel zuerst), Ordnerkachel
-  (Akzentrahmen: hinein, vorn), Ablagebereich „Neuer Ordner“ (erscheint beim Ziehen als Leiste oben über der Liste, ohne die Liste zu
-  verschieben; neuer Ordner mit nur diesem Bild: Kachel wächst mit leichtem Überschwingen, Haptik), sonst: kam das Bild aus einem
-  Ordner, wird es lose (herausziehen); war es schon lose, ändert sich nichts.
+  (Akzentrahmen: hinein, vorn), Ablagebereich „Neuer Ordner“ (erscheint beim Ziehen als Leiste am **unteren** Rand der Liste, ohne
+  die Liste zu verschieben; die Liste hat dafür immer so viel Platz am Ende, dass die letzte Reihe über die Leiste scrollen kann; neuer
+  Ordner mit nur diesem Bild: Kachel wächst mit leichtem Überschwingen, Haptik), sonst: kam das Bild aus einem Ordner, wird es lose
+  (herausziehen); war es „lose neu“, wird es lose (es wird dann nicht mehr gebündelt); auf dem eigenen Platz ändert sich nichts.
 - Im Ordnerfenster: Die anderen Bilder rücken beim Ziehen live zur Seite (Sortieren); Loslassen speichert die neue Reihenfolge. Die
   Kopfzeile wird zu zwei Ablagebereichen: „In die Ablage“ (360 ms darüber halten schließt den Ordner, das Ziehen geht in der Liste
   weiter, dort kann es auf einen anderen Ordner, eine Karte oder „Neuer Ordner“; direkt dort loslassen = lose) und „Neuer Ordner“.
@@ -136,8 +138,7 @@ ohne Berechtigung, löscht nichts).
 **E13 Übernahme alter Daten (ohne Verlust).** Einmal pro Gerät: Alte Screenshot-Kopien im Verlauf (`agent_screenshot_history_entries`,
 „ID:Zeit“), die unverändert und nicht angeheftet sind und deren Original im Medienspeicher mit genau dieser Zeit noch existiert,
 werden entfernt (das Original erscheint in der Ablage; Kopie und Original verfallen nach derselben Aufbewahrung). Fehlt das
-Original, bleibt die Kopie als normales Bild. Angeheftete alte Kopien bleiben angeheftete Bilder (nichts geht verloren; ein mögliches
-Doppel wird im Bericht genannt). Die Merkliste wird danach geleert.
+Original, bleibt die Kopie als normales Bild. Angeheftete alte Kopien: siehe K4. Die Merkliste wird danach geleert.
 
 ## 4. Unausgesprochenes, das dazugehört
 
@@ -171,6 +172,22 @@ Doppel wird im Bericht genannt). Die Merkliste wird danach geleert.
 | A18 | Inkognito / Passwortfeld / gesperrt | Zwischenablage öffnen | keine Screenshot-Kacheln | Kacheln sichtbar | Robolectric |
 | A19 | 50 Screenshots | Zwischenablage öffnen, scrollen, ziehen | keine ruckelnden Bilder (Janky-Anteil nicht schlechter als vorher), Öffnen nicht langsamer | Öffnen dauert Sekunden | Emulator (`gfxinfo`, Zeiten vorher/nachher) |
 | A20 | Schnelle Folge: öffnen, sofort zurück, sofort ziehen | – | jede Eingabe wirkt, kein Hänger | Tipps gehen in der Animation verloren | Robolectric (Animation läuft, Tipp wirkt), Emulator |
+
+## 5a. Kritik vor dem Bau
+
+Ein unabhängiger Prüfer-Agent stand in dieser Bau-Sitzung nicht zur Verfügung (kein Agenten-Werkzeug); die Kritik hat der Bauende
+selbst mit Abstand und nur den Abnahme-Zeilen vor Augen gemacht. Befunde und was daraus wurde:
+- K1 **Langdruck ohne Ziehen hätte angeheftet** (erster Entwurf, wie bei Clips): Wer anhebt, es sich anders überlegt und loslässt,
+  hätte still etwas geändert – genau der Abbruch, der nichts ändern soll. Jetzt: Aktionszeile, Anheften erst auf eigenen Tipp.
+- K2 **Ablagebereich oben** hätte die erste Reihe verdeckt: Ein Bild auf die oberste Kachel zu ziehen, hätte einen neuen Ordner statt
+  „hinein“ ergeben. Jetzt unten, mit Platz am Listenende; im Ordnerfenster liegen die Ablagebereiche in der Kopfzeile, die sonst kein
+  Ziel ist.
+- K3 **Aufbewahrung 10 min (Standard):** Beim Owner unbekannt. Mit 10 min sind ungeheftete Screenshots nach 10 min aus der
+  Zwischenablage, der automatische Ordner verschwindet. Das ist der Wortlaut („gemäß Aufbewahrungslimit“); im Bericht und in der
+  Anleitung steht, dass der Regler „Aufbewahrung“ das bestimmt. Nicht geändert.
+- K4 **Angeheftete alte Kopien** (E13) wären doppelt gewesen. Jetzt: Für angeheftete alte Screenshot-Kopien sucht die Übernahme einmal
+  im Hintergrund das Original über die Prüfsumme (die Kopie heißt nach ihrem SHA-256) unter den neuesten 300 Screenshots; gefunden →
+  der Screenshot wird in der Ablage angeheftet und die Kopie entfernt; nicht gefunden → die Kopie bleibt angeheftet.
 
 ## 6. Prüfplan
 

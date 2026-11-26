@@ -163,6 +163,8 @@ object ScreenshotChip {
     /** The observer saw a change: query again, and tell [onChange] once the changes have settled. */
     fun mediaChanged() {
         stale = true
+        // stage 102: measuring point (the observer runs on a binder thread)
+        onMain { UiPerf.mark(UiPerf.SHOT_VISIBLE, keepEarliest = true) }
         // decided now, not when the query is done: a screenshot taken while locked or in an
         // incognito field never goes into the history, also when the query fails until later
         appContext?.let { if (!privacyAllowsHistory(it, Settings.getValues())) privacyBlockMillis = clock() }

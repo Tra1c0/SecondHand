@@ -222,6 +222,7 @@ public final class KeyboardSwitcher {
     }
 
     public void setClipboardKeyboard() {
+        helium314.keyboard.agent.UiPerf.mark(helium314.keyboard.agent.UiPerf.CLIPBOARD_OPEN); // fork, stage 102: measuring point
         mState.setLayout(LayoutDirective.Utility.CLIPBOARD);
     }
 

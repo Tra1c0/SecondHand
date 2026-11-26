@@ -237,6 +237,15 @@ class ClipboardHistoryView @JvmOverloads constructor(
         clipboardAdapter.smartPaste = helium314.keyboard.agent.SmartPasteChips.History(context, { this.editorInfo }) { text, private ->
             onSmartInsert(text, private)
         }
+        // stage 102: measuring point, from the clipboard key to the first frame of this view
+        helium314.keyboard.agent.UiPerf.reportAtNextDraw(helium314.keyboard.agent.UiPerf.CLIPBOARD_OPEN, this) { perfCounts() }
+    }
+
+    /** Stage 102: counts for the measuring lines (never content). */
+    private fun perfCounts(): String {
+        val entries = clipboardHistoryManager.getHistorySize()
+        val images = (0 until entries).count { clipboardHistoryManager.getHistoryEntry(it)?.filename != null }
+        return "entries=$entries images=$images"
     }
 
     /** Stage 40: the tap on an inserting Smart Paste chip of a card, like a tap on a vault chip ([privateText]) or on the card. */
@@ -318,6 +327,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onClipInserted(position: Int) {
+        // stage 102: measuring point, from the media change of a new screenshot to the frame that shows it
+        if (clipboardHistoryManager.getHistoryEntry(position)?.filename != null)
+            helium314.keyboard.agent.UiPerf.reportAtNextDraw(helium314.keyboard.agent.UiPerf.SHOT_VISIBLE, this) { perfCounts() }
         clipboardAdapter.notifyItemInserted(position)
         clipboardRecyclerView.smoothScrollToPosition(position)
     }

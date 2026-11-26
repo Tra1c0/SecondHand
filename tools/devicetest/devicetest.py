@@ -2387,6 +2387,164 @@ def revert_correction_shows_word(d):
     shot(d, "revert_word_shown")
 
 
+# ------------------------------------------------------------------------- stage 102: screenshots in the clipboard
+# Screenshots are made with `screencap` into the screenshot folders of the shared storage; the media store takes a file
+# written there over FUSE into its index (the scan broadcast is the fallback). The keyboard needs the clipboard history,
+# "Screenshots anbieten" and the image permission. Measuring lines of the keyboard (tag AgentPerf, only times and counts)
+# and `dumpsys gfxinfo` give the numbers before and after.
+
+SHOT_DIRS = ("/sdcard/Pictures/Screenshots", "/sdcard/DCIM/Screenshots")  # the second is where Xiaomi phones put them
+SHELF_STATE = {"ready": False, "made": 0}
+CLIPBOARD_TOOL_LABELS = ("Zwischenablage", "Clipboard")
+PERF_TAG = "AgentPerf"
+
+
+def media_screenshot_ids():
+    """The ids of the images the media store has in a screenshot folder (as the shell may read them), or None."""
+    out = shell("content query --uri content://media/external/images/media --projection _id:relative_path "
+                "--where \"relative_path LIKE '%creenshot%'\"", check=False, timeout=40)
+    if "Error" in out or "Exception" in out:
+        return None
+    return [int(v) for v in re.findall(r"_id=(\d+)", out)]
+
+
+def make_screenshot(d, folder=SHOT_DIRS[0]):
+    """One new screenshot file; returns its media store id once the media store knows it (DeviceError if never)."""
+    before = set(media_screenshot_ids() or [])
+    SHELF_STATE["made"] += 1
+    path = "%s/Screenshot_%s_%03d.png" % (folder, time.strftime("%Y%m%d-%H%M%S"), SHELF_STATE["made"])
+    shell("mkdir -p %s" % folder, check=False)
+    shell("screencap -p %s" % path, timeout=60)
+    for attempt in range(3):
+        deadline = time.time() + 6
+        while time.time() < deadline:
+            fresh = set(media_screenshot_ids() or []) - before
+            if fresh:
+                return max(fresh)
+            time.sleep(0.7)
+        if attempt == 0:  # not indexed over FUSE: ask for a scan of the file
+            shell("am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://%s" % path, check=False)
+        else:
+            shell("content call --uri content://media --method scan_volume --arg external_primary", check=False, timeout=60)
+    raise DeviceError("the media store did not take the screenshot %s" % path)
+
+
+def delete_screenshot_files():
+    """Removes the screenshot files of earlier scenarios (over FUSE, so the media store forgets them too)."""
+    for folder in SHOT_DIRS:
+        shell("rm -f %s/Screenshot_*.png" % folder, check=False)
+    time.sleep(1.5)
+
+
+def shelf_setup(d):
+    """Once per run: the image permission and the two switches the shelf needs (both are off on a fresh install)."""
+    if SHELF_STATE["ready"]:
+        return
+    shell("pm grant %s android.permission.READ_MEDIA_IMAGES" % KEYBOARD_PACKAGE, check=False)
+    _open_settings_and_switch_on(d, ("Leiste & Befehle",), "Zwischenablage-Verlauf")
+    _open_settings_and_switch_on(d, ("Leiste & Befehle",), "Screenshots anbieten")
+    SHELF_STATE["ready"] = True
+
+
+def open_clipboard(d):
+    """Taps the clipboard tool of the bar (or of the grid of all tools) and waits for the clipboard list."""
+    screen = ensure_tools(d)
+    slot = next((n for n in bar_slots(screen) if n.desc in CLIPBOARD_TOOL_LABELS), None)
+    if slot is not None:
+        tap(*slot.center)
+    else:
+        key = left_key(screen)
+        if key is None:
+            raise CheckFailed("no clipboard tool in the bar and no grid key: " + bar_report(screen))
+        tap(*key.center)
+        time.sleep(0.8)
+        pill = next((n for n in grid_pills(dump()) if n.text in CLIPBOARD_TOOL_LABELS), None)
+        if pill is None:
+            raise CheckFailed("the grid offers no clipboard tool: " + bar_report(dump()))
+        tap(*pill.center)
+    return wait_report(d, lambda s: s.keyboard_node("clipboard_list") is not None, "the clipboard list")
+
+
+def perf_lines(name):
+    """The measuring lines of the keyboard with this name since the last `logcat -c`: [(ms, details)]."""
+    raw = shell("logcat -d -s %s:I" % PERF_TAG, check=False, timeout=40)
+    found = []
+    for line in raw.splitlines():
+        match = re.search(r"%s ms=(\d+)(.*)$" % re.escape(name), line)
+        if match:
+            found.append((int(match.group(1)), match.group(2).strip()))
+    return found
+
+
+def gfx_reset():
+    shell("dumpsys gfxinfo %s reset" % KEYBOARD_PACKAGE, check=False, timeout=40)
+
+
+def gfx_stats():
+    """Frames of the keyboard since the last reset: total, janky, janky %, 50th/90th/99th percentile (ms)."""
+    text = shell("dumpsys gfxinfo %s" % KEYBOARD_PACKAGE, check=False, timeout=40)
+
+    def num(pattern):
+        match = re.search(pattern, text)
+        return match.group(1) if match else "?"
+    return "frames=%s janky=%s (%s) p50=%s p90=%s p99=%s" % (
+        num(r"Total frames rendered: (\d+)"), num(r"Janky frames: (\d+)"), num(r"Janky frames: \d+ \(([\d.]+%)\)"),
+        num(r"50th percentile: (\d+)ms"), num(r"90th percentile: (\d+)ms"), num(r"99th percentile: (\d+)ms"))
+
+
+def perf_report(d, what, value):
+    """One PERF line in the job log (and a note of the scenario)."""
+    log("PERF %s: %s" % (what, value))
+    d.notes.append("%s: %s" % (what, value))
+
+
+def swipe_list(screen, times=3):
+    """Scrolls the clipboard list down and up again with real swipes."""
+    node = screen.keyboard_node("clipboard_list")
+    if node is None:
+        return
+    x = node.center[0]
+    top, bottom = node.top + (node.bottom - node.top) // 5, node.bottom - (node.bottom - node.top) // 5
+    for _ in range(times):
+        shell("input swipe %d %d %d %d 250" % (x, bottom, x, top), check=False)
+        time.sleep(0.4)
+        shell("input swipe %d %d %d %d 250" % (x, top, x, bottom), check=False)
+        time.sleep(0.4)
+
+
+def screenshot_perf(d):
+    """Measuring (stage 102, not a test of behaviour): opening the clipboard with many screenshots, a new screenshot until it
+    shows, scrolling; times from the keyboard's own measuring lines and frames from gfxinfo, written as PERF lines."""
+    shelf_setup(d)
+    delete_screenshot_files()
+    d.start("screenshot_perf")
+    d.focus("text")
+    for i in range(12):
+        make_screenshot(d, SHOT_DIRS[i % 2])
+    opens = []
+    for attempt in range(3):
+        hide_and_reopen(d)
+        shell("logcat -c", check=False)
+        gfx_reset()
+        screen = open_clipboard(d)
+        time.sleep(2.0)
+        lines = perf_lines("clipboard_open")
+        opens += [ms for ms, _ in lines]
+        perf_report(d, "open #%d" % (attempt + 1), "%s; %s" % (lines[-1] if lines else "no line", gfx_stats()))
+    perf_report(d, "open median ms", sorted(opens)[len(opens) // 2] if opens else "none")
+    shell("logcat -c", check=False)
+    gfx_reset()
+    make_screenshot(d)
+    time.sleep(3.0)
+    lines = perf_lines("shot_visible")
+    perf_report(d, "new screenshot until shown", "%s; %s" % (lines[-1] if lines else "no line", gfx_stats()))
+    screen = dump()
+    gfx_reset()
+    swipe_list(screen)
+    perf_report(d, "scroll", gfx_stats())
+    d.expect_equal("the clipboard list was open", screen.keyboard_node("clipboard_list") is not None, True)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -2402,7 +2560,7 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
-PROBES = [reported_finding_2_apostrophe_de, reported_finding_2_apostrophe_en, reported_finding_3_capital_i,
+PROBES = [screenshot_perf, reported_finding_2_apostrophe_de, reported_finding_2_apostrophe_en, reported_finding_3_capital_i,
           reported_finding_1_english_sentences, reported_finding_2_4_history_loop, reported_finding_3_level_gentle]
 
 KNOWN_FINDINGS = {
