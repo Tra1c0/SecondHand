@@ -845,10 +845,13 @@ class InputLogicTest {
 
     // stage 96 (owner): while characters of a word are deleted it stands left as it is; a long press on it puts back the original
     @Test fun `deleting shows the word as it stands left and the long press restores it`() = withSimilarWords("Lösung", locale = Locale.GERMAN) {
-        // withSimilarWords: the test computes suggestions only with it (first CI run: the left slot was null without)
+        // this rig drops the delayed strip update of a key (handleMessages ignores MSG_UPDATE_SUGGESTION_STRIP), so the test asks
+        // for it as the handler would (third CI run: "words []"); the real path is covered by StripCalmLogTest and the device test
+        fun updateStrip() { inputLogic.performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING); handleMessages() }
         chainInput("löschen")
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE)
+        updateStrip()
         assertEquals("lösch", text)
         val shown = inputLogic.mSuggestedWords
         assertEquals("lösch", stripSlots()[0], "words " + (0 until shown.size()).map { shown.getWord(it) } + " style " + shown.mInputStyle
@@ -863,6 +866,7 @@ class InputLogicTest {
         assertFalse(latinIME.canRestoreWordBeforeDelete("löschen")) // put back once
         // the word stays in editing: deleting starts anew from "löschen", another key ends it
         functionalKeyPress(KeyCode.DELETE)
+        updateStrip()
         assertEquals("lösche", stripSlots()[0])
         assertTrue(latinIME.canRestoreWordBeforeDelete("lösche"))
         chainInput("t")
