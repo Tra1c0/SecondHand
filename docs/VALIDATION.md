@@ -93,6 +93,9 @@ Haken `ClipboardHistoryRecyclerView.shelfSwipes`, eigener `ItemTouchHelper` im O
   angekommen; jetzt 120 ms, Schwelle im Ordner eine Kachelbreite. Das echte Wischen prüft nur der Emulator:
   `screenshot_shelf_swipe` (`input swipe` im Ordnerfenster, Galerie gleich groß, nach `restart_keyboard` weiter weg; Kontrolllauf:
   kurzes Wischen unter der Schwelle).
+- Gerät: Die Diagnosezeile (Lauf 45888075739) zeigte, dass die Kachel wischen darf (`dirs=4`), das Wischen aus der linken Spalte aber
+  16 px unter der Schwelle blieb und Android das schnelle `input swipe` nicht als Wurf wertete; das Szenario wischt jetzt die rechte
+  Kachel der ersten Reihe bis zum linken Rand. Auf dem Telefon zählt zusätzlich der Wurf (wie bei Clips); nicht auf einem Telefon geprüft.
 - Läufe: unten ergänzt.
 
 ## Etappe 102 — Screenshots in der Zwischenablage (Owner, 2026-11-26)

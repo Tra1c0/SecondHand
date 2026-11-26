@@ -3073,7 +3073,11 @@ def screenshot_shelf_swipe(d):
     screen = wait_report(d, lambda s: len(folder_cells(s)) == folders[name], "the folder window of %r" % name, limit=8)
     before = [n.desc for n in folder_cells(screen)]
     in_gallery = len(media_screenshot_ids() or [])
-    cell = folder_cells(screen)[0]
+    # the rightmost screenshot of the first row: its swipe to the left edge passes the distance threshold (one tile's width)
+    # whatever the speed (run 45888075739: from the left column the swipe stayed 16 px short and no fling was recognised)
+    cells = folder_cells(screen)
+    first_row = [n for n in cells if n.top == cells[0].top]
+    cell = max(first_row, key=lambda n: n.left)
     y = cell.center[1]
     start_x = cell.right - 10
     # a quick swipe (well before the 350 ms of a lift); control: a short and slow one, below the distance and the speed of a swipe
@@ -3087,7 +3091,7 @@ def screenshot_shelf_swipe(d):
         " | ".join(l.split(": ", 1)[-1] for l in swipe_log.splitlines() if "ShelfSwipe" in l)[-600:] or "no line"))
     screen = dump()
     after = [n.desc for n in folder_cells(screen)]
-    d.expect_equal("the swiped screenshot left the folder (%s)" % shelf_report(screen), after, before[1:])
+    d.expect_equal("the swiped screenshot left the folder (%s)" % shelf_report(screen), after, [x for x in before if x != cell.desc])
     d.expect_equal("the gallery keeps it", len(media_screenshot_ids() or []), in_gallery)
     shell("input keyevent KEYCODE_BACK", check=False)
     restart_keyboard()
