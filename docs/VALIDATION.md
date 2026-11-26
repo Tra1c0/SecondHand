@@ -14,7 +14,9 @@ bewusst nicht gebaut (68 seltene echte Wörter hätten dieselbe Form, z. B. „g
 Gerätetests `reported_finding_3_level_gentle` („And I “; nicht gelaufen). Erster GitHub-Lauf (45718027096): agent, build, lint grün; upstream mit
 dem schon auf dem Basiszweig neuen Fehler „deleting shows the word …“ (Etappe 96) und neu `TypingEquivalenceTest` (das „i“ von „it's“ bekam
 auf dem englischen Stub-Layout eine Autokorrektur-Anzeige). Danach gilt die „i“-Regel auf dem englischen Layout nur mit „Richtige Wörter nie
-ändern“ (sonst setzt das Wörterbuch „I“ selbst), das Transkript bleibt unverändert. Neue Tests:
+ändern“ (sonst setzt das Wörterbuch „I“ selbst). Zweiter Lauf (45722304564): agent, build, lint grün; upstream
+**Infrastrukturabbruch** (73 Testklassen `classMethod`, Robolectric konnte sein Android-Paket nicht laden, `IOException` beim Herunterladen,
+nur 1047 Tests liefen); ob `TypingEquivalenceTest` jetzt grün ist, ist damit **nicht geprüft** (neu anstoßen). Neue Tests:
 `AutocorrectReportTest` „stage 101 …“ (je Fehlfall, Einstellungen des Owners, feste Treffer mit Wörterbuchtyp und Sprache, Kontrollfälle),
 `CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest` (Häufigkeiten),
 `AT/CorrectionGuardsTest` (Ziele). Lokal ohne Android-Toolchain, nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Offen: Fall 9
