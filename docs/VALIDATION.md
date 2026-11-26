@@ -13,7 +13,7 @@ Konzept: `docs/NACHKORREKTUR-KONZEPT.md` (mit Kritik vor dem Bau, Abschnitt 10, 
   „seit“ (Konzept Abschnitt 12).
 - 4 (Konjunktiv I): „Er habe mir“ → „hat“; „Man nehme“, „gebe es“, Nachrichtentext mit Verb des Sagens im Satz davor bleiben (Tests).
 - 8 (Rücknahme): Robolectric (Rücktaste, Rückgängig ohne Strg+Z an die App, von Hand zurückgeändert, nach Cursorbewegung und
-  Leertasten-Wisch keine Rücknahme mehr), Emulator `retro_undo` (RUNS).
+  Leertasten-Wisch keine Rücknahme mehr), Emulator `retro_undo` (Lauf 45845272943 dreimal grün).
 - 9 (Weitertippen): Robolectric „typing on is never touched“, „nothing is replaced when the editor shows another text“, „a shortening
   correction with late editor reports doubles no letter“ (Wurzel des Emulator-Befunds „eein“/„nnicht“, P509).
 - 10 (Cursor mitten im Text): Robolectric. 11 (Passwort, kein Lernen, gesperrt, Schalter aus): Robolectric.
@@ -26,10 +26,23 @@ Fehler im Korpus), Kommas ohne Kommas im Text 117 richtig, 12 nicht im Original 
 Prüfung auf dem Rechner etwa 20 µs.
 
 **Tests:** lokal agent-core 768/768 grün; lokal (Android-SDK im Container eingerichtet) volle App-Suite 2316 Tests, rot nur die
-Baseline (Hangul, Emoji, XLinkTest durch den Netzfilter). GitHub: RUNS_TESTS.
+Baseline (Hangul, Emoji, XLinkTest durch den Netzfilter). GitHub: „SecondHand Tests“ für b26e922f: lint, build, upstream grün, agent rot nur durch die Zeitmessung `RgbOwnPatternTest`
+(Infrastruktur laut Auftrag); Gerätetests 45845272943 (dreimal alle 40 Szenarien grün). Nach dem Einmischen von `main` d676b827 (fae7ca54): „SecondHand Tests“ 45876825739 alle vier Jobs grün (agent 2525 Tests, upstream 2340 mit
+den fünf geerbten Fehlern), Gerätetests 45876825753 45/45 grün; Kontrolllauf 45881454366 grün (alle 45 Szenarien scheitern am Feldinhalt, die sechs neuen eingeschlossen). Vorher rot und behoben: Emulator „eein“/„nnicht“ (P509), `retro_send_single_line` (Taste „Großbuchstabe I“), alte
+Einstellungs-Szenarien (sechs Wische reichten auf der längeren Seite nicht), Robolectric-Sendetest (Kompositionsbereich des
+Test-Editors aus dem vorigen Feld).
 
-**Messung** (Emulator, Szenario `typing_latency`, 18 Leerzeichen und 82 Buchstaben je Lauf, `work_us` = Dauer von `LatinIME.onEvent`):
-MEASURE
+**Messung** (Emulator API 34 auf GitHub, Szenario `typing_latency`, je Lauf 18 Leerzeichen und 82 Buchstaben mit echten Tippern,
+`work_us` = Dauer von `LatinIME.onEvent`, drei Emulatoren je Stand, Werte zusammengelegt):
+
+| Stand | Leerzeichen Median | Leerzeichen p95 | Satzprüfung allein Median / p95 | Bilder (Janky, 50. Perzentil) |
+| --- | --- | --- | --- | --- |
+| vorher: `main` 9228c5a0 + Messpunkte (`claude/etappe-104-105-baseline` f02d9d85), Lauf 45845279260 | 732 µs | 6798 µs | – | 99–100 %, 97–101 ms |
+| nachher: b26e922f (Prüfung im Batch der Taste, Häufigkeiten im Speicher), Lauf 45845272943 | 1389 µs | 8084 µs | 508 µs / 2292 µs | 98–99 %, 89–101 ms |
+
+Unterschied Median +0,66 ms (Ziel < +2 ms), p95 +1,3 ms (Ziel < +8 ms). Die Bilder sind im Software-Emulator in beiden Ständen fast alle
+verspätet (kein Unterschied erkennbar); auf dem Telefon nicht gemessen. Frühere Einzelläufe (asynchrone Fassung) streuten stark (ein
+Emulator mit Median 4,9 ms bei allen Tasten), deshalb drei Läufe je Stand.
 
 **Prüfer:** Konzept (Opus, 3 Befunde, eingearbeitet), InputLogic-Diff (Opus, 2 mittel, 7 niedrig, alle umgesetzt außer N2/N3
 dokumentiert; Nachprüfung ohne neue hohe/mittlere Befunde, zwei niedrige behoben).
