@@ -87,7 +87,10 @@ Haken `ClipboardHistoryRecyclerView.shelfSwipes`, eigener `ItemTouchHelper` im O
 (Konzept E11). Ein Ordner unter drei bleibt ein Ordner, bis er leer ist (E4).
 - Tests: `ScreenshotShelfTest.aSwipedScreenshotLeavesTheClipboardForGoodButNotAPinnedOne` (angeheftet, unbekannt, unter drei, leer, neue
   Screenshots), `ShelfViewTest.swipesHideUnpinnedScreenshotsOnlyAndSurviveARestart` (am Haken des `ItemTouchHelper`: Richtungen, angeheftet,
-  Ordner, Neustart); lokal grün (Kern `clip.*`, Robolectric `agent.shelf.*` 21). Das echte Wischen prüft nur der Emulator:
+  Ordner, Neustart), `ShelfViewTest.aRealSwipeInsideAFolderHidesTheScreenshot` (echte MotionEvents im Fenster einer Activity; ohne Fenster
+  führt der `ItemTouchHelper` sein Ergebnis nie aus); lokal grün (Kern `clip.*`, Robolectric `agent.shelf.*`). Der erste Gerätelauf
+  (45877585753) fand das Wischen im Ordner wirkungslos: `input swipe` über 250 ms, im Emulator vermutlich nach dem 350-ms-Anheben
+  angekommen; jetzt 120 ms, Schwelle im Ordner eine Kachelbreite. Das echte Wischen prüft nur der Emulator:
   `screenshot_shelf_swipe` (`input swipe` im Ordnerfenster, Galerie gleich groß, nach `restart_keyboard` weiter weg; Kontrolllauf:
   kurzes Wischen unter der Schwelle).
 - Läufe: unten ergänzt.

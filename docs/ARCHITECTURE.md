@@ -4128,7 +4128,9 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
 - Wischen (102b): `ShelfSwipes` (in `A/shelf/ShelfAdapter.kt`), umgesetzt als `ShelfUi.swipes`: nach links nur nicht angeheftete
   Screenshots, keine Ordner, nicht nach dem Anheben; `swiped` → `ScreenshotShelf.dismiss`, sonst springt die Kachel zurück
   (`notifyItemChanged`). `ClipboardHistoryRecyclerView.shelfSwipes` (von `ClipboardHistoryView.shelf` gesetzt) gibt das Wischen der
-  Kacheln der Liste dorthin; das Raster des Ordnerfensters hat einen eigenen `ItemTouchHelper` mit denselben Regeln.
+  Kacheln der Liste dorthin; das Raster des Ordnerfensters hat einen eigenen `ItemTouchHelper` mit denselben Regeln und der Schwelle
+  einer Kachelbreite (`getSwipeThreshold` = 1/3; in der Liste wie bei den Clips die halbe Breite = eine Karte). Ein Wischen, das länger als
+  350 ms unter der Berührungstoleranz bleibt, wird zum Anheben (wie auf dem Startbildschirm).
 - `A/shelf/ShelfThumbnails.kt`: Vorschaubilder im Hintergrund (`loadThumbnail` ab Android 10), im Speicher bis die Zwischenablage
   schließt; ein inzwischen anders gebundenes Bild bekommt nichts.
 - `A/shelf/ShelfUi.kt`: Kacheln (`mainAdapter`), Ordnerfenster (`agent_shelf_window`: Kopf mit `agent_shelf_back` oben links, Titel

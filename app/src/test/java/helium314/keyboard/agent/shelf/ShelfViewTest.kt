@@ -240,6 +240,27 @@ class ShelfViewTest {
         assertTrue(2L in Shelf.state.hidden && 2L !in Shelf.state.placed())
     }
 
+    @Test fun aRealSwipeInsideAFolderHidesTheScreenshot() {
+        val view = open(4)
+        // in a window, so that what the ItemTouchHelper posts after its animation runs
+        val activity = Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        activity.setContentView(FrameLayout(activity).apply { addView(view, FrameLayout.LayoutParams(1200, 1400)) })
+        layout(view)
+        val (fx, fy) = centre(view, tiles(view).single())
+        touch(view, MotionEvent.ACTION_DOWN, fx, fy)
+        touch(view, MotionEvent.ACTION_UP, fx, fy)
+        layout(view)
+        val cell = folderTiles(view)[0]
+        val (cx, cy) = centre(view, cell)
+        val startX = cx + cell.width / 2f - 10
+        touch(view, MotionEvent.ACTION_DOWN, startX, cy)
+        for (i in 1..10) { hold(25); touch(view, MotionEvent.ACTION_MOVE, startX - (startX - 5f) * i / 10, cy) }
+        touch(view, MotionEvent.ACTION_UP, 5f, cy)
+        hold(1000)
+        layout(view)
+        assertEquals(1, Shelf.state.hidden.size, "the swipe hid one screenshot")
+    }
+
     @Test fun noScreenshotTilesInAPasswordFieldOrIncognito() {
         val password = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         load(password)

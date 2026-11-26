@@ -228,6 +228,8 @@ class ShelfUi(
             override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = false
             override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) = swipes.swipeDirs(viewHolder)
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = swipes.swiped(viewHolder)
+            // as for a clip in the list (half the list = one card of two columns): one tile's width of the three columns
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 1f / GRID_COLUMNS
         }).attachToRecyclerView(grid)
         header.addView(back, LinearLayout.LayoutParams(m(34), m(34)).apply { marginStart = m(6) })
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = m(12) })

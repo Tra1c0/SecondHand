@@ -3074,8 +3074,9 @@ def screenshot_shelf_swipe(d):
     cell = folder_cells(screen)[0]
     y = cell.center[1]
     start_x = cell.right - 10
-    end_x = cell.right - (cell.right - cell.left) // 4 if d.control else 5  # control: a short way, not past the threshold
-    shell("input swipe %d %d %d %d 250" % (start_x, y, end_x, y), check=False)
+    # a quick swipe (well before the 350 ms of a lift); control: a short and slow one, below the distance and the speed of a swipe
+    end_x, millis = (cell.right - (cell.right - cell.left) // 4, 800) if d.control else (5, 120)
+    shell("input swipe %d %d %d %d %d" % (start_x, y, end_x, y, millis), check=False)
     time.sleep(1.5)
     screen = dump()
     after = [n.desc for n in folder_cells(screen)]
