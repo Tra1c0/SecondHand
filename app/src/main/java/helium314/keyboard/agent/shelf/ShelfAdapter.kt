@@ -176,7 +176,8 @@ class ShelfAdapter(
             tile.tag = key
             val context = tile.context
             if (full) {
-                val size = (tile.width.takeIf { it > 0 } ?: (context.resources.displayMetrics.widthPixels / 2))
+                // from the screen, not the tile: the first bind has no width yet, and a new size would decode again (review, finding 6)
+                val size = context.resources.displayMetrics.widthPixels / if (inFolder) 3 else 2
                 when (item) {
                     is ShelfItem.Folder -> {
                         val name = names(item.folder)

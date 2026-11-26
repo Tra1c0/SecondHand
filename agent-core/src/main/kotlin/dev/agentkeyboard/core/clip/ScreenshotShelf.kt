@@ -218,6 +218,7 @@ object ScreenshotShelf {
         if (ids.isEmpty() || ids.any { state.placeOf(it) == null }) return state to null
         var next = state
         for (id in ids) next = next.without(id)
+        next = next.withoutEmptyFolders() // a folder this drop empties frees its number (review of 102, finding 9)
         val used = next.folders.filter { !it.auto }.mapTo(HashSet()) { it.number }
         val number = generateSequence(1) { it + 1 }.first { it !in used }
         val id = next.nextFolderId
@@ -293,12 +294,12 @@ object ScreenshotShelf {
     data class OldCopy(val entryId: Long, val time: Long, val pinned: Boolean, val unchanged: Boolean, val checksum: String?)
 
     /**
-     * Migration (E13, K4): which old copies go because their original is in the media store with exactly the copy's time
-     * (unchanged and not pinned), and which pinned ones need the checksum search. Copies without an original stay.
+     * Migration (E13, K4): the unchanged, unpinned old copies with a screenshot of exactly their time (candidates: the caller
+     * compares the checksum before anything goes), and the pinned ones for the checksum search. Copies without an original stay.
      */
     fun planMigration(copies: List<OldCopy>, shots: List<ShelfShot>): Pair<List<OldCopy>, List<OldCopy>> {
         val times = shots.mapTo(HashSet()) { it.addedMillis }
-        val drop = copies.filter { it.unchanged && !it.pinned && it.time in times }
+        val drop = copies.filter { it.unchanged && !it.pinned && it.checksum != null && it.time in times }
         val search = copies.filter { it.pinned && it.checksum != null }
         return drop to search
     }

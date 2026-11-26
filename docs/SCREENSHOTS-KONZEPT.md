@@ -171,7 +171,7 @@ Original, bleibt die Kopie als normales Bild. Angeheftete alte Kopien: siehe K4.
 | A14 | Angehefteter Ordner mit alten Bildern | nach Ablauf öffnen | Ordner mit allen Bildern | Inhalt verfallen | Unit |
 | A15 | Ungehefteter Ordner mit einem angehefteten Bild | nach Ablauf | Ordner mit nur diesem Bild | Ordner weg samt Bild | Unit |
 | A16 | Bild in der Galerie gelöscht | Zwischenablage öffnen | Bild weg, kein leerer Platz | Leere Kachel, Absturz | Unit, Emulator (`content delete`) |
-| A17 | Alte Screenshot-Kopien im Verlauf (vor 102) | erster Start mit 102 | jedes Bild genau einmal, angeheftete bleiben | doppelt oder verloren | Robolectric `ScreenshotShelfMigrationTest` |
+| A17 | Alte Screenshot-Kopien im Verlauf (vor 102) | erster Start mit 102 | jedes Bild genau einmal, angeheftete bleiben | doppelt oder verloren | Robolectric `ShelfStoreTest` |
 | A18 | Inkognito / Passwortfeld / gesperrt | Zwischenablage öffnen | keine Screenshot-Kacheln | Kacheln sichtbar | Robolectric |
 | A19 | 50 Screenshots | Zwischenablage öffnen, scrollen, ziehen | keine ruckelnden Bilder (Janky-Anteil nicht schlechter als vorher), Öffnen nicht langsamer | Öffnen dauert Sekunden | Emulator (`gfxinfo`, Zeiten vorher/nachher) |
 | A20 | Schnelle Folge: öffnen, sofort zurück, sofort ziehen | – | jede Eingabe wirkt, kein Hänger | Tipps gehen in der Animation verloren | Robolectric (Animation läuft, Tipp wirkt), Emulator |
@@ -196,8 +196,8 @@ selbst mit Abstand und nur den Abnahme-Zeilen vor Augen gemacht. Befunde und was
 
 - Reine Logik in `agent-core` (JVM, schnell): `ScreenshotShelf` (Modell und Regeln) und `ShelfDrag` (Zustandsmaschine der Berührung
   mit Uhr), Tests `ScreenshotShelfTest`, `ShelfDragTest`.
-- Robolectric (`app/src/test`): Speicher und Übernahme (`ScreenshotShelfStoreTest`), Ansicht und Ziehen mit echten MotionEvents
-  inkl. `ACTION_CANCEL` (`ScreenshotShelfViewTest`).
+- Robolectric (`app/src/test`): Speicher und Übernahme (`ShelfStoreTest`), Ansicht und Ziehen mit echten MotionEvents
+  inkl. `ACTION_CANCEL` (`ShelfViewTest`).
 - Emulator (`tools/devicetest/devicetest.py`): Screenshots per `screencap` in `Pictures/Screenshots` und `DCIM/Screenshots` (der
   Medienspeicher nimmt sie über FUSE auf; sonst Scan-Broadcast), Zwischenablage über die Leiste, Ordner, Zurück, Ziehen mit
   `input motionevent`, Neustart mit `am force-stop`. Jedes Szenario scheitert im Kontrolllauf (es fehlt der letzte Screenshot bzw.

@@ -73,6 +73,10 @@ class ClipboardHistoryManager(
         if (removed) clipboardDao?.compactInBackground()
         helium314.keyboard.agent.ScreenshotChip.onChange = { onScreenshotChange() }
         helium314.keyboard.agent.ScreenshotChip.start(latinIME)
+        // stage 102 (review, finding 3): the shelf asks the media store once at the start, so that the old screenshot copies of
+        // the history are taken over before the clipboard is first shown (never while it is shown)
+        if (helium314.keyboard.agent.shelf.Shelf.isAvailable(latinIME, latinIME.mSettings.current))
+            helium314.keyboard.agent.shelf.Shelf.refresh(latinIME, latinIME.mSettings.current, expire = true)
     }
 
     fun onDestroy() {

@@ -26,6 +26,16 @@ der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verf�
   Screenshots im Verlauf (die alte Kopie nahm nicht alle); neuer Screenshot bis sichtbar 669 ms; Öffnen 2 Bilder, 2 janky; Scrollen
   35 Bilder, 34 janky (97 %), p50 113 ms, p90 150 ms (SwiftShader: jedes Bild ist im Emulator janky, nur der Vergleich zählt).
   Ordner öffnen: vorher nicht vorhanden. Nachher: unten.
+- Prüfer (eigene Sitzung, Modell opus, nur lesend, auf 0278497c): 1 hoch, 2 mittel, 8 niedrig. Alle behoben:
+  (1, hoch) veraltete Clip-Zahl im `ConcatAdapter` → Absturz/fehlender Clip beim zweiten Öffnen: `notifyDataSetChanged` beim Öffnen,
+  Regressionstest `ShelfViewTest.reopeningAfterTheHistoryChangedShowsEveryClipAndDoesNotCrash` (ohne den Fix rot: 2 statt 4 Einträge,
+  lokal geprüft); (2) gewartete Antwort beim Ablegen überschrieben → erst `apply`, dann `endDrag`; (3) Übernahme alter Kopien erst nach
+  der nächsten Medienänderung → `Shelf.refresh` in `ClipboardHistoryManager.onCreate`; (4) Übernahme nur über die Zeit und auch bei
+  leerer Antwort → nur bei nicht leerer Antwort, jede Löschung über die Prüfsumme bestätigt (Test erweitert: Kopie gleicher Zeit mit
+  anderem Inhalt bleibt); (5) Antworten beim Anheben → `hold` ab `Lift`; (6) Vorschaubilder neu dekodiert → Größe aus dem Bildschirm;
+  (7) Tipp, der einen Schwung stoppt, fügte ein → nicht verfolgt; (8) Umbenennen mit Emoji → ganze Zeichen, Länge vor dem Anhängen;
+  (9) Ordnernummer → leere Ordner vor der Nummernwahl entfernt (Test); (10) Thread je Ansicht → ein Daemon-Executor; (11) Testnamen im
+  Konzept. Nachprüfung: siehe unten.
 - Nicht geprüft: kein Telefon (Xiaomi/HyperOS, echtes Design des Owners auf dem Gerät), keine angesehenen Bilder (Emulator-Bilder sind
   über den Proxy nicht ladbar), TalkBack nicht ausprobiert.
 

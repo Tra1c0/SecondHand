@@ -204,6 +204,10 @@ class ScreenshotShelfTest {
         state = ScreenshotShelf.moveToLoose(b, 4) // folder 1 empties and goes
         val (c, third) = ScreenshotShelf.drop(state, 2, ShelfTarget.NewFolder)
         assertEquals(1, c.folder(third!!)!!.number)
+        // the only screenshot of "Ordner 1" onto the area: that folder goes, its number is free again (review, finding 9)
+        val (d, alone) = ScreenshotShelf.drop(c, 2, ShelfTarget.NewFolder)
+        assertEquals(1, d.folder(alone!!)!!.number)
+        assertNull(d.folder(third))
     }
 
     @Test fun cancelledOrPointlessDropsChangeNothing() {

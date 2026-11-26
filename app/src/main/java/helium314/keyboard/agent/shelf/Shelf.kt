@@ -195,6 +195,7 @@ object Shelf {
     // ---- migration of the screenshot copies of the history before stage 102 (E13, K4)
 
     private fun migrate(context: Context) {
+        if (shots.isEmpty()) return // an empty answer says nothing about the originals (review, finding 4)
         val dao = helium314.keyboard.latin.database.ClipboardDao.getInstance(context) ?: return // locked: later
         if (dao.listener != null) return // never while the history is shown (as ClipboardDao.clearOldClips)
         val tracked = ScreenshotChip.oldHistoryEntries(context)
@@ -204,29 +205,34 @@ object Shelf {
             ScreenshotShelf.OldCopy(it.id, it.timeStamp, it.isPinned, "${it.id}:${it.timeStamp}" in tracked,
                 it.filename?.substringBefore('.')?.takeIf { name -> name.length == 64 })
         }
-        val (drop, search) = ScreenshotShelf.planMigration(copies, shots)
-        removeCopies(dao, drop.map { it.entryId })
-        if (search.isEmpty()) { finishMigration(context); return }
-        // the checksum of up to 300 of the newest screenshots, once, in the background
-        val candidates = details.values.sortedByDescending { it.addedMillis }.take(300)
-        val wanted = search.associateBy { it.checksum!! }
+        val (byTime, search) = ScreenshotShelf.planMigration(copies, shots)
+        if (byTime.isEmpty() && search.isEmpty()) { finishMigration(context); return }
+        // a copy goes only when the checksum of its original matches (the copy is named by it): a screenshot of the same second
+        // is not enough (review, finding 4). In the background, once: the originals of the same time, and for pinned copies up
+        // to 300 of the newest screenshots.
+        val sameTime = byTime.associateWith { copy -> details.values.filter { it.addedMillis == copy.time } }
+        val newest = details.values.sortedByDescending { it.addedMillis }.take(300)
         val resolver = context.applicationContext.contentResolver
         migrated = true // not started twice; written with the result
         background.execute {
-            val found = HashMap<Long, Long>() // entry id -> screenshot id
-            for (shot in candidates) {
-                if (found.size == wanted.size) break
-                val sum = checksumOf(resolver, shot.uri) ?: continue
-                wanted[sum]?.let { found[it.entryId] = shot.id }
+            val sums = HashMap<Long, String?>()
+            fun sum(shot: Shot) = sums.getOrPut(shot.id) { checksumOf(resolver, shot.uri) }
+            val dropped = byTime.filter { copy -> copy.checksum != null && sameTime[copy].orEmpty().any { sum(it) == copy.checksum } }
+                .map { it.entryId }
+            val wanted = search.associateBy { it.checksum!! }
+            val pinned = HashMap<Long, Long>() // entry id -> screenshot id
+            for (shot in newest) {
+                if (pinned.size == wanted.size) break
+                val copy = wanted[sum(shot) ?: continue] ?: continue
+                pinned[copy.entryId] = shot.id
             }
             onMain {
                 val daoNow = helium314.keyboard.latin.database.ClipboardDao.getInstance(context)
-                if (daoNow != null && daoNow.listener == null && found.isNotEmpty()) {
-                    var next = state
-                    for (id in found.values) next = ScreenshotShelf.adoptPinned(next, id)
-                    removeCopies(daoNow, found.keys.toList())
-                    apply(next)
-                }
+                if (daoNow == null || daoNow.listener != null) { migrated = false; return@onMain } // locked or shown now: next time
+                var next = state
+                for (id in pinned.values) next = ScreenshotShelf.adoptPinned(next, id)
+                removeCopies(daoNow, dropped + pinned.keys)
+                apply(next)
                 finishMigration(context)
             }
         }

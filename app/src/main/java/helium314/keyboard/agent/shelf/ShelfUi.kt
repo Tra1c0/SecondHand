@@ -166,8 +166,14 @@ class ShelfUi(
         german = java.util.Locale.getDefault().language == "de"
         singleLine = true // also builds the keys with the colours above
         visibility = View.GONE
-        onText = { if (renameText.length < ScreenshotShelf.MAX_NAME) { renameText.append(it); showRenameText() } }
-        onDelete = { if (renameText.isNotEmpty()) { renameText.setLength(renameText.length - 1); showRenameText() } }
+        // whole characters only, and never longer than a name may be (review, finding 8)
+        onText = { if (renameText.length + it.length <= ScreenshotShelf.MAX_NAME) { renameText.append(it); showRenameText() } }
+        onDelete = {
+            if (renameText.isNotEmpty()) {
+                renameText.setLength(renameText.offsetByCodePoints(renameText.length, -1))
+                showRenameText()
+            }
+        }
         onEnter = { stopRename(save = true) }
         onDone = { stopRename(save = true) }
     }
@@ -435,7 +441,9 @@ class ShelfUi(
                 if (renaming) return Touch.PASS
                 pointer = event.getPointerId(0)
                 lastX = x; lastY = y
-                if (drag.down(pointer, x, y, now, grabAt(x, y))) {
+                // a touch that stops a fling only stops it, as upstream (review, finding 7)
+                val scrolling = (if (openFolder != null) grid else list).scrollState != RecyclerView.SCROLL_STATE_IDLE
+                if (!scrolling && drag.down(pointer, x, y, now, grabAt(x, y))) {
                     handler.removeCallbacks(lift)
                     handler.postDelayed(lift, LIFT_MS)
                 }
@@ -486,11 +494,13 @@ class ShelfUi(
                 is ShelfDrag.Grab.Shot -> Shelf.shot(grab.shot)?.let { host.insert(it) }
             }
             is ShelfDrag.Event.Lift -> {
+                Shelf.hold(context, Settings.getValues(), true) // nothing moves under the lifted tile (review, finding 5)
                 host.cancelChildren() // from here on the list neither scrolls nor clicks
                 host.haptic(HapticEvent.KEY_LONG_PRESS)
                 tileOf(event.grab)?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(110L)?.start()
             }
             is ShelfDrag.Event.Menu -> {
+                Shelf.hold(context, Settings.getValues(), false)
                 tileOf(event.grab)?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(110L)?.start()
                 itemOf(event.grab)?.let { showMenu(it) }
             }
@@ -504,6 +514,7 @@ class ShelfUi(
             }
             is ShelfDrag.Event.Drop -> drop(event.grab, event.target)
             is ShelfDrag.Event.Cancel -> {
+                Shelf.hold(context, Settings.getValues(), false)
                 tileOf(event.grab)?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(110L)?.start()
                 if (event.grab is ShelfDrag.Grab.Shot && shadow != null) { endDrag(changed = false); refresh() }
             }
@@ -702,8 +713,9 @@ class ShelfUi(
             // out of the folder or into a new one: the list shows where it went
             if (openFolder != null && (target == ShelfTarget.NewFolder || target == ShelfTarget.Out)) closeFolder()
         }
-        endDrag(changed, target)
+        // the new state first: endDrag releases the answers that waited (review, finding 2), they build on it
         Shelf.apply(next)
+        endDrag(changed, target)
         if (!changed) refresh()
     }
 

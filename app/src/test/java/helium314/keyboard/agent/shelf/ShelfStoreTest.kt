@@ -183,11 +183,16 @@ class ShelfStoreTest {
         val entries = dao.getAll().filter { it.filename != null }
         val keys = entries.mapTo(HashSet()) { "${it.id}:${if (it.isPinned) it.timeStamp - 1 else it.timeStamp}" } // the pinned one has a new time
         latinIME.prefs().edit().putStringSet("agent_screenshot_history_entries", keys).commit()
-        Shelf.checksumOf = { _, uri -> if (uri.lastPathSegment == "3") "c".repeat(64) else "f".repeat(64) }
+        // a fourth copy has the time of screenshot 2 but other content (its own original was deleted): it stays (review, finding 4)
+        dao.insertNewEntry(originals[1].addedMillis, false, "Screenshot", "d".repeat(64) + ".png", listOf("image/png"), null)
+        val fourth = dao.getAll().first { it.filename == "d".repeat(64) + ".png" }
+        latinIME.prefs().edit().putStringSet("agent_screenshot_history_entries", keys + "${fourth.id}:${fourth.timeStamp}").commit()
+        Shelf.checksumOf = { _, uri -> when (uri.lastPathSegment) { "1" -> "a".repeat(64); "3" -> "c".repeat(64); else -> "f".repeat(64) } }
         Shelf.finder = { originals }
         Shelf.refresh(latinIME, Settings.getValues())
         val left = dao.getAll()
-        assertEquals(listOf("b".repeat(64) + ".png"), left.mapNotNull { it.filename }, "only the copy without original stays")
+        assertEquals(setOf("b".repeat(64) + ".png", "d".repeat(64) + ".png"), left.mapNotNull { it.filename }.toSet(),
+            "only the copies without their original stay")
         assertTrue(left.any { it.text == "eigener Text" })
         assertTrue(3L in Shelf.state.pinnedShots)
         assertEquals(3, Shelf.state.placed().size, "every original once")

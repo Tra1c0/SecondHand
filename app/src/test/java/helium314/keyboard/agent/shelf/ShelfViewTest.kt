@@ -102,7 +102,7 @@ class ShelfViewTest {
 
     private fun shots(count: Int) = (1..count).map { Shelf.Shot(it.toLong(), Uri.fromFile(image), "image/png", now - (count - it + 1) * 1000L) }
 
-    private fun open(count: Int, editorInfo: EditorInfo = field): ClipboardHistoryView {
+    private fun open(count: Int, editorInfo: EditorInfo = field, manager: ClipboardHistoryManager = ClipboardHistoryManager(latinIME)): ClipboardHistoryView {
         Shelf.finder = { shots(count) }
         val strip = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
         KeyboardSwitcher::class.java.getDeclaredField("mClipboardStripView").apply { isAccessible = true }
@@ -111,7 +111,6 @@ class ShelfViewTest {
         view.keyboardActionListener = object : KeyboardActionListener.Adapter() {
             override fun onContent(content: InputContentInfoCompat) { inserted += content }
         }
-        val manager = ClipboardHistoryManager(latinIME)
         view.startClipboardHistory(manager, null, editorInfo, view.keyboardActionListener)
         view.visibility = View.VISIBLE
         layout(view)
@@ -185,6 +184,31 @@ class ShelfViewTest {
         assertEquals(1, shown.size)
         assertEquals("Ordner Screenshots, 3 Screenshots", shown.single().contentDescription)
         assertEquals(R.id.agent_shelf_folder, shown.single().id)
+    }
+
+    @Test fun reopeningAfterTheHistoryChangedShowsEveryClipAndDoesNotCrash() {
+        // review of 102, finding 1: the one ConcatAdapter kept the clip count of the last visit
+        val dao = assertNotNull(helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME))
+        dao.clear()
+        dao.addClip(now, false, "eins")
+        val manager = ClipboardHistoryManager(latinIME)
+        manager.onCreate()
+        val view = open(3, manager = manager)
+        val rv = list(view)
+        assertEquals(1 + 1, rv.adapter!!.itemCount) // the folder and one clip
+        view.stopClipboardHistory()
+        dao.addClip(now + 1, false, "zwei")
+        dao.addClip(now + 2, false, "drei")
+        view.startClipboardHistory(manager, null, field, view.keyboardActionListener)
+        layout(view)
+        assertEquals(1 + 3, rv.adapter!!.itemCount)
+        view.stopClipboardHistory()
+        dao.clearNonPinned() // as clips that expired while the view was closed
+        view.startClipboardHistory(manager, null, field, view.keyboardActionListener)
+        layout(view) // bound with the old count this threw IndexOutOfBoundsException
+        assertEquals(1, rv.adapter!!.itemCount)
+        view.stopClipboardHistory()
+        manager.onDestroy()
     }
 
     @Test fun noScreenshotTilesInAPasswordFieldOrIncognito() {

@@ -192,6 +192,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
         historyManager.prepareClipboardHistory()
         historyManager.setHistoryChangeListener(this)
         clipboardAdapter.clipboardHistoryManager = historyManager
+        // stage 102 (review, finding 1): the one ConcatAdapter remembers the clip count of the last visit; the history changed
+        // meanwhile without telling it (expired or new clips), so it is told once here
+        clipboardAdapter.notifyDataSetChanged()
 
         val params = KeyDrawParams()
         params.updateParams(clipboardLayoutParams.bottomRowKeyboardHeight, keyVisualAttr)
@@ -378,7 +381,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
         val field = editorInfo
         val chipShot = helium314.keyboard.agent.ScreenshotChip.Shot(shot.id, shot.uri, shot.mimeType, shot.addedMillis)
-        screenshotCopies.execute {
+        SCREENSHOT_COPIES.execute {
             val content = helium314.keyboard.agent.ScreenshotChip.copyForEditor(context, chipShot)
             mainHandler.post {
                 // only into the field that was shown when tapped
@@ -391,7 +394,12 @@ class ClipboardHistoryView @JvmOverloads constructor(
         }
     }
 
-    private val screenshotCopies = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private companion object {
+        /** Stage 102 (review, finding 10): one daemon thread for all views (a view is rebuilt with every new design). */
+        val SCREENSHOT_COPIES: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "clipboard-screenshot-copy").apply { isDaemon = true }
+        }
+    }
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** Stage 102: every touch goes to the screenshot shelf first; it keeps the touches of a lifted or dragged tile. */

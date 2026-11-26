@@ -4078,8 +4078,9 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   `prepare` (beim Öffnen: verfallen lassen, neu fragen), `refresh` (Abfrage auf `background`, nie zwei zugleich), `hold` (während des
   Ziehens warten Antworten), `apply` (neuer Zustand → `persist` auf eigenem Thread, immer der neueste, dann die Hörer), `clear`,
   `keepPinnedOnly`, `queryScreenshots` (`RELATIVE_PATH LIKE '%screenshot%'`, vor Android 10 `DATA`, ohne `IS_PENDING`, neueste zuerst),
-  Übernahme der alten Kopien (`migrate`, `removeCopies`, `finishMigration`; Prüfsumme der neuesten 300 im Hintergrund über
-  `ChecksumCalculator`), `resetForTest` (Abfragen und Schreiben am Platz).
+  Übernahme der alten Kopien (`migrate`, `removeCopies`, `finishMigration`; nur bei nicht leerer Antwort und nie bei offener Ansicht;
+  eine Kopie geht nur, wenn die Prüfsumme ihres Originals gleicher Zeit bzw. eines der neuesten 300 passt, gerechnet im Hintergrund
+  über `ChecksumCalculator`; angestoßen schon in `ClipboardHistoryManager.onCreate`), `resetForTest` (Abfragen und Schreiben am Platz).
 - `A/shelf/ShelfStore.kt`: strenges JSON (`encode`/`decode`, genau die Schlüssel, Version 2 mit `hidden`, Version 1 wird gelesen, jede ID an einem Platz, Pins nur
   platzierter IDs, höchstens ein automatischer Ordner, Namen wie `cleanName`), `AtomicFile`, Datei „agent_screenshot_shelf.json“ im
   DE-Speicher; unlesbar → `.bad` daneben, leere Ablage; ein Lesefehler (nicht: Inhalt) schreibt nie.
@@ -4096,11 +4097,14 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   des Ordners (`agent_shelf_out`, `agent_shelf_new_in_folder`), Rand-Scrollen, Messpunkt `folder_open`. Der Platz im Ordner beim
   Ziehen kommt aus der Geometrie des Rasters (`slotAt`: Spalte, Zeilenhöhe, Scroll-Versatz), nicht aus der View unter dem Finger. `onTouch` gibt `CONSUME`
   zurück, solange ein Teil angehoben ist; vor `Tap`, `Menu`, `Drop` und beim `Lift` schickt `Host.cancelChildren` ein `ACTION_CANCEL`
-  an die Liste (die Kachel klickt nie selbst). `ShelfUi.LIFT_MS` = 350.
+  an die Liste (die Kachel klickt nie selbst). `ShelfUi.LIFT_MS` = 350. `Shelf.hold` gilt ab dem Anheben (nicht erst ab dem Ziehen);
+  ein Abfang eines Schwungs (Liste scrollt noch) wird nicht verfolgt. Beim Ablegen erst `Shelf.apply`, dann `endDrag` (die gewartete
+  Antwort baut auf dem neuen Stand auf). Umbenennen löscht ganze Zeichen (`offsetByCodePoints`).
 - Einbindung: `ClipboardHistoryView.startClipboardHistory` setzt bei `Shelf.isShown` einen `ConcatAdapter` (Kacheln, dann Clips;
-  `setIsolateViewTypes`), Platz am Listenende (`bottomRoom`, `clipToPadding` aus), `ShelfUi.start`; `stopClipboardHistory` →
-  `ShelfUi.stop` (Ziehen ohne Änderung beendet, Fenster zu); `insertScreenshot` wie ein Bild-Clip (`ScreenshotChip.copyForEditor` im
-  Hintergrund, dann `onContent`, nur im selben Feld); `clipOffset` für das Scrollen zu Clips. `ClipboardHistoryRecyclerView`: Wischen
+  `setIsolateViewTypes`; einmal gebaut, darum `clipboardAdapter.notifyDataSetChanged()` bei jedem Öffnen: der Verlauf ändert sich
+  zwischen zwei Besuchen ohne Meldung), Platz am Listenende (`bottomRoom`, `clipToPadding` aus), `ShelfUi.start`; `stopClipboardHistory` →
+  `ShelfUi.stop` (Ziehen ohne Änderung beendet, Fenster zu); `insertScreenshot` wie ein Bild-Clip (`ScreenshotChip.copyForEditor` auf
+  einem gemeinsamen Daemon-Thread `SCREENSHOT_COPIES`, dann `onContent`, nur im selben Feld); `clipOffset` für das Scrollen zu Clips. `ClipboardHistoryRecyclerView`: Wischen
   nur für Clip-Karten, Positionen über `bindingAdapterPosition`. `ClipboardHistoryManager.onScreenshotChange` ruft `Shelf.refresh`
   (statt der alten Kopie), `clearHistory` `Shelf.clear`. Ausschalten (`AgentAreaBarScreen`, `AgentScreenshotScreen`): `Shelf.keepPinnedOnly`.
 - `ScreenshotChip.kt` (102): keine Kopie in den Verlauf mehr (`addToHistory` und die Entscheidungen der Etappen 23g/65 entfernt);
@@ -6847,7 +6851,8 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
 - **P507** Zwischenablage ohne Werkzeugzeile (106): Versteckt der Standardstil den Streifen (`ClipboardHistoryView.hidesStrip`), muss die Ansicht genau seine Höhe (`config_suggestions_strip_height`) zusätzlich messen und der Liste geben, sonst springt die Tastaturhöhe beim Öffnen der Zwischenablage. `setMainKeyboardFrame` zeigt den Streifen beim Zurückwechseln wieder. Der flache Stil behält den Streifen (Zurück-Knopf); ohne Streifen insgesamt (Modus versteckt) gilt die alte Rechnung. Die Tasten werden im Konstruktor gelesen: der Schalter ruft `setThemeNeedsReload`.
 - **P508** Screenshot-Ablage (102): Die Liste der Zwischenablage ist ein `ConcatAdapter` (Kacheln vor den Clips). Wer in Upstream-Code
   mit Positionen der Liste arbeitet (Wischen, Scrollen zu einem Clip), nimmt `bindingAdapterPosition` bzw. `clipOffset`, sonst trifft
-  er die falsche Zeile der Datenbank. Die Kacheln sind für den Finger nie selbst klickbar: `ShelfUi.onTouch` entscheidet und schickt
+  er die falsche Zeile der Datenbank. Der `ConcatAdapter` merkt sich die Zahl der Clips des letzten Besuchs: ohne
+  `notifyDataSetChanged` beim Öffnen fehlte ein neuer Clip oder ein verfallener ließ `getAt` werfen (Prüfer, Befund 1). Die Kacheln sind für den Finger nie selbst klickbar: `ShelfUi.onTouch` entscheidet und schickt
   der Liste ein `ACTION_CANCEL`, sonst kämen Tipp und Langdruck doppelt. Eine leere oder fehlgeschlagene Antwort des Medienspeichers
   darf nie Plätze löschen (`ScreenshotShelf.sync`); während des Ziehens wartet jede Antwort (`Shelf.hold`), sonst springen Kacheln
   unter dem Finger. `GradientDrawable().apply { colors… }` greift auf `GradientDrawable.getColors` zu: im Kachel-Code heißt die Palette
