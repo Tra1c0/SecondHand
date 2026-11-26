@@ -20,7 +20,8 @@ object KeyLatency {
     private const val CHECK_MILLIS = 3_000L
 
     @Volatile @JvmField var enabled = false
-    @Volatile private var checkedAt = Long.MIN_VALUE
+    /** Uptime of the last property check; far in the past at the start (no overflow in the difference). */
+    @Volatile private var checkedAt = -CHECK_MILLIS * 1000
     @Volatile private var lastUpMillis = 0L
     private var startNanos = 0L
 
