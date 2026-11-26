@@ -210,7 +210,7 @@ class RetroCorrections(private val logic: InputLogic) {
                     // review M2: the stores the check asks are read here too, not on the main thread at the first word end
                     runCatching {
                         Memory.isOwnWord(context, "x"); InformalWordsStore.protects(context, "x", "de")
-                        ForeignWords.isRemembered(context, null, "de", "x"); RejectedCorrections.contains(context, "x", "y")
+                        ForeignWords.isRemembered(context, helium314.keyboard.latin.settings.Settings.getValues(), "de", "x"); RejectedCorrections.contains(context, "x", "y")
                     }
                     SentenceLexicon(verbs, nouns).also { verbs.readings("macht"); loaded = it }
                 } catch (_: Throwable) { null }

@@ -796,6 +796,7 @@ public final class InputLogic {
      * Called right before such a move.
      */
     public void checkpointFieldCorrectionsBeforeOwnCursorMove(final SettingsValues settingsValues) {
+        mRetroCorrections.cursorMoved(); // fork, stages 104/105: the keyboard's own cursor move (space bar) ends the take-back too
         mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false,
                 mWordComposer.isComposingWord(), null, null);
     }

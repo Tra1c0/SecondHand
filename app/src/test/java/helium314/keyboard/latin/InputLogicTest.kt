@@ -9409,6 +9409,17 @@ class InputLogicTest {
         assertEquals("Ich habe das", text)
     }
 
+    // re-review of 104/105: the keyboard's own cursor move (space bar swipe) ends it as well
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 after a space bar swipe Backspace deletes as usual`() = withRetro {
+        assertEquals("Ich habe das ", retroTyped("Ich haben das "))
+        spaceSwipe(-2)
+        spaceSwipe(2)
+        assertEquals(text.length, cursor)
+        retroType("⌫")
+        assertEquals("Ich habe das", text)
+    }
+
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 104 the keyboard's Undo right after takes the correction back instead of the app`() = withRetro {
         assertEquals("Ihr seid schon ", retroTyped("Ihr seit schon "))
