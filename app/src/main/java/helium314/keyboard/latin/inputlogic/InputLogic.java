@@ -151,6 +151,30 @@ public final class InputLogic {
     }
 
     /**
+     * Fork, stage 96: the letters (and apostrophes) that end at the cursor, from the text the connection knows; empty when the
+     * cursor does not follow a word, there is a selection or the text is unknown. Only for [mWordBeforeDelete]; never logged.
+     */
+    private String wordEndingAtCursor() {
+        if (mConnection.hasSelection()) return "";
+        final CharSequence before = mConnection.getTextBeforeCursor(48, 0);
+        if (before == null) return "";
+        int start = before.length();
+        while (start > 0) {
+            final int codePoint = Character.codePointBefore(before, start);
+            if (!Character.isLetter(codePoint) && codePoint != '\'' && codePoint != '’') break;
+            start -= Character.charCount(codePoint);
+        }
+        return before.subSequence(start, before.length()).toString();
+    }
+
+    /** Fork, stage 96: a delete outside a composing word is about to remove a character of the word that ends at the cursor. */
+    private void noteWordBeforePlainDelete() {
+        final String word = wordEndingAtCursor();
+        if (word.isEmpty()) return; // a space or punctuation is deleted: the word before it is untouched, nothing to remember yet
+        mWordBeforeDelete.beforeDelete(mConnection.getExpectedSelectionStart() - word.length(), word);
+    }
+
+    /**
      * Fork, stage 96 (owner): a long press on the left word while characters of it were deleted puts the word back as it was
      * before deleting began; the cursor goes to its end and the word stays the composing word. Returns false if there is nothing
      * to put back.
@@ -1750,6 +1774,9 @@ public final class InputLogic {
                         // TODO: Add a new StatsUtils method onBackspaceWhenNoText()
                         return;
                     }
+                    // fork, stage 96 (owner, build 53: "tägliche" came back as "täglich"): a delete that reaches a word before the
+                    // keyboard resumed it (fast deletes, a slow app) is a delete of that word too; remember its form before
+                    noteWordBeforePlainDelete();
                     int lengthToDelete = mConnection.getCharCountToDeleteBeforeCursor();
                     mConnection.deleteTextBeforeCursor(lengthToDelete);
                     int totalDeletedLength = lengthToDelete;
@@ -1768,6 +1795,7 @@ public final class InputLogic {
                         }
                     }
                     StatsUtils.onBackspacePressed(totalDeletedLength);
+                    mWordBeforeDelete.afterDelete(wordEndingAtCursor()); // fork, stage 96: empty (no word left) forgets it
                 }
             }
             if (!hasUnlearnedWordBeingDeleted) {
