@@ -88,8 +88,11 @@ class InkCompletion(templates: List<InkTemplate>, private val tuning: InkRecogni
                 tuning.dotWeight * abs(cloud.dotCount - part.cloud.dotCount)
             val room = min(limit, bestDistance) - structure
             if (room <= 0f) continue
-            var d = InkRecognizer.greedyCloudMatch(cloud, part.cloud, room, tuning.angleWeight)
-            for (candidate in turned) d = min(d, InkRecognizer.greedyCloudMatch(candidate, part.cloud, min(d, room), tuning.angleWeight))
+            // upright first, summed up to turnNear times the room: turning gains far less (as in the recognizer), so a part
+            // that is farther than that upright is not turned (stage 100, speed on a slow phone)
+            var d = InkRecognizer.greedyCloudMatch(cloud, part.cloud, room * tuning.turnNear, tuning.angleWeight)
+            if (d >= room * tuning.turnNear) continue
+            for (candidate in turned) { if (d < room) break; d = min(d, InkRecognizer.greedyCloudMatch(candidate, part.cloud, room, tuning.angleWeight)) }
             // greedyCloudMatch answers its bound when nothing came closer: that is no match
             if (d >= room) continue
             bestDistance = d + structure
