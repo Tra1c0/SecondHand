@@ -155,7 +155,9 @@ public final class InputLogic {
      * cursor does not follow a word, there is a selection or the text is unknown. Only for [mWordBeforeDelete]; never logged.
      */
     private String wordEndingAtCursor() {
-        if (mConnection.hasSelection()) return "";
+        // a long run of deletes (the key held) is no editing of one word; it also keeps this off the app once the connection's
+        // cache has run short in a long text (review: one read per delete in a slow app)
+        if (mConnection.hasSelection() || mDeleteCount > 24) return "";
         final CharSequence before = mConnection.getTextBeforeCursor(48, 0);
         if (before == null) return "";
         int start = before.length();
@@ -1789,6 +1791,7 @@ public final class InputLogic {
                         final int codePointBeforeCursorToDeleteAgain =
                                 mConnection.getCodePointBeforeCursor();
                         if (codePointBeforeCursorToDeleteAgain != Constants.NOT_A_CODE) {
+                            noteWordBeforePlainDelete(); // fork, stage 96 (review): the second delete of this key may be the first of the word
                             int lengthToDeleteAgain = mConnection.getCharCountToDeleteBeforeCursor();
                             mConnection.deleteTextBeforeCursor(lengthToDeleteAgain);
                             totalDeletedLength += lengthToDeleteAgain;

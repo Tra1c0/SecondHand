@@ -78,6 +78,15 @@ der CI-Lauf nicht, werden sie aus dem Job-Log erneuert. Lokal ohne Android-Toolc
 Langdruck nicht im Emulator, nicht auf einem Telefon; in Apps ohne zusammengesetztes Wort (Web-Ansichten, die die Komposition beenden) merkt
 die Tastatur kein Original, dort gibt es nur das Wort links, kein Zurückholen.
 
+Nachtrag (Owner, Build 53, 2026-11-26): „Ich habe zum Beispiel ‚tägliche‘ gelöscht und ‚täglich‘ wurde zurückgeholt. Glaube ich.“ und „wenn du
+lange auf das Wort drückst, wird eine Wortvorschau ausgeklappt“. Ursache 1 (gelesen, nicht nachgestellt): Das Original wurde nur im Zweig
+„zusammengesetztes Wort“ gemerkt; erreicht eine Rücktaste das Wort, bevor es wieder aufgenommen ist (schnelles Löschen über das Leerzeichen,
+verzögerte Wiederaufnahme in langsamen Apps), fehlte der erste gelöschte Buchstabe. Jetzt merkt auch der andere Zweig die Form vor dem Löschen
+(`noteWordBeforePlainDelete`, `wordEndingAtCursor`; nicht bei gehaltener Taste über 24 Löschungen). Ursache 2: Ohne Original fiel der Langdruck
+auf die Liste weiterer Wörter zurück; der linke eigene Platz öffnet sie nicht mehr (`isOwnWordSlot`). Prüfer: zwei Befunde (beschleunigtes
+Doppellöschen merkte nichts; Lesezugriff je Rücktaste in langen Texten), beide behoben. Kein eigener Test (der Testaufbau führt die verzögerte
+Wiederaufnahme nicht aus). Nicht auf einem Telefon.
+
 ## Etappe 93b — Emojis durchgehend scrollen (Owner, 2026-11-22)
 
 Owner: „Fix bitte bei den Emojis, dass bei der Page ein durchgängiger Scroll ist. Oder gibt's dazu schon Settings?“ Geprüft: keine Einstellung
