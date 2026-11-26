@@ -473,7 +473,8 @@ class AutocorrectReportTest {
         // learned: the own word blocks the rule (the owner's report)
         assertEquals(null, type("gibts", listOf("und")).correction())
         assertEquals(null, type("icj", listOf("und")).correction())
-        // the owner took "wirds" -> "wird's" back once: that stays the owner's word
+        // the owner took "wirds" -> "wird's" back once (the rule had offered it, then Backspace): that stays the owner's word
+        helium314.keyboard.agent.RuleCorrections.offered("wirds", "wird's")
         helium314.keyboard.agent.RejectedCorrections.remember(latinIME, "wirds", "wird's", Settings.getValues())
         val history = ArrayList<String>()
         val removed = helium314.keyboard.agent.RuleClassCleanup.run(latinIME, "de", { suggest.ruleClassTarget(it, "de") }, { history += it })
