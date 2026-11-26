@@ -4091,7 +4091,8 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   `agent_shelf_title` = Tipp zum Umbenennen, Anzahl, `agent_shelf_pin`; Raster `agent_shelf_grid` mit drei Spalten), Umbenennen mit
   `CharArtKeys` (`agent_shelf_name_edit`, `agent_shelf_name_done`), Aktionszeile nach Langdruck (`agent_shelf_menu`,
   `…_menu_pin`, `…_menu_rename`), Ziehen mit Kopie (`agent_shelf_shadow`), Ablagebereich unten (`agent_shelf_new_folder`) bzw. im Kopf
-  des Ordners (`agent_shelf_out`, `agent_shelf_new_in_folder`), Rand-Scrollen, Messpunkt `folder_open`. `onTouch` gibt `CONSUME`
+  des Ordners (`agent_shelf_out`, `agent_shelf_new_in_folder`), Rand-Scrollen, Messpunkt `folder_open`. Der Platz im Ordner beim
+  Ziehen kommt aus der Geometrie des Rasters (`slotAt`: Spalte, Zeilenhöhe, Scroll-Versatz), nicht aus der View unter dem Finger. `onTouch` gibt `CONSUME`
   zurück, solange ein Teil angehoben ist; vor `Tap`, `Menu`, `Drop` und beim `Lift` schickt `Host.cancelChildren` ein `ACTION_CANCEL`
   an die Liste (die Kachel klickt nie selbst). `ShelfUi.LIFT_MS` = 350.
 - Einbindung: `ClipboardHistoryView.startClipboardHistory` setzt bei `Shelf.isShown` einen `ConcatAdapter` (Kacheln, dann Clips;
@@ -4106,9 +4107,9 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   Warten beim Ziehen, Übernahme alter Kopien, Ausschalten), `AT/shelf/ShelfViewTest.kt` (Karten und Bündeln, Passwortfeld/Inkognito,
   Tipp öffnet sofort, Zurück oben links, Einfügen über den eigenen FileProvider, Langdruck nur Menü, „Neuer Ordner“, Karte auf
   Karte, Abbruch/zurück zum Start/zweiter Finger, Sortieren im Ordner mit Neustart, „In die Ablage“ mit Verweilen, Umbenennen mit eigenen
-  Tasten, angehefteter Ordner gegen die Aufbewahrung), `AT/ScreenshotChipTest.aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf`.
+  Tasten, angehefteter Ordner gegen die Aufbewahrung, im Ordner weg und zurück an den Start mit neu gelegten Views), `AT/ScreenshotChipTest.aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf`.
   Emulator: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` in `devicetest.py` (Helfer `shelf_tiles`,
-  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`).
+  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`, `restart_keyboard`).
 
 ## Begleit-App (Etappe 80)
 
@@ -6848,7 +6849,10 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   der Liste ein `ACTION_CANCEL`, sonst kämen Tipp und Langdruck doppelt. Eine leere oder fehlgeschlagene Antwort des Medienspeichers
   darf nie Plätze löschen (`ScreenshotShelf.sync`); während des Ziehens wartet jede Antwort (`Shelf.hold`), sonst springen Kacheln
   unter dem Finger. `GradientDrawable().apply { colors… }` greift auf `GradientDrawable.getColors` zu: im Kachel-Code heißt die Palette
-  deshalb `palette`.
+  deshalb `palette`. Den Platz beim Sortieren im Ordner nie aus der View unter dem Finger lesen: Während die anderen Platz machen,
+  laufen sie animiert, eine weggleitende View hätte die Reihenfolge beim Zurückziehen an den Start umgedreht (Gerätetest-Lauf
+  45802882053); `ShelfUi.slotAt` rechnet aus der Geometrie. Nach `am force-stop` der Tastatur wählt Android eine andere Eingabemethode:
+  der Gerätetest setzt sie mit `restart_keyboard` wieder.
 - **P499** Langlebige Ansicht, kurzlebige Einstellung (Etappe 95): Was eine View einmal im Konstruktor aus `SettingsValues` liest, bleibt für ihre ganze Lebenszeit. `SettingsValues` enthält Zustände des Augenblicks (Sperre → `mToolbarMode` HIDDEN, also `mFixedBar` falsch). `SuggestionStripView.fixedBar` liest deshalb die Einstellung selbst (`Settings.readToolbarMode`, `AgentPreferences.FIXED_BAR`); im Sperrzustand gebaut kam sonst nach dem Entsperren die alte Leiste zurück.
 
 ## Datei-Inventar
