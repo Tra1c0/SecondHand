@@ -500,9 +500,9 @@ class ShelfUi(
                 tileOf(event.grab)?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(110L)?.start()
             }
             is ShelfDrag.Event.Menu -> {
-                Shelf.hold(context, Settings.getValues(), false)
                 tileOf(event.grab)?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(110L)?.start()
                 itemOf(event.grab)?.let { showMenu(it) }
+                Shelf.hold(context, Settings.getValues(), false) // after the row found its tile (re-review N3)
             }
             is ShelfDrag.Event.Start -> startDrag(event.grab)
             is ShelfDrag.Event.Hover -> hover(event.target)

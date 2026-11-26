@@ -35,7 +35,10 @@ der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verf�
   anderem Inhalt bleibt); (5) Antworten beim Anheben → `hold` ab `Lift`; (6) Vorschaubilder neu dekodiert → Größe aus dem Bildschirm;
   (7) Tipp, der einen Schwung stoppt, fügte ein → nicht verfolgt; (8) Umbenennen mit Emoji → ganze Zeichen, Länge vor dem Anhängen;
   (9) Ordnernummer → leere Ordner vor der Nummernwahl entfernt (Test); (10) Thread je Ansicht → ein Daemon-Executor; (11) Testnamen im
-  Konzept. Nachprüfung: siehe unten.
+  Konzept. Nachprüfung (dieselbe Prüfer-Sitzung, auf c54557b5): alle elf behoben, keine neuen Befunde ab mittel; drei niedrige
+  Restbeobachtungen ebenfalls behoben: (N1) eine während einer Abfrage angeforderte zweite Abfrage verfällt nur, wenn alle Aufrufe es
+  erlaubten; (N2) die Prüfsummen der Übernahme laufen auf einem eigenen Thread; (N3) die Aktionszeile sucht ihre Kachel, bevor wartende
+  Antworten kommen.
 - Nicht geprüft: kein Telefon (Xiaomi/HyperOS, echtes Design des Owners auf dem Gerät), keine angesehenen Bilder (Emulator-Bilder sind
   über den Proxy nicht ladbar), TalkBack nicht ausprobiert.
 

@@ -49,6 +49,8 @@ object Shelf {
     private var store: ShelfStore? = null
     private var querying = false
     private var queryAgain = false
+    /** The wish of the calls that came while a query ran: expire only if every one of them allowed it (re-review N1). */
+    private var againExpire = true
     private var holding = false
     private var heldAnswer: List<Shot>? = null
     private val listeners = LinkedHashSet<() -> Unit>()
@@ -60,6 +62,8 @@ object Shelf {
     private val pendingWrite = AtomicReference<Pair<ShelfState, Boolean>?>(null)
     /** The media store query; replaced in tests (they run it in place). */
     @JvmStatic var background: Executor = Executors.newSingleThreadExecutor { Thread(it, "shelf-query").apply { isDaemon = true } }
+    /** The one-time checksums of the migration; tests run them in place. */
+    @JvmStatic var checksums: Executor = Executors.newSingleThreadExecutor { Thread(it, "shelf-migration").apply { isDaemon = true; priority = Thread.MIN_PRIORITY } }
     /** Writes run here; tests run them in place. */
     @JvmStatic var writes: Executor = writer
     /** The query; replaced in tests, which have no media store. Null: the query failed. */
@@ -127,7 +131,11 @@ object Shelf {
     /** Asks the media store in the background; the answer is applied on the main thread (expire only while no view is shown). */
     fun refresh(context: Context, settings: SettingsValues?, expire: Boolean = false) {
         ensureLoaded(context)
-        if (querying) { queryAgain = true; return }
+        if (querying) {
+            againExpire = if (queryAgain) againExpire && expire else expire
+            queryAgain = true
+            return
+        }
         querying = true
         val resolver = context.applicationContext.contentResolver
         background.execute {
@@ -137,8 +145,10 @@ object Shelf {
             }
             onMain {
                 querying = false
-                if (found != null) answer(context, found, settings, expire)
-                if (queryAgain) { queryAgain = false; refresh(context, settings, expire) }
+                // the view may have opened since this query started: expire only if no later call forbade it
+                val mayExpire = expire && (!queryAgain || againExpire)
+                if (found != null) answer(context, found, settings, mayExpire)
+                if (queryAgain) { queryAgain = false; refresh(context, settings, againExpire) }
             }
         }
     }
@@ -214,7 +224,7 @@ object Shelf {
         val newest = details.values.sortedByDescending { it.addedMillis }.take(300)
         val resolver = context.applicationContext.contentResolver
         migrated = true // not started twice; written with the result
-        background.execute {
+        checksums.execute { // its own thread: queries (new screenshots) never wait for it (re-review N2)
             val sums = HashMap<Long, String?>()
             fun sum(shot: Shot) = sums.getOrPut(shot.id) { checksumOf(resolver, shot.uri) }
             val dropped = byTime.filter { copy -> copy.checksum != null && sameTime[copy].orEmpty().any { sum(it) == copy.checksum } }
@@ -290,7 +300,9 @@ object Shelf {
         privateChanges.clear()
         pendingWrite.set(null)
         background = Executor { it.run() }
+        checksums = Executor { it.run() }
         writes = Executor { it.run() }
+        againExpire = true
         finder = ::queryScreenshots
         clock = { System.currentTimeMillis() }
         checksumOf = { resolver, uri -> runCatching { resolver.openInputStream(uri)?.use { helium314.keyboard.latin.utils.ChecksumCalculator.checksum(it) } }.getOrNull() }
