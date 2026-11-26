@@ -9399,6 +9399,16 @@ class InputLogicTest {
         assertEquals("Ich haben das nicht", text)
     }
 
+    // review of 104/105 (N1): a cursor moved away and back ends the chance to take the correction back
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 after a cursor move Backspace deletes as usual`() = withRetro {
+        assertEquals("Ich habe das ", retroTyped("Ich haben das "))
+        setCursorPosition(3)
+        setCursorPosition(text.length)
+        retroType("⌫")
+        assertEquals("Ich habe das", text)
+    }
+
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 104 the keyboard's Undo right after takes the correction back instead of the app`() = withRetro {
         assertEquals("Ihr seid schon ", retroTyped("Ihr seit schon "))

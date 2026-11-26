@@ -22,11 +22,11 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Stages 104/105: corrections of the sentence after a word ended (docs/NACHKORREKTUR-KONZEPT.md). One per [InputLogic].
  *
- * After a key that ends a word ([afterKey], main thread) the text before the cursor is copied from the input connection's
- * cache and checked on the suggestion thread ([RetroCheck], pure). The result is applied on the main thread only if no key
- * came in between (a counter per key), nothing is composed or selected, the cursor is where it was, no private text is
- * touched and the editor still shows the old text there ([InputLogic.applyRetroEdit] reads it again). Otherwise it is
- * dropped and the next word end checks again. The edit is one unit: Backspace or the keyboard's Undo right after it
+ * At the end of a key that ends a word ([afterKey], main thread, inside the key's batch edit) the text before the cursor is
+ * copied from the input connection's cache and checked ([RetroCheck], pure, well under a millisecond). The change is applied
+ * in the same batch only if nothing is composed or selected, no gesture is pending, no private text is touched and the editor
+ * still shows the old text there ([InputLogic.applyRetroEdit] reads it again). Otherwise nothing happens and the next word end
+ * checks again. The edit is one unit: Backspace or the keyboard's Undo right after it
  * ([revert]) restores the old text and counts as a rejection of every changed pair ([RejectedCorrections], and in this field
  * for good). A pair the keyboard set before at the same place that is back to its old form (the owner changed it back by
  * hand) also counts as a rejection.
@@ -42,7 +42,7 @@ class RetroCorrections(private val logic: InputLogic) {
     private val rejectedHere = HashSet<String>()
     /** Pairs the keyboard set in this field: field position of the changed word -> "old\u0000new". */
     private val appliedHere = HashMap<Int, String>()
-    private var preloading = false
+    @Volatile private var preloading = false
 
     /** A new field (or the same one restarted): forget everything of the old one. */
     fun fieldStarted() {
@@ -50,6 +50,9 @@ class RetroCorrections(private val logic: InputLogic) {
         rejectedHere.clear()
         appliedHere.clear()
     }
+
+    /** The user moved the cursor (InputLogic.onUpdateSelection, not the keyboard's own change): no take-back any more. */
+    fun cursorMoved() { undo = null }
 
     /** Whether an edit could be taken back now (for tests and the diagnosis). */
     fun canRevert(): Boolean = undo != null
@@ -144,12 +147,15 @@ class RetroCorrections(private val logic: InputLogic) {
     private fun preload(context: Context) {
         if (preloading) return
         preloading = true
-        logic.postToSuggestionThread { lexicon(context) }
+        // review N5: a failed read may be tried again at a later word end
+        logic.postToSuggestionThread { if (lexicon(context) == null) preloading = false }
     }
 
     private fun eligible(ime: LatinIME, settings: SettingsValues): Boolean {
         val attributes = settings.mInputAttributes
         if (!settings.mAutoCorrectEnabled || attributes.mIsPasswordField || attributes.mNoLearning) return false
+        // review N6: only text fields ("more autocorrection" also reaches number and phone fields)
+        if (attributes.mInputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
         if (settings.mIncognitoModeEnabled || settings.mIsLocked || LockState.isLocked(ime)) return false
         return !InputTypeUtils.isUriOrEmailType(attributes.mInputType)
     }
@@ -201,7 +207,12 @@ class RetroCorrections(private val logic: InputLogic) {
                     val nouns = assets.open("agent/german_nouns.txt").bufferedReader(Charsets.UTF_8).use { r ->
                         GermanNouns(r.lineSequence())
                     }
-                    SentenceLexicon(verbs, nouns).also { loaded = it }
+                    // review M2: the stores the check asks are read here too, not on the main thread at the first word end
+                    runCatching {
+                        Memory.isOwnWord(context, "x"); InformalWordsStore.protects(context, "x", "de")
+                        ForeignWords.isRemembered(context, null, "de", "x"); RejectedCorrections.contains(context, "x", "y")
+                    }
+                    SentenceLexicon(verbs, nouns).also { verbs.readings("macht"); loaded = it }
                 } catch (_: Throwable) { null }
             }
         }

@@ -116,6 +116,8 @@ public final class InputLogic {
     public final helium314.keyboard.agent.WordBeforeDelete mWordBeforeDelete = new helium314.keyboard.agent.WordBeforeDelete();
     /** Fork, stages 104/105: corrections of the sentence after a word ended (see RetroCorrections). */
     public final helium314.keyboard.agent.RetroCorrections mRetroCorrections = new helium314.keyboard.agent.RetroCorrections(this);
+    /** Fork, stages 104/105: this key's sentence correction (or its revert) moved the private ranges itself. */
+    private boolean mRetroEditedThisKey;
     private static final int VERB_CONTEXT_CHARS = 24;
     private static final long VERB_CONTEXT_SLOW_MS = 40;
     private static final long VERB_CONTEXT_PAUSE_MS = 4000;
@@ -341,7 +343,14 @@ public final class InputLogic {
     public ApplyOutcome applyRetroEdit(final String expected, final String replacement, final int position) {
         if (mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput()) return ApplyOutcome.REJECTED;
         final ApplyOutcome outcome = mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position);
-        if (outcome != ApplyOutcome.REJECTED) mFieldCorrections.untrusted();
+        if (outcome != ApplyOutcome.REJECTED) {
+            // review of 104/105 (M1): a private value after the cursor moves with the changed length
+            mPrivateRanges.edited(position - expected.length(), position, replacement.length(), mPrivateEditor);
+            mRetroEditedThisKey = true;
+            // the field watcher of stage 49 forgets its reference (and own edits not yet learned): the keyboard's change is no
+            // correction of the user
+            mFieldCorrections.untrusted();
+        }
         return outcome;
     }
 
@@ -766,6 +775,7 @@ public final class InputLogic {
 
         // fork, stage 96: a cursor that left the word (or a selection) ends the deleting at it
         mWordBeforeDelete.cursorMovedTo(newSelStart != newSelEnd ? -1 : newSelStart);
+        mRetroCorrections.cursorMoved(); // fork, stages 104/105: a move of the user ends the chance to take a correction back
         // fork, stage 49: the user moved the cursor, maybe after changing a word earlier in the field
         // (review M1: not inside a composing word, a half-typed word is no state of the field)
         mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false,
@@ -836,6 +846,7 @@ public final class InputLogic {
         mCodeInputBatchOpen = true; // fork, stage 84
         mNeutralStripPending = false;
         final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
+        mRetroEditedThisKey = false; // fork, stages 104/105
         if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
             privateTextBeforeEdit(privateSelStart, privateSelEnd); // fork, third review 44/45
         if (!mWordComposer.isComposingWord()) {
@@ -862,7 +873,8 @@ public final class InputLogic {
             if (currentEvent != null) flushNeutralStrip(); // fork, stage 84: the next event sees the strip as before
         }
         // fork (B4, second review): typing or deleting before a private text moves it, deleting in it shortens it
-        if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
+        if ((!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
+                && !mRetroEditedThisKey) // fork, stages 104/105: a revert of a sentence correction moved them already
             privateTextEdited(privateSelStart, privateSelEnd, mConnection.getExpectedSelectionStart());
         if (!inputTransaction.didAutoCorrect() && processedEvent.getKeyCode() != KeyCode.SHIFT
                 && processedEvent.getKeyCode() != KeyCode.CAPS_LOCK

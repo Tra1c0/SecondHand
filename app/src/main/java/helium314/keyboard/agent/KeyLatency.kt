@@ -13,7 +13,7 @@ import android.view.MotionEvent
  *
  * One line per key: its kind (letter, space, enter, delete, other), the time from the end of the touch
  * (`MotionEvent.getEventTime`, uptime) to the end of `LatinIME.onEvent`, and the time `onEvent` itself took. A second kind of
- * line gives the time of a sentence check on the suggestion thread ([retro]).
+ * line gives the time of a sentence check at the end of a key ([retro], already part of the key's time).
  */
 object KeyLatency {
     const val TAG = "SHLatency"
@@ -46,6 +46,8 @@ object KeyLatency {
     /** `LatinIME.onEvent` is done with the key of [codePoint] / [keyCode]. */
     @JvmStatic fun eventEnded(codePoint: Int, keyCode: Int) {
         if (!enabled) return
+        // review N4: not even numbers from a password field (length and rhythm of a password)
+        if (try { helium314.keyboard.latin.settings.Settings.getValues()?.mInputAttributes?.mIsPasswordField == true } catch (_: Throwable) { true }) return
         try {
             val workMicros = (System.nanoTime() - startNanos) / 1000
             val up = lastUpMillis
@@ -62,7 +64,7 @@ object KeyLatency {
         } catch (_: Throwable) {}
     }
 
-    /** A sentence check on the suggestion thread took [nanos]; [outcome] is a fixed word (none, applied, stale). */
+    /** A sentence check took [nanos]; [outcome] is a fixed word (none, applied, refused, reverted, private). */
     @JvmStatic fun retro(nanos: Long, outcome: String) {
         if (!enabled) return
         try { Log.d(TAG, "retro=$outcome work_us=${nanos / 1000}") } catch (_: Throwable) {}
