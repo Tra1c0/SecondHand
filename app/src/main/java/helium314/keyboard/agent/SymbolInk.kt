@@ -242,10 +242,10 @@ object SymbolInk {
         for (i in 0 until size) if (ids[i] == first) {
             coordinates[next++] = xs[i].toFloat(); coordinates[next++] = ys[i].toFloat()
         }
-        val first = group.isEmpty
+        val startsDrawing = group.isEmpty
         add(InkStroke(coordinates))
         // after add: its check "finished?" goes to the worker first (re-review N1)
-        if (first) noteLateStroke(coordinates)
+        if (startsDrawing) noteLateStroke(coordinates)
     }
 
     /**
