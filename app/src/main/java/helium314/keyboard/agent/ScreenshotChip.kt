@@ -139,7 +139,11 @@ object ScreenshotChip {
     fun mediaChanged() {
         stale = true
         // stage 102: measuring point (the observer runs on a binder thread)
-        onMain { UiPerf.mark(UiPerf.SHOT_VISIBLE, keepEarliest = true) }
+        onMain {
+            UiPerf.mark(UiPerf.SHOT_VISIBLE, keepEarliest = true)
+            // stage 102, E10: decided now, not when the query is done (a screenshot taken while locked or private stays hidden)
+            appContext?.let { helium314.keyboard.agent.shelf.Shelf.mediaChanged(it, Settings.getValues()) }
+        }
         postIn(settle, DEBOUNCE_MILLIS)
     }
 

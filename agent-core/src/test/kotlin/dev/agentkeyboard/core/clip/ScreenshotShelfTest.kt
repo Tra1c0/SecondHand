@@ -273,6 +273,29 @@ class ScreenshotShelfTest {
         assertSame(state, ScreenshotShelf.togglePinShot(state, 42))
     }
 
+    @Test fun aScreenshotTakenPrivatelyIsHiddenForGoodAndAShownOneStays() {
+        // E10: a change seen in a private state hides the new screenshots it reported, never one the shelf already shows
+        val shown = shot(1, 5)
+        var state = sync(ShelfState(), listOf(shown))
+        val private = ShelfShot(2, now - 10_000)
+        val change = now - 8_000
+        val taken = ScreenshotShelf.takenPrivately(state, listOf(shown, private), listOf(change))
+        assertEquals(setOf(2L), taken)
+        state = sync(ScreenshotShelf.hide(state, taken), listOf(shown, private))
+        assertEquals(listOf(1L), state.fresh)
+        assertEquals(setOf(2L), state.hidden)
+        // later answers (unlocked, a normal field) never bring it in, also not with an unlimited retention
+        state = sync(state, listOf(shown, private, shot(3, 0)), retention = null)
+        assertEquals(listOf(3L, 1L), state.fresh)
+        assertTrue(2L !in state.placed())
+        // a screenshot from long before the private change is not touched, nor one the shelf knows
+        assertTrue(ScreenshotShelf.takenPrivately(state, listOf(ShelfShot(4, change - 5 * minute)), listOf(change)).isEmpty())
+        assertTrue(ScreenshotShelf.takenPrivately(state, listOf(shown), listOf(now)).isEmpty())
+        // deleted in the gallery: forgotten
+        assertTrue(sync(state, listOf(shown)).hidden.isEmpty())
+        assertSame(state, ScreenshotShelf.hide(state, setOf(2L)))
+    }
+
     @Test fun manyScreenshotsStayFast() {
         val shots = (1L..5000L).map { ShelfShot(it, now - (5000 - it) * 1000) }
         val started = System.nanoTime()

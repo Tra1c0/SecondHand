@@ -14,7 +14,9 @@ der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verf�
   Pfade des Projekts, die die Hülle nicht hat); maßgeblich ist der GitHub-Lauf unten.
 - Bewusst geändert: Sieben Tests von `ScreenshotChipTest` zur Kopie neuer Screenshots in den Verlauf (23g, Build 12, 65) sind entfernt,
   weil das Verhalten entfallen ist (E1); ersetzt durch `aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf` und die Tests der Ablage.
-  Die alte Regel „bei Sperre/im Inkognito-Feld gemachte Screenshots nie in den Verlauf“ entfällt mit der Kopie (E10, offene Owner-Frage).
+  Die Regel „bei Sperre/im Inkognito-Feld gemachte Screenshots nie“ gilt weiter (Entscheidung des Leads): `hidden`, Tests
+  `ScreenshotShelfTest.aScreenshotTakenPrivatelyIsHiddenForGoodAndAShownOneStays` und
+  `ShelfStoreTest.aScreenshotTakenInIncognitoOrAPrivateFieldIsNeverShownAlsoAfterARestart` (Inkognito, Neustart, Feld ohne Lernen).
 - Robolectric-Hinweis: Die Berührungstoleranz in Robolectric ist größer als 42 px; die Tests ziehen deshalb weiter. Views, die
   Robolectric nicht in einem Fenster zeigt, führen `View.post` nie aus: `ShelfUi` und das Einfügen posten auf den Main-Looper.
 - Emulator-Szenarien neu: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` (Kontrolllauf: fehlender

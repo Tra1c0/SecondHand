@@ -529,7 +529,9 @@ Voraussetzung: Einstellungen → Leiste & Befehle → Zwischenablage & Bilder �
 anbieten“ an, Zugriff auf Bilder erlaubt. Dann zeigt die Zwischenablage (Zwischenablage-Taste) oben alle Screenshots, die Android
 hat (auch aus `DCIM/Screenshots` und auch die, die entstanden, als die Tastatur nicht lief), vor deinen kopierten Texten. Die
 Tastatur kopiert sie dafür nicht; sie zeigt die Bilder der Galerie. Löschst du einen Screenshot in der Galerie, verschwindet er auch
-hier. Nicht im Passwortfeld, im Inkognito-Modus und bei gesperrtem Gerät.
+hier. Nicht im Passwortfeld, im Inkognito-Modus und bei gesperrtem Gerät. Ein Screenshot, den du bei gesperrtem Gerät, im
+Inkognito-Modus oder in einem privaten Feld (Passwort, privater Chat) machst, während die Tastatur läuft, erscheint nie, auch nicht
+nach dem Entsperren.
 
 1. Bis zu zwei neue Screenshots stehen als Karten in der Liste. Ab dem dritten liegen alle im Ordner „Screenshots“; jeder weitere
    kommt vorn hinein. Der Ordner zeigt die vier neuesten Bilder und die Anzahl.

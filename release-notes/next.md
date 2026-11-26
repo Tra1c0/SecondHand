@@ -4,6 +4,7 @@
 - **Ab drei im Ordner**: Zwei Screenshots stehen einzeln da, ab dem dritten liegen sie im Ordner „Screenshots“. Tippen öffnet ihn sofort; oben links führt der Pfeil zurück, der Name lässt sich antippen und umbenennen, die Nadel heftet den Ordner an.
 - **Ziehen wie auf dem Startbildschirm**: Lange drücken, bis sich der Screenshot hebt, dann ziehen: im Ordner sortieren, über „In die Ablage“ halten und in der Liste loslassen, auf einen anderen Ordner oder Screenshot ziehen oder auf „Neuer Ordner“. Zurück an den Anfang oder Abbrechen ändert nichts.
 - **Anheften**: Lange drücken und loslassen zeigt „Anheften“. Angeheftete Screenshots und angeheftete Ordner bleiben; alles andere folgt der Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“).
+- **Privat bleibt privat**: Nicht im Passwortfeld, im Inkognito-Modus und bei gesperrtem Gerät. Ein Screenshot, den du dort machst, erscheint auch später nicht.
 - **Früher kopierte Screenshots** im Verlauf werden einmal übernommen, ohne dass etwas verloren geht.
 
 Mit automatischen Tests und im Emulator mit echten Berührungen geprüft, noch nicht auf deinem Telefon.

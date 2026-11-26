@@ -65,7 +65,7 @@ class ShelfStoreTest {
     @Test fun aRoundTripKeepsEveryFieldAndTheStrictReaderRefusesBrokenFiles() {
         val state = ShelfState(
             folders = listOf(ShelfFolder(3, "Urlaub", 1, pinned = true, auto = false, members = listOf(5, 6)), ShelfFolder(4, null, 0, false, true, listOf(7, 8, 9))),
-            loose = listOf(10), fresh = listOf(11), pinnedShots = setOf(5, 10), clearedBefore = 1_000, nextFolderId = 5)
+            loose = listOf(10), fresh = listOf(11), pinnedShots = setOf(5, 10), clearedBefore = 1_000, nextFolderId = 5, hidden = setOf(12))
         val text = ShelfStore.encode(state, migrated = true)
         val read = assertNotNull(ShelfStore.decode(text))
         assertEquals(state, read.state)
@@ -73,8 +73,8 @@ class ShelfStoreTest {
         // a screenshot in two places, an unknown key, a newer version, two automatic folders, a pin of nothing, a bad name
         val broken = listOf(
             text.replace("\"loose\":[10]", "\"loose\":[5]"),
-            text.replace("\"version\":1", "\"version\":1,\"extra\":1"),
-            text.replace("\"version\":1", "\"version\":2"),
+            text.replace("\"version\":2", "\"version\":2,\"extra\":1"),
+            text.replace("\"version\":2", "\"version\":3"),
             text.replace("\"auto\":false", "\"auto\":true"),
             text.replace("\"pinned\":[5,10]", "\"pinned\":[5,99]"),
             text.replace("\"Urlaub\"", "\"  Urlaub\""),
@@ -82,6 +82,45 @@ class ShelfStoreTest {
             "not json",
         )
         for (bad in broken) assertNull(ShelfStore.decode(bad), bad)
+        assertNull(ShelfStore.decode(text.replace("\"hidden\":[12]", "\"hidden\":[10]")), "a hidden screenshot is never placed")
+        // version 1 (stage 102 before the privacy rule) is read without loss
+        val first = text.replace("\"version\":2", "\"version\":1").replace(",\"hidden\":[12]", "")
+        assertEquals(state.copy(hidden = emptySet()), assertNotNull(ShelfStore.decode(first)).state)
+        assertNull(ShelfStore.decode(first.replace("\"version\":1", "\"version\":1,\"hidden\":[]")), "version 1 has no hidden list")
+    }
+
+    @Test fun aScreenshotTakenInIncognitoOrAPrivateFieldIsNeverShownAlsoAfterARestart() {
+        // E10, decision of the lead: the privacy rule of the history before 102 holds for the shelf
+        Shelf.finder = { shots(1) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+            InputAttributes(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+        assertTrue(Shelf.isPrivateNow(latinIME, Settings.getValues()))
+        Shelf.clock = { now - 4_500 } // the change that reports screenshot 95 (taken 5 s before now), seen in incognito
+        Shelf.mediaChanged(latinIME, Settings.getValues())
+        Shelf.clock = { now }
+        Shelf.finder = { shots(1, 95) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+            InputAttributes(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+        assertFalse(Shelf.isPrivateNow(latinIME, Settings.getValues()))
+        Shelf.mediaChanged(latinIME, Settings.getValues()) // screenshot 96 a moment later, in a normal field
+        Shelf.finder = { shots(1, 95, 96) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        assertEquals(setOf(1L, 96L), Shelf.state.placed())
+        assertEquals(setOf(95L), Shelf.state.hidden)
+        // a new process reads the hidden list from the file
+        Shelf.resetForTest()
+        Shelf.clock = { now }
+        Shelf.finder = { shots(1, 95, 96) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        assertEquals(setOf(1L, 96L), Shelf.state.placed())
+        // a field without learning (a private chat) counts as private too
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT; imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }, false, latinIME.packageName))
+        assertTrue(Shelf.isPrivateNow(latinIME, Settings.getValues()))
     }
 
     @Test fun aRestartReadsTheSameShelfAndAnUnreadableFileIsMovedAsideNotOverwritten() {

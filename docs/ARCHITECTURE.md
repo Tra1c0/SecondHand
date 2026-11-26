@@ -4065,20 +4065,22 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   nicht mehr Sichtbare vergessen; Neue vorn in den automatischen Ordner oder nach `fresh`; ab `BUNDLE_AT` = 3 der automatische Ordner;
   leere ungeheftete Ordner weg), `isVisible`, `items` (Reihenfolge der Kacheln), `folderShots`, `togglePinShot`, `togglePinFolder` und
   `rename` (beide machen den automatischen Ordner zum eigenen), `cleanName` (1–40 UTF-16, eine Zeile), `moveToFolder`, `moveToLoose`,
-  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `drop` (Ziel → Operation; Abbruch, eigener Platz und
+  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `takenPrivately` und `hide` (E10, `hidden` im Zustand,
+  `PRIVATE_WINDOW_MILLIS` = 60 s), `drop` (Ziel → Operation; Abbruch, eigener Platz und
   eigener Ordner geben dieselbe Instanz zurück), `clear`, `keepPinnedOnly`, `adoptPinned`, `planMigration` mit `OldCopy`.
   Tests `CT/clip/ScreenshotShelfTest.kt` (23).
 - Berührung (Kern): `C/clip/ShelfDrag.kt`: Zustandsmaschine IDLE → PRESSED → LIFTED (350 ms, `tick`) → DRAGGING, Ereignisse `Scroll`,
   `Tap`, `Lift`, `Menu` (Loslassen ohne Bewegung: nichts geändert), `Start`, `Hover`, `Dwell` (360 ms über `Out`), `Drop`, `Cancel`
   (`cancel`, `secondFinger`); Ordnerkacheln werden nicht gezogen. Tests `CT/clip/ShelfDragTest.kt` (14, mit Uhr).
 - `A/shelf/Shelf.kt`: das Modell der laufenden Tastatur (Main-Thread), `isAvailable` (Verlauf, „Screenshots anbieten“, Bildberechtigung),
-  `isShown` (dazu nicht `ClipVault.isBlocked`), `retentionMillis` (Aufbewahrung der Zwischenablage, über 120 min unbegrenzt),
+  `isShown` (dazu nicht `ClipVault.isBlocked`), `isPrivateNow` und `mediaChanged` (E10: Zeit jeder Medienänderung in privatem
+  Zustand, aus `ScreenshotChip.mediaChanged`; `answer` verbirgt mit `ScreenshotShelf.takenPrivately`/`hide`), `retentionMillis` (Aufbewahrung der Zwischenablage, über 120 min unbegrenzt),
   `prepare` (beim Öffnen: verfallen lassen, neu fragen), `refresh` (Abfrage auf `background`, nie zwei zugleich), `hold` (während des
   Ziehens warten Antworten), `apply` (neuer Zustand → `persist` auf eigenem Thread, immer der neueste, dann die Hörer), `clear`,
   `keepPinnedOnly`, `queryScreenshots` (`RELATIVE_PATH LIKE '%screenshot%'`, vor Android 10 `DATA`, ohne `IS_PENDING`, neueste zuerst),
   Übernahme der alten Kopien (`migrate`, `removeCopies`, `finishMigration`; Prüfsumme der neuesten 300 im Hintergrund über
   `ChecksumCalculator`), `resetForTest` (Abfragen und Schreiben am Platz).
-- `A/shelf/ShelfStore.kt`: strenges JSON (`encode`/`decode`, genau die Schlüssel, Version 1, jede ID an einem Platz, Pins nur
+- `A/shelf/ShelfStore.kt`: strenges JSON (`encode`/`decode`, genau die Schlüssel, Version 2 mit `hidden`, Version 1 wird gelesen, jede ID an einem Platz, Pins nur
   platzierter IDs, höchstens ein automatischer Ordner, Namen wie `cleanName`), `AtomicFile`, Datei „agent_screenshot_shelf.json“ im
   DE-Speicher; unlesbar → `.bad` daneben, leere Ablage; ein Lesefehler (nicht: Inhalt) schreibt nie.
 - `A/shelf/ShelfAdapter.kt`: `SquareFrame` (quadratische Kachel), `ShelfColors` (Tastenfarben: Karte `KEY_BACKGROUND`, Schrift

@@ -116,12 +116,15 @@ Tasten der Tastatur (`CharArtKeys`, wie in der Zeichen-Kunst); nichts geht in di
 - Animationen blockieren nie: Das Modell ist sofort geändert, Kopien und Übergänge sind nicht berührbar, ein neuer Langdruck während
   einer Rückflug-Animation beendet diese sofort. Systemanimationen aus = keine Animation.
 
-**E10 Privatsphäre.** Nur mit Zwischenablage-Verlauf, Schalter „Screenshots anbieten“ und Bildberechtigung (alles opt-in, wie
-bisher). Keine Screenshot-Kacheln bei gesperrtem Gerät, im Inkognito-Modus und in Passwortfeldern (`ClipVault.isBlocked`, wie die
-Tresor-Zeilen). Gespeichert werden nur IDs, Zeiten, Ordnernamen und Pins; nichts davon wird geloggt. Die frühere Regel „ein
-Screenshot, der bei Sperre oder im Inkognito-Feld entstand, kommt nie in den Verlauf“ entfällt, weil nichts mehr kopiert wird und
-„lückenlos“ sonst nicht erfüllbar ist (die Tastatur weiß bei einem Screenshot, den sie nicht beobachtet hat, nichts über das Feld):
-Das Bild liegt ohnehin in der Galerie des Owners. Offene Owner-Frage, siehe 8.
+**E10 Privatsphäre (Entscheidung des Leads, 2026-11-26, nach den Projektregeln).** Nur mit Zwischenablage-Verlauf, Schalter
+„Screenshots anbieten“ und Bildberechtigung (alles opt-in). Keine Screenshot-Kacheln bei gesperrtem Gerät, im Inkognito-Modus und in
+Passwort- oder privaten Feldern (`ClipVault.isBlocked`, wie die Tresor-Zeilen). Dazu bleibt die Regel der Zeit vor 102: Ein Screenshot,
+den die Tastatur bei gesperrtem Gerät, im Inkognito-Modus („Immer Inkognito“ oder Feld ohne Lernen) oder während sie in einem
+Passwortfeld aktiv war, entstehen sah, wird nie gezeigt, auch nicht nach dem Entsperren oder einem Neustart (`hidden` in der Datei).
+Erkannt wird das an der Medienänderung, die ihn meldet (höchstens 60 s nach der Aufnahme); ein Screenshot, den die Ablage schon zeigt,
+verschwindet dadurch nie. Grenze: Lief die Tastatur gar nicht, weiß sie nichts über den Zustand; solche Screenshots werden gezeigt
+(sonst wäre „lückenlos“ nicht erfüllbar), sie liegen ohnehin in der Galerie. Gespeichert werden nur IDs, Zeiten, Ordnernamen, Pins und
+die verborgenen IDs; nichts davon wird geloggt.
 
 **E11 Löschen.** „Zwischenablage leeren“ (Taste im Raster) setzt eine Marke: Ungeschützte Screenshots bis jetzt sind aus der
 Zwischenablage weg (Galerie unberührt), angeheftete und solche in angehefteten Ordnern bleiben. Schalter „Screenshots anbieten“ aus
@@ -208,9 +211,7 @@ selbst mit Abstand und nur den Abnahme-Zeilen vor Augen gemacht. Befunde und was
 - Barrierefreiheit: Ziehen geht nur mit dem Finger; Anheften und Öffnen gehen auch mit TalkBack.
 - Die Ablage ist nicht Teil der Sicherung (ZIP) – wie die Zwischenablage-Datenbank selbst.
 
-## 8. Offen für den Owner (nicht gebaut)
+## 8. Offen für den Owner (nicht gebaut, Entscheidung des Leads: nicht in dieser Etappe)
 
 - Soll ein angeheftetes Bild eine eigene Kopie bekommen, damit es das Löschen in der Galerie überlebt?
-- Soll ein Screenshot, der bei gesperrtem Gerät oder in einem Inkognito-Feld entstand, ausgeblendet werden (gilt dann nur, solange
-  die Tastatur lief, also nicht lückenlos)?
-- Wischen zum Ausblenden einzelner Screenshots?
+- Wischen zum Ausblenden einzelner Screenshots aus der Zwischenablage?

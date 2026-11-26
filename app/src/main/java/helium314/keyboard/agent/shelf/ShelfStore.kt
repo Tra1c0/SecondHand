@@ -55,11 +55,13 @@ class ShelfStore(private val file: File) {
     companion object {
         private const val TAG = "ShelfStore"
         const val FILE_NAME = "agent_screenshot_shelf.json"
-        const val VERSION = 1
+        /** 2 since the screenshots taken privately are kept hidden (E10); version 1 (without "hidden") is still read. */
+        const val VERSION = 2
         /** Far more than any phone has screenshots; a longer list is a broken file. */
         const val MAX_IDS = 200_000
         const val MAX_FOLDERS = 2_000
-        private val TOP_KEYS = setOf("version", "clearedBefore", "nextFolderId", "fresh", "loose", "pinned", "folders", "migrated")
+        private val TOP_KEYS_1 = setOf("version", "clearedBefore", "nextFolderId", "fresh", "loose", "pinned", "folders", "migrated")
+        private val TOP_KEYS = TOP_KEYS_1 + "hidden"
         private val FOLDER_KEYS = setOf("id", "name", "number", "pinned", "auto", "members")
 
         fun encode(state: ShelfState, migrated: Boolean): String {
@@ -81,14 +83,15 @@ class ShelfStore(private val file: File) {
                 })
             })
             json.put("migrated", migrated)
+            json.put("hidden", JSONArray(state.hidden.sorted()))
             return json.toString()
         }
 
-        /** Strict: exactly the known keys, version 1, every screenshot in one place only, names clean, at most one automatic folder. */
+        /** Strict: exactly the known keys of its version (1 or 2), every screenshot in one place only, names clean, at most one automatic folder. */
         fun decode(text: String): Loaded? = try {
             val json = JSONObject(text)
-            require(json.keys().asSequence().toSet() == TOP_KEYS)
-            require(json.getInt("version") == VERSION)
+            val version = json.getInt("version")
+            require(json.keys().asSequence().toSet() == (if (version == 1) TOP_KEYS_1 else TOP_KEYS) && version in 1..VERSION)
             val placed = HashSet<Long>()
             fun ids(array: JSONArray, unique: Boolean): List<Long> {
                 require(array.length() <= MAX_IDS)
@@ -118,7 +121,9 @@ class ShelfStore(private val file: File) {
             val next = json.getLong("nextFolderId")
             require(folders.all { it.id < next })
             val clearedBefore = json.getLong("clearedBefore").also { require(it >= 0) }
-            Loaded(ShelfState(folders, loose, fresh, pinned, clearedBefore, next), json.getBoolean("migrated"), wasBad = false)
+            // a hidden screenshot is never placed
+            val hidden = if (version == 1) emptySet() else ids(json.getJSONArray("hidden"), false).toSet().also { set -> require(set.none { it in placed }) }
+            Loaded(ShelfState(folders, loose, fresh, pinned, clearedBefore, next, hidden), json.getBoolean("migrated"), wasBad = false)
         } catch (_: Exception) {
             null
         }

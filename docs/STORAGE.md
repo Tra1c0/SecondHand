@@ -269,10 +269,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Zwischenablage-Datenbank; geschrieben ganz mit `AtomicFile` nach jeder Änderung (eigener Thread, immer der neueste Stand).
   Kein Bild, kein Pfad, kein Dateiname: nur Medienspeicher-IDs (`_ID`), Ordnernamen (vom Owner, 1–40 Zeichen), Pins und Zeiten.
   Nicht in der Sicherung (ZIP), wie die Zwischenablage-Datenbank. Nie geloggt.
-- Format (Version 1, streng gelesen: genau diese Schlüssel, jede ID an höchstens einem Platz, Pins nur platzierter IDs, höchstens ein
-  automatischer Ordner, `nextFolderId` größer als jede Ordner-ID):
+- Format (Version 2, streng gelesen: genau diese Schlüssel, jede ID an höchstens einem Platz, Pins nur platzierter IDs, verborgene IDs
+  nie platziert, höchstens ein automatischer Ordner, `nextFolderId` größer als jede Ordner-ID; Version 1 ohne `hidden` wird weiter gelesen):
   `{"version":1,"clearedBefore":<ms>,"nextFolderId":<n>,"fresh":[ids],"loose":[ids],"pinned":[ids],
-  "folders":[{"id":<n>,"name":<Text oder null>,"number":<n>,"pinned":<bool>,"auto":<bool>,"members":[ids]}],"migrated":<bool>}`.
+  "folders":[{"id":<n>,"name":<Text oder null>,"number":<n>,"pinned":<bool>,"auto":<bool>,"members":[ids]}],"migrated":<bool>,
+  "hidden":[ids]}`; `hidden` = Screenshots, die bei Sperre, im Inkognito-Modus oder in einem privaten Feld entstanden (nie gezeigt).
   `fresh` = neu und noch nicht gebündelt, `loose` = vom Owner in die Zwischenablage gezogen, `clearedBefore` = „Zwischenablage
   leeren“ (ganze Sekunden), `migrated` = Übernahme der alten Kopien erledigt.
 - Unlesbarer Inhalt: Die Datei wird zu `agent_screenshot_shelf.json.bad` (eine ältere `.bad` wird ersetzt), die Ablage beginnt leer.

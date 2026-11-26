@@ -52,6 +52,8 @@ object Shelf {
     private var holding = false
     private var heldAnswer: List<Shot>? = null
     private val listeners = LinkedHashSet<() -> Unit>()
+    /** Wall-clock times of media changes seen while the keyboard was in a private state (E10); kept for two windows. */
+    private val privateChanges = ArrayList<Long>()
 
     private val main = Handler(Looper.getMainLooper())
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "shelf-writer").apply { isDaemon = true } }
@@ -75,6 +77,19 @@ object Shelf {
     /** Shown in this field: available, and not locked, incognito or in a password field (as the vault rows, E10). */
     fun isShown(context: Context, settings: SettingsValues?, editorInfo: EditorInfo?): Boolean =
         isAvailable(context, settings) && !ClipVault.isBlocked(context, settings, editorInfo)
+
+    /**
+     * E10 (decision of the lead, 2026-11-26): a screenshot taken while the device is locked, in incognito (also "always
+     * incognito" and fields without learning) or while the keyboard is active in a password field is never shown. The keyboard
+     * can only know that while it runs: [mediaChanged] notes the time of such a change, [answer] hides the screenshots it reported.
+     */
+    fun isPrivateNow(context: Context, settings: SettingsValues?): Boolean =
+        settings == null || settings.mIncognitoModeEnabled || !ClipVault.mayKeep(context, settings)
+
+    /** Main thread, for every media change the screenshot observer sees (also with the shelf not shown). */
+    fun mediaChanged(context: Context, settings: SettingsValues?) {
+        if (isPrivateNow(context, settings)) privateChanges += clock()
+    }
 
     fun retentionMillis(settings: SettingsValues?): Long? {
         val minutes = settings?.mClipboardHistoryRetentionTime ?: return null
@@ -132,7 +147,10 @@ object Shelf {
         if (holding) { heldAnswer = found; return }
         details = found.associateByTo(HashMap()) { it.id }
         shots = found.map { ShelfShot(it.id, it.addedMillis) }
-        apply(ScreenshotShelf.sync(state, shots, clock(), retentionMillis(settings), expire))
+        val now = clock()
+        privateChanges.removeAll { now - it > 2 * ScreenshotShelf.PRIVATE_WINDOW_MILLIS }
+        val taken = ScreenshotShelf.takenPrivately(state, shots, privateChanges)
+        apply(ScreenshotShelf.sync(ScreenshotShelf.hide(state, taken), shots, now, retentionMillis(settings), expire))
         if (!migrated) migrate(context)
     }
 
@@ -263,6 +281,7 @@ object Shelf {
         holding = false
         heldAnswer = null
         listeners.clear()
+        privateChanges.clear()
         pendingWrite.set(null)
         background = Executor { it.run() }
         writes = Executor { it.run() }

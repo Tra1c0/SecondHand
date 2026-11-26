@@ -40,6 +40,11 @@ data class ShelfState(
     /** Screenshots added before this time (ms, whole seconds) were removed by "clear the clipboard", unless protected. */
     val clearedBefore: Long = 0L,
     val nextFolderId: Long = 1L,
+    /**
+     * Never shown (E10): screenshots the keyboard saw being taken while the device was locked, in incognito or in a private
+     * (password, no-learning) field. Forgotten only when the media store no longer has them.
+     */
+    val hidden: Set<Long> = emptySet(),
 ) {
     fun folder(id: Long) = folders.firstOrNull { it.id == id }
     val autoFolder get() = folders.firstOrNull { it.auto }
@@ -111,7 +116,9 @@ object ScreenshotShelf {
         val byId = shots.associateBy { it.id }
         var next = state
         // an empty answer may be a failure (no permission, a busy store): it never deletes anything
-        if (shots.isNotEmpty()) next = next.keepOnly { it in byId }
+        if (shots.isNotEmpty()) next = next.keepOnly { it in byId }.let { kept ->
+            if (kept.hidden.all { it in byId }) kept else kept.copy(hidden = kept.hidden.filterTo(HashSet()) { it in byId })
+        }
         if (expire) {
             val safe = next.protectedIds()
             val cleared = next.clearedBefore
@@ -119,7 +126,7 @@ object ScreenshotShelf {
         }
         val placed = next.placed()
         val safe = next.protectedIds()
-        val incoming = shots.filter { it.id !in placed && isVisible(safe, next.clearedBefore, it, now, retentionMillis) }
+        val incoming = shots.filter { it.id !in placed && it.id !in next.hidden && isVisible(safe, next.clearedBefore, it, now, retentionMillis) }
             .sortedWith(newestFirst).map { it.id }
         if (incoming.isNotEmpty()) {
             val auto = next.autoFolder
@@ -251,6 +258,29 @@ object ScreenshotShelf {
             clearedBefore = now / 1000 * 1000,
         )
         return kept.withoutEmptyFolders()
+    }
+
+    /** How long after it was taken a media change still counts as the one that reported a screenshot (as the history before 102). */
+    const val PRIVATE_WINDOW_MILLIS = 60_000L
+
+    /**
+     * E10: the screenshots of [shots] that a media change at one of [privateChanges] (wall clock) reported while the keyboard saw
+     * a private state: taken at most [PRIVATE_WINDOW_MILLIS] before the change (the store's time is whole seconds, floored, so a
+     * screenshot is never later than the change that reports it; one taken after it has a change of its own) and not known to the
+     * shelf yet. A screenshot the shelf already shows is never taken away by a later change.
+     */
+    fun takenPrivately(state: ShelfState, shots: List<ShelfShot>, privateChanges: List<Long>): Set<Long> {
+        if (privateChanges.isEmpty()) return emptySet()
+        val known = state.placed()
+        return shots.filter { shot -> shot.id !in known && shot.id !in state.hidden &&
+            privateChanges.any { change -> shot.addedMillis in (change - PRIVATE_WINDOW_MILLIS)..change } }
+            .mapTo(HashSet()) { it.id }
+    }
+
+    /** Hides [ids] for good (E10). */
+    fun hide(state: ShelfState, ids: Set<Long>): ShelfState {
+        if (ids.isEmpty() || ids.all { it in state.hidden }) return state
+        return state.keepOnly { it !in ids }.copy(hidden = state.hidden + ids)
     }
 
     /** Places [shot] as a pinned loose screenshot if the shelf does not know it yet, else pins it where it lies (migration, K4). */
