@@ -6952,7 +6952,9 @@ class InputLogicTest {
         assertTrue(helium314.keyboard.agent.SymbolInk.onInkUp(0, 150, 40)) // a letter: the arrow is written now
         assertEquals("→", text)
         val after = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()!!
-        assertEquals(1, after.recognitions - (if (after === before) start else 0))
+        // stage 100: the check "finished?" after the first stroke matches the dash alone (one match); the arrow itself is
+        // still matched exactly once, shared by the check after the second stroke, the dot check and the written symbol
+        assertEquals(2, after.recognitions - (if (after === before) start else 0))
     }
 
     @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {

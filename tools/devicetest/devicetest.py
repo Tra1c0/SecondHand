@@ -2522,8 +2522,10 @@ def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, contr
         d.expect_equal("%s: the symbol came after the last lift (%s ms)" % (name, first), first is not None and first >= -5, True)
     if way is not None:
         d.expect_equal("%s: written as %s" % (name, entries), entries[-1][0] if entries else None, way)
-        if way == "i":  # at once: far less than the shortest pause there is (300 ms), measured by the keyboard
-            d.expect_equal("%s: at once (%s ms after the lift)" % (name, entries[-1][1]), entries[-1][1] < 250, True)
+        if way == "i":
+            # at once: earlier than anything could come before stage 100 (the pause was never under 600 ms), measured by
+            # the keyboard up to the end of writing; the emulator's main thread is slow (software rendering, ~125 ms a frame)
+            d.expect_equal("%s: at once (%s ms after the lift)" % (name, entries[-1][1]), entries[-1][1] < 600, True)
     return entries, first
 
 
@@ -2590,6 +2592,13 @@ def symbol_draw_latency(d):
     _fresh_field(d)
     box = InkBox(d)
     _frames_reset()
+    try:
+        _latency_cases(d, box)
+    finally:
+        _frames_report(d, "all cases")
+
+
+def _latency_cases(d, box):
     draw_symbol(d, "arrow dash then head", box, [INK_DASH, INK_HEAD], "→", way="p")
     draw_symbol(d, "arrow head then dash backwards", box, [INK_HEAD, INK_DASH_BACK], "→", way="p")
     draw_symbol(d, "percent slash then dots", box, [INK_SLASH, ink_dot(20, 20), ink_dot(80, 80)], "%", way="p")
@@ -2600,7 +2609,6 @@ def symbol_draw_latency(d):
     draw_symbol(d, "equals", box, [INK_BAR_TOP, INK_BAR_BOTTOM], "=", way="p")
     draw_symbol(d, "question mark", box, [INK_HOOK, ink_dot(50, 97)], "?", way="i")
     draw_symbol(d, "dash alone", box, [INK_DASH], "–", way="p")
-    _frames_report(d, "all cases")
 
 
 def symbol_draw_variants(d):
@@ -2612,6 +2620,13 @@ def symbol_draw_variants(d):
     _fresh_field(d)
     box = InkBox(d)
     _frames_reset()
+    try:
+        _variant_cases(d, box)
+    finally:
+        _frames_report(d, "all cases")
+
+
+def _variant_cases(d, box):
     draw_symbol(d, "arrow fast strokes", box, [INK_DASH, INK_HEAD], "→", durations=[70, 80])
     draw_symbol(d, "arrow slow strokes", box, [INK_DASH, INK_HEAD], "→", durations=[700, 700])
     draw_symbol(d, "less or equal small", InkBox(d, 0.55), [INK_LESS, INK_BAR_LOW], "≤", way="i")
@@ -2628,7 +2643,6 @@ def symbol_draw_variants(d):
     far = ((p.center[0] - box.cx) * 100.0 / box.size + 50, (p.center[1] - box.cy) * 100.0 / box.size + 50)
     draw_symbol(d, "dash then a key", box, [INK_DASH, ink_dot(*far)], None, gaps=120, control_drop=0,
                 check=lambda text: text.lower() == "–p")
-    _frames_report(d, "all cases")
 
 
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
