@@ -33,6 +33,57 @@ fest als zweiter Knopf `agent_bar_end_circle`, Chips neben dem Kreis ab 340 dp).
   des Emulators mit einem Mikrofon endet, sonst Notiz), nach 4,5 s Pause „T“ (Bild `calm_pause_tools`), nächste Taste nicht „T“.
 - Nicht geprüft: lokal lief nichts (kein Gradle, kein Emulator); kein CI-Lauf bis zum Push; nicht auf einem Telefon; Bilder nicht angesehen.
 
+## Etappe 107 (Präzisierung) und 107b — Rücknahmen als Gewichte, späte Korrektur zählt (Owner, 2026-11-26)
+
+Konzept Abschnitt 5. `RejectedCorrections` zählt je Paar bestätigt/abgelehnt statt einer festen Sperre (`CorrectionWeights`: zurückgehalten, solange
+bestätigt < 3 × abgelehnt; Halbwertszeit 30 Tage; Ablehnung < 0,25 vergessen; dieselbe Rücknahme binnen 60 s einmal). **Bewusst geändertes
+Verhalten:** „einmal zurückgenommen = nie wieder“ gilt nicht mehr; eine Rücknahme ohne mindestens drei Bestätigungen hält das Paar weiter sofort
+zurück, darum bleiben die vorhandenen Tests mit einer einzelnen Rücknahme (`CorrectionMemoryTest`, `SuggestTest`, `InputLogicTest` 20a/48/49/76)
+unverändert gültig; angepasst nur `AutocorrectReportTest` „stage 107 one Backspace …“ (jetzt auch: danach dreimal gewählt → wieder Korrektur). 107b:
+`FieldCorrectionWatcher` zählt „automatisch X → Y, später von Hand Y → Z“ als Ablehnung und „X → Z“ als Kandidaten. Neu: `InputLogicTest` „stage 107b a
+later change …“ (Korrektur, Leerzeichen, halbes Wort, zurückgelöscht, Wort geändert) und „stage 107 a correction left standing …“, `CT/CorrectionWeightsTest`.
+Lokal nichts gelaufen. GitHub-Lauf 45733380477 (aa08f599): agent, build, lint grün; upstream 2294 Tests, rot nur die fünf bekannten und der
+Basiszweig-Fehler „deleting shows the word as it stands left …“ (Etappe 96); alle Tests von 101, 107, 107b und 108 grün. Kein Gerätetest.
+
+## Etappen 107 und 108 — seltene Wörter nach Gewichten, Kurzformen mit Apostroph (Owner, 2026-11-26)
+
+Konzept: `docs/AUTOKORREKTUR-101-KONZEPT.md` Abschnitte 5 (mit Tabelle der 68 Paare) und 6. 107: `RareWordWeights` (Konstanten 80/150/111/20/20),
+`Suggest.applyRareWord`; Gewicht = Tipp-Verlauf (`DictionaryFacilitatorImpl.historyFrequency`), ohne Verlauf Folgewort-Werte des Kontexts, Ablehnung
+über `RejectedCorrections` (für Regelpaare auch ohne Schalter, mit „Personalisierte Vorschläge“; `RuleCorrections`). Kein vierter Speicher; `TypoMemory`
+bewusst nicht genutzt (Selbstbestätigung). 108: `GermanShortForms`, `Suggest.applyShortForm`. Diagnose-Zeile „Seltene Wörter und Kurzformen korrigiert
+seit Start (behalten / zurückgenommen)“. Bewusst geänderter Test: `AutocorrectReportTest` „stage 101 mur stays …“ setzt jetzt ausdrücklich „kein
+Verlauf, keine Folgewort-Werte“ (mit Verlauf wird „mur“ nach 107 korrigiert). Neue Tests: „stage 107 …“ (mur mit/ohne Verlauf, behaltener Tippfehler,
+Rücknahme ohne Schalter, aif → auf, alr bleibt, bsi bleibt bei gleich häufigem BSI, gebt ohne/mit Satz und Verlauf), „stage 108 …“ (gibts, wirds,
+drehts, gehts, wars, Gibts; nichts, rechts, amts, Peters, wars im englischen Satz, dings, Rücknahme), `CT/RareWordWeightsTest`,
+`CT/GermanShortFormsTest`. Lokal nichts gebaut und kein Test gelaufen. GitHub-Lauf 45729738148 (b3a210ca): agent, build, lint grün; upstream
+alle neuen Tests grün, neu rot nur `SuggestTest` „stage 75 … no lookup for the others“ (die Regel 107 fragte für „i-r“/„id'“ das Wörterbuch,
+6 Abfragen) → behoben (nur Buchstaben vor jeder Abfrage); sonst der Basiszweig-Fehler von Etappe 96 und die fünf bekannten. Ungeprüft: die Zuordnung Verlaufspunkte →
+Nutzungen (Annahme aus HeliBoards Kommentar), kein Gerät.
+
+## Etappe 101 — Autokorrektur nach den Fehlfällen des Owners (2026-11-25)
+
+Konzept mit belegten Ursachen, Regeln, Abnahme-Zeilen und Kritiker: `docs/AUTOKORREKTUR-101-KONZEPT.md` (Wörterbuch-Befunde gelesen aus
+`main_{de,en-US,es}.dict` mit dem Leser aus `tools/build_informal_words.py`). Gebaut: A Verbformen (`GermanVerbForms`, Schutz in `guardAllows`
+und bei Buchstabendrehern), B Wörter anderer aktivierter Sprachen (`OtherLanguageDictionaries` lädt deren Hauptwörterbücher nur lesend auf dem
+Hintergrund-Thread von `ForeignWords`; `OtherLanguageWord`, Satzbeleg `SentenceLanguage.evidenceOfFrequencies`), C Ziel in Großbuchstaben oder mit
+fremdem Akzent (`CorrectionGuards.blocksTarget`, Veto in `shouldBeAutoCorrected`), D Nachbartaste (`NeighborKeys`, `Suggest.applyNeighborKey`),
+Fall 10 „i“ (`EnglishI`, `Suggest.applyEnglishI`). Abweichungen von den Hypothesen des Leads: „auf → AIF“ ist eine Groß-/Klein-Korrektur von
+getipptem „aif“ zum Hauptwörterbuch-Eintrag „AIF“ (nicht Verlauf); „mur“ schützt BEHUTSAM (Hauptwörterbuch 56), nicht der Verlauf; „mur → nur“ ist
+bewusst nicht gebaut (68 seltene echte Wörter hätten dieselbe Form, z. B. „gebt“ → „geht“). Bewusst geänderter Test: `AutocorrectReportTest`
+„reported finding 3 … (level Behutsam)“ erwartet jetzt „I“ (mit satzbezogener Autokorrektur; ohne sie das alte Verhalten). Ebenso die Erwartung des
+Gerätetests `reported_finding_3_level_gentle` („And I “; nicht gelaufen). Erster GitHub-Lauf (45718027096): agent, build, lint grün; upstream mit
+dem schon auf dem Basiszweig neuen Fehler „deleting shows the word …“ (Etappe 96) und neu `TypingEquivalenceTest` (das „i“ von „it's“ bekam
+auf dem englischen Stub-Layout eine Autokorrektur-Anzeige). Danach gilt die „i“-Regel auf dem englischen Layout nur mit „Richtige Wörter nie
+ändern“ (sonst setzt das Wörterbuch „I“ selbst). Zweiter Lauf (45722304564): agent, build, lint grün; upstream
+**Infrastrukturabbruch** (73 Testklassen `classMethod`, Robolectric konnte sein Android-Paket nicht laden, `IOException` beim Herunterladen,
+nur 1047 Tests liefen). Vom Lead neu gestartet (Versuch 2): upstream 2286 Tests, 6 rot, davon fünf bekannte und der schon auf dem Basiszweig
+neue „deleting shows the word as it stands left …“ (Etappe 96, `expected:<lösch> but was:<null>`); `TypingEquivalenceTest` grün, kein Fehler aus 101. Neue Tests:
+`AutocorrectReportTest` „stage 101 …“ (je Fehlfall, Einstellungen des Owners, feste Treffer mit Wörterbuchtyp und Sprache, Kontrollfälle),
+`CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest` (Häufigkeiten),
+`AT/CorrectionGuardsTest` (Ziele). Lokal ohne Android-Toolchain, nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Offen: Fall 9
+„gah“, „mocb“, „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Wörter im persönlichen Wörterbuch“); kein Gerät,
+echte Wörterbücher nur aus den Dateien gelesen, nicht in der laufenden Engine.
+
 ## Etappe 98 — Feststelltaste und Zahlenreihe (Owner, 2026-11-25)
 
 Owner: „Capslock wird die Zahlenzeile nicht mehr zu Symbolen ändern, sondern holt Zahlen zurück. Symbole gelten nur für einmaliges Shift.“

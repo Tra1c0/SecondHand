@@ -197,6 +197,16 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
             TypoMemory.forget(context, reverted.typed, reverted.corrected)
             return
         }
+        // stage 107b (owner: "eine Korrektur auch als diese erkannt, wenn ich ein Leerzeichen getippt habe …"): X -> Y
+        // automatically, now Y -> Z (a third word, not a completion or a change of case) by the user, at any later checkpoint
+        // of this field: one rejection of "X -> Y", and "X -> Z" as a candidate of the late typo corrections
+        val replaced = autoCorrections.lastOrNull { it.corrected.equals(change.old, ignoreCase = true) }
+        if (replaced != null && !change.new.equals(change.old, ignoreCase = true) && !isCompletion(change.old, change.new)) {
+            RejectedCorrections.remember(context, replaced.typed, replaced.corrected, settings, at = wordStart)
+            if (!languageSwitched && TypoMemory.mayLearn(settings) && !replaced.typed.equals(change.new, ignoreCase = true))
+                FieldCorrectionMemory.observed(context, replaced.typed, change.new, session, wordStart, settings)
+            return
+        }
         // a language switch in this field: the text before may be in the old language (N7); nothing is
         // learned or forgotten for the language in use now (second review of stage 51, e)
         if (languageSwitched) return

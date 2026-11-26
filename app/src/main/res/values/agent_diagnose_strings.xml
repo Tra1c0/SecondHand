@@ -293,6 +293,8 @@
     <string name="agent_diagnose_corr_typo_pairs">Learned typo pairs (count)</string>
     <string name="agent_diagnose_corr_field_pairs">Corrections learned in the field (count)</string>
     <string name="agent_diagnose_corr_rejected">Corrections taken back (count)</string>
+    <string name="agent_diagnose_corr_rule_corrections">Rare words and short forms corrected since start (kept / taken back)</string>
+    <string name="agent_diagnose_corr_rule_corrections_value">%1$d / %2$d</string>
     <string name="agent_diagnose_corr_active_layouts">Active layouts (count)</string>
     <string name="agent_diagnose_corr_add_personal">Add to the personal dictionary automatically</string>
     <string name="agent_diagnose_corr_personal_words">Entries in the personal dictionary (count)</string>

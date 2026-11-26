@@ -1230,12 +1230,13 @@ def reported_finding_2_4_history_loop(d):
 
 
 def reported_finding_3_level_gentle(d):
-    """Reported finding 3 at the level "Behutsam" (Tippen & Korrektur, "Richtige Wörter nie ändern"): "i" in the middle
-    of a sentence stays "i" on the English layout, "cant" stays, "im" and "i'll" are still corrected."""
+    """Reported finding 3 at the level "Behutsam" (Tippen & Korrektur, "Richtige Wörter nie ändern"): since stage 101 "i"
+    in the middle of a sentence becomes "I" on the English layout (sentence context on, the default); "cant" stays, "im"
+    and "i'll" are still corrected."""
     label = _settings_fresh(d, ("Tippen & Korrektur",), "Behutsam")
     d.notes.append("tapped %r" % label)
     rows = _probe_cases(d, "reported_finding_3_level_gentle_en", "and", ["i", "i'll", "im", "cant", "dont"], english=True)
-    _expect_fields(d, rows, {"i": "And i ", "i'll": "And I'll ", "im": "And I'm ", "cant": "And cant ", "dont": "And font "})
+    _expect_fields(d, rows, {"i": "And I ", "i'll": "And I'll ", "im": "And I'm ", "cant": "And cant ", "dont": "And font "})
 
 def _strip_signature(screen):
     """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.

@@ -38,4 +38,28 @@ class CorrectionGuardsTest {
         assertFalse(CorrectionGuards.blocks("berry", "very", Locale.ENGLISH))
         assertFalse(CorrectionGuards.blocks("berstehen", "verstehen", null))
     }
+
+    // stage 101 (owner: "alr" -> "ALR", "aif" -> "AIF", "lame" -> "Lamé")
+    @Test fun aLowerCaseWordNeverBecomesCapitalsOnly() {
+        assertTrue(CorrectionGuards.blocksTarget("alr", "ALR", de, false))
+        assertTrue(CorrectionGuards.blocksTarget("aif", "AIF", de, false))
+        assertTrue(CorrectionGuards.blocksTarget("Aif", "AIF", de, false)) // a capital at the beginning of a sentence
+        assertTrue(CorrectionGuards.blocksTarget("usa", "USA", Locale.ENGLISH, false))
+        // typed in capitals, one letter, a normal noun, or wanted by the dictionary / a shortcut: no veto
+        assertFalse(CorrectionGuards.blocksTarget("ALR", "ALT", de, false))
+        assertFalse(CorrectionGuards.blocksTarget("i", "I", Locale.ENGLISH, false))
+        assertFalse(CorrectionGuards.blocksTarget("ort", "Ort", de, false))
+        assertFalse(CorrectionGuards.blocksTarget("aif", "AIF", de, true))
+    }
+
+    @Test fun aGermanCorrectionNeverBringsInAForeignAccent() {
+        assertTrue(CorrectionGuards.blocksTarget("lame", "Lamé", de, false))
+        assertTrue(CorrectionGuards.blocksTarget("creme", "Crème", de, false))
+        // umlauts and ß are German, an accent the owner typed himself stays possible, other languages are not judged
+        assertFalse(CorrectionGuards.blocksTarget("fur", "für", de, false))
+        assertFalse(CorrectionGuards.blocksTarget("strase", "Straße", de, false))
+        assertFalse(CorrectionGuards.blocksTarget("Cafée", "Café", de, false))
+        assertFalse(CorrectionGuards.blocksTarget("esta", "está", Locale("es"), false))
+        assertFalse(CorrectionGuards.blocksTarget("lame", "Lamé", de, true))
+    }
 }

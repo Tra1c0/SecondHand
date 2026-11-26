@@ -603,6 +603,20 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         else it.getDict(Dictionary.TYPE_MAIN)?.getFrequency(word) ?: Dictionary.NOT_A_PROBABILITY
     } ?: Dictionary.NOT_A_PROBABILITY
 
+    /**
+     * Fork, stage 107: the frequency (below zero: not there) the typing history of the dictionary groups of [language] gives
+     * [word] exactly as written; it rises with every use (HeliBoard: about 111 after two uses, 120 after three) and decays
+     * with time. Read-only, takes no lock, for the suggestion thread. Below zero also without "Personalisierte Vorschläge".
+     */
+    fun historyFrequency(word: String, language: String): Int = dictionaryGroups.filter { it.locale.language == language }.maxOfOrNull {
+        if (word.isEmpty()) Dictionary.NOT_A_PROBABILITY
+        else it.getSubDict(Dictionary.TYPE_USER_HISTORY)?.getFrequency(word) ?: Dictionary.NOT_A_PROBABILITY
+    } ?: Dictionary.NOT_A_PROBABILITY
+
+    /** Fork, stage 107: whether a typing history is in use for [language] ("Personalisierte Vorschläge" on). */
+    fun hasHistory(language: String): Boolean =
+        dictionaryGroups.any { it.locale.language == language && it.hasDict(Dictionary.TYPE_USER_HISTORY) }
+
     // todo: move into dictionaryGroup?
     private fun isValidWord(word: String, dictionariesToCheck: Array<String>, dictionaryGroup: DictionaryGroup): Boolean {
         if (word.isEmpty() || dictionaryGroup.isBlacklisted(word)) return false

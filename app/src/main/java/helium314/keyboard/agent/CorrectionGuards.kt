@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import java.text.Normalizer
 import java.util.Locale
 
 /**
@@ -34,4 +35,39 @@ object CorrectionGuards {
     @JvmStatic
     fun blocks(typed: String, candidate: String?, candidateLocale: Locale?): Boolean =
         candidate != null && candidate != typed && (isAcronym(typed) || shiftsGermanPrefix(typed, candidate, candidateLocale))
+
+    /**
+     * Stage 101 (owner: "alr" -> "ALR", "aif" -> "AIF"): a word typed with lower case letters becomes a word of capitals only
+     * (at least two letters). An abbreviation of a dictionary is no evidence that the owner meant it.
+     */
+    @JvmStatic
+    fun replacesWithCapitals(typed: String, candidate: String): Boolean {
+        val letters = candidate.filter { it.isLetter() }
+        return letters.length >= 2 && letters.all { it.isUpperCase() } && typed.any { it.isLowerCase() }
+    }
+
+    /**
+     * Stage 101 (owner: "lame" -> "Lamé"): a German correction brings in a letter with an accent German does not have (anything
+     * but the umlaut dots) that the typed word does not contain.
+     */
+    @JvmStatic
+    fun addsForeignAccent(typed: String, candidate: String, candidateLocale: Locale?): Boolean {
+        if (candidateLocale?.language != "de") return false
+        val typedAccents = foreignAccents(typed)
+        return foreignAccents(candidate).any { it !in typedAccents }
+    }
+
+    private fun foreignAccents(word: String): Set<Char> = word.lowercase(Locale.ROOT).filter { ch ->
+        val decomposed = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD)
+        decomposed.length > 1 && decomposed.drop(1).any { it != '\u0308' }
+    }.toSet()
+
+    /**
+     * Stage 101: the silent replacement of [typed] by [candidate] is vetoed because of the target ([replacesWithCapitals],
+     * [addsForeignAccent]). [demanded]: a personal shortcut or a whitelist entry of the dictionary, which may set anything.
+     */
+    @JvmStatic
+    fun blocksTarget(typed: String, candidate: String?, candidateLocale: Locale?, demanded: Boolean): Boolean =
+        candidate != null && candidate != typed && !demanded &&
+            (replacesWithCapitals(typed, candidate) || addsForeignAccent(typed, candidate, candidateLocale))
 }

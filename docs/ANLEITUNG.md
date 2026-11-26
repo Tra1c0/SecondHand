@@ -134,6 +134,21 @@ Korrektur die Rücktaste tippen (sofern „Rücktaste macht Autokorrektur rückg
 Wort ist wieder da. Abschalten: Schalter „Buchstabendreher“ aus, er ist anfangs an. Im Emulator mit den
 echten Wörterbüchern noch nicht bestätigt, auf einem Telefon nicht ausprobiert.
 
+Mit **Satzbezogene Autokorrektur** (an) gilt außerdem, auch bei „Richtige Wörter nie ändern“:
+- **Seltene Wörter werden zu sehr häufigen Nachbarn korrigiert**: Ein Wort aus 3 bis 5 Buchstaben, das das
+  Wörterbuch kennt, das aber selten ist („mur“, „aif“ als „AIF“), wird zu dem einen sehr häufigen Wort, das eine
+  Nachbartaste daneben liegt („nur“, „auf“), wenn du dieses Wort laut deinem Tipp-Verlauf oft benutzt und das getippte
+  nie oder viel seltener (ohne Verlauf nur, wenn der Satz davor das häufige Wort klar nahelegt).
+- **Kurzformen bekommen den Apostroph**: „gibts“, „wirds“, „drehts“, „gehts“, „wars“ werden „gibt's“, „wird's“, „dreht's“,
+  „geht's“, „war's“; Wörter wie „nichts“, „rechts“, „Amts“ bleiben, ebenso „wars“ in einem englischen Satz.
+- **Zurücknehmen zählt, aber nicht für immer**: Jede Korrektur zählt je Paar mit, wie oft du sie stehen lässt und wie oft
+  du sie zurücknimmst (Rücktaste direkt danach, oder später im Feld geändert, auch nach Leerzeichen, Satzzeichen oder einem
+  angefangenen nächsten Wort). Eine Rücknahme wiegt drei Bestätigungen: Nach einer Rücknahme ohne viele Bestätigungen ist die
+  Korrektur nur noch Vorschlag; wählst du sie danach ein paar Mal selbst, kommt sie zurück; nach etwa zwei Monaten ist eine
+  Rücknahme vergessen. Für die seltenen Wörter und Kurzformen gilt das mit „Personalisierte Vorschläge“, für alle anderen
+  Korrekturen mit „Rückgängig gemachte Korrekturen merken“ (vorher galt dort: einmal zurückgenommen = nie wieder). Die
+  Zahlen zeigt die Diagnose-Karte „Korrektur & Sprache“.
+
 Oben wählst du die Autokorrektur in einem Tipp:
 
 - **AUS**: nur Vorschläge, nie automatisch (schaltet „Autokorrektur“ aus).
