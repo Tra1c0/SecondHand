@@ -37,6 +37,15 @@
     <string name="agent_diagnose_gestures_off_user">aus: weder Gestenschreiben noch Symbole malen</string>
     <string name="agent_diagnose_gestures_off_dictionary">aus: kein Hauptwörterbuch für diese Sprache</string>
     <string name="agent_diagnose_gestures_off_talkback">aus: TalkBack „Tippen und Entdecken“</string>
+    <!-- stage 100: speed of drawn symbols, numbers only -->
+    <string name="agent_diagnose_symbol_ways">Geschrieben: sofort / nach Pause / per Taste / per Chip</string>
+    <string name="agent_diagnose_symbol_latency">Loslassen bis Text (Median)</string>
+    <string name="agent_diagnose_symbol_latency_value">sofort %1$s, nach Pause %2$s</string>
+    <string name="agent_diagnose_symbol_pause">Pause für weitere Striche jetzt</string>
+    <string name="agent_diagnose_symbol_pause_value">%1$d ms (aus %2$d Lücken)</string>
+    <string name="agent_diagnose_symbol_check">Prüfung „kann weitergehen?“ (Median)</string>
+    <string name="agent_diagnose_symbol_late">Nachzügler-Striche nach Pause / nach sofort</string>
+    <string name="agent_diagnose_symbol_ms">%1$d ms</string>
     <string name="agent_diagnose_language">Sprachwechsel</string>
     <string name="agent_diagnose_language_now">Sprache jetzt</string>
     <string name="agent_diagnose_per_app">Sprache pro App</string>

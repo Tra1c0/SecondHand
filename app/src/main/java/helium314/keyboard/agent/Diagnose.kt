@@ -132,7 +132,24 @@ object Diagnose {
                 context.getString(if (mainDictionary) R.string.agent_diagnose_present else R.string.agent_diagnose_missing)),
             Row(context.getString(R.string.agent_diagnose_talkback), onOff(context, touchExploration)),
             Row(context.getString(R.string.agent_diagnose_gestures), handling),
-        ))
+        ) + symbolSpeed(context))
+    }
+
+    /** Stage 100: how drawn symbols were written since the keyboard started (numbers only, [SymbolPerf]). */
+    private fun symbolSpeed(context: Context): List<Row> {
+        val ways = SymbolPerf.Way.values().map { SymbolPerf.count(it) }
+        fun ms(value: Long) = if (value < 0) "–" else context.getString(R.string.agent_diagnose_symbol_ms, value)
+        val (latePause, lateInstant) = SymbolPerf.lateCounts()
+        return listOf(
+            Row(context.getString(R.string.agent_diagnose_symbol_ways), ways.joinToString(" / ")),
+            Row(context.getString(R.string.agent_diagnose_symbol_latency),
+                context.getString(R.string.agent_diagnose_symbol_latency_value,
+                    ms(SymbolPerf.medianMillis(SymbolPerf.Way.INSTANT)), ms(SymbolPerf.medianMillis(SymbolPerf.Way.PAUSE)))),
+            Row(context.getString(R.string.agent_diagnose_symbol_pause),
+                context.getString(R.string.agent_diagnose_symbol_pause_value, SymbolInk.pauseMillis, SymbolInk.pauseGaps)),
+            Row(context.getString(R.string.agent_diagnose_symbol_check), ms(SymbolPerf.medianDecideMillis())),
+            Row(context.getString(R.string.agent_diagnose_symbol_late), "$latePause / $lateInstant"),
+        )
     }
 
     private fun currentLocale(context: Context): Locale? =

@@ -71,7 +71,7 @@ object SymbolInk {
     private val pace = InkPace()
     private val handler by lazy { Handler(Looper.getMainLooper()) }
     private val token = Any()
-    private val due = Runnable { finish() }
+    private val due = Runnable { finish(SymbolPerf.Way.PAUSE) }
     /** Stage 36 review M2: the preview follows only after [PREVIEW_DELAY_MILLIS] without a new stroke. */
     private val previewToken = Any()
     private val preview = Runnable { if (!group.isEmpty && inkPointer < 0 && !isSlidTapSoFar()) sink?.onWaiting(group.drawn, possible.map { it.index }) }
@@ -135,6 +135,14 @@ object SymbolInk {
 
     /** How long a drawing waits now for its next stroke (stage 36: follows the user's pace). */
     @JvmStatic val pauseMillis: Long get() = pace.pauseMillis
+
+    /** Stage 100: how many gaps between strokes [pauseMillis] is based on (diagnostics). */
+    @JvmStatic val pauseGaps: Int get() = pace.size
+
+    /** Stage 100: the dump line of [SymbolPerf] with the pause now. */
+    @JvmStatic fun perfLine(): String =
+        // dump runs on a binder thread: the pace is the main thread's, a rare race only costs this line
+        runCatching { SymbolPerf.line(pace.pauseMillis, pace.size) }.getOrElse { "symbolPerf: unavailable" }
 
     /** The longest pause there can be; tests wait this long. */
     const val MAX_PAUSE_MILLIS = InkPace.MAX_MILLIS
@@ -233,11 +241,11 @@ object SymbolInk {
         inkPointer = -1
         pointCount = 0
         if (stroke.size > 0 && moved(stroke) < InkTap.SECOND_FINGER_SLOP_DP) {
-            finish()
+            finish(SymbolPerf.Way.KEY)
             return true
         }
         if (stroke.size > 0) group.add(stroke, SystemClock.uptimeMillis()) // refused beyond the limits: written without it
-        finish()
+        finish(SymbolPerf.Way.KEY)
         return false
     }
 
@@ -275,7 +283,7 @@ object SymbolInk {
                 add(InkStroke(floatArrayOf(cx, cy)))
                 return false
             }
-            finish()
+            finish(SymbolPerf.Way.KEY)
             return true
         }
         // the pace follows the gaps between strokes of one symbol, not those before a typed letter
@@ -303,7 +311,7 @@ object SymbolInk {
 
     /** Another key or input comes first: recognize a waiting symbol now, before that input. */
     @JvmStatic fun flush() {
-        if (isWaiting && inkPointer < 0) finish()
+        if (isWaiting && inkPointer < 0) finish(SymbolPerf.Way.KEY)
     }
 
     /**
@@ -316,9 +324,11 @@ object SymbolInk {
         if (!isWaiting || inkPointer >= 0) return false
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        val ended = lastStrokeEnd
         lastStrokeEnd = -1
         afterTyping = null // the chip was picked: a symbol
         resolve(null, write)
+        SymbolPerf.written(SymbolPerf.Way.CHIP, if (ended >= 0) SystemClock.uptimeMillis() - ended else -1)
         return true
     }
 
@@ -365,14 +375,17 @@ object SymbolInk {
         handler.postAtTime(due, token, SystemClock.uptimeMillis() + pace.pauseMillis)
     }
 
-    private fun finish() {
+    /** Writes the waiting drawing now; [way] says why (stage 100: measured, [SymbolPerf]). */
+    private fun finish(way: SymbolPerf.Way) {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        val ended = lastStrokeEnd
         lastStrokeEnd = -1
         val typed = afterTyping
         afterTyping = null
         if (group.isEmpty) return
         resolve(typed) { strokes, _ -> sink?.onDrawing(strokes) }
+        SymbolPerf.written(way, if (ended >= 0) SystemClock.uptimeMillis() - ended else -1)
     }
 
     /**

@@ -152,6 +152,9 @@ class InkPace {
 
     fun clear() = gaps.clear()
 
+    /** Stage 100: how many gaps [pauseMillis] is based on now (diagnostics). */
+    val size: Int get() = gaps.size
+
     companion object {
         const val DEFAULT_MILLIS = 900L
         const val MIN_MILLIS = 600L

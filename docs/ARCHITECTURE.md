@@ -3759,6 +3759,14 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
 
+- Messpunkte (100): `A/SymbolPerf.kt` zählt je geschriebener Zeichnung den Weg (`Way`: sofort, nach der Pause, per Taste, per
+  Chip; `SymbolInk.finish(way)`, `takeWaiting`) und die Zeit vom Loslassen des letzten Strichs bis zum Ende des Schreibens
+  (`SystemClock.uptimeMillis`), dazu die Dauer der Prüfung „kann weitergehen?“ und Nachzügler; nur Zahlen, nur im Speicher.
+  Ausgabe: Zeile `symbolPerf:` in `LatinIME.dump` (`SymbolInk.perfLine`, `dumpsys input_method`, auf dem Binder-Thread, darum
+  mit `runCatching`) und fünf Zeilen in der Diagnose-Karte „Symbole“ (`Diagnose.symbolSpeed`). `InkPace.size`: Zahl der Lücken.
+  Gerätetests `symbol_draw_latency`, `symbol_draw_variants` (`tools/devicetest/devicetest.py`) malen mit echten Berührungen über
+  `InkProbe.java` der Test-App und schreiben die Zeiten als `INFO symbol …`.
+
 ## Zeichen-Kunst
 
 > Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
@@ -4145,7 +4153,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
   `./gradlew -p tools/devicetest :app:assembleDebug`; das Haupt-`settings.gradle` kennt sie nicht.
   `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
-  Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
+  Inhalt. `InkProbe.java` (100): malt auf Anfrage (`content call … --method ink`, `DumpProvider.call`) Striche und Tipps
+  mit echten Berührungen über `dispatchGesture` des Bedienungshilfe-Dienstes (`canPerformGestures`), notiert Start, geplantes Ende
+  und jede Feldänderung (Uhrzeit des Geräts) und liefert das als JSON (`content read …/ink`). `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
   aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
   `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294). `FakeAutofillService.java`: Autofill-Dienst nur in
   der Test-App für das Szenario `autofill_inline` (73c), bietet seit 79 drei feste erfundene Datensätze mit den Titeln „Test 73c“,
@@ -6775,7 +6785,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (795 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (797 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6786,7 +6796,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (105): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (106): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6801,10 +6811,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
   SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
-  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolGridView,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, UndoOffer,
-  WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, SymbolPerf, ToolApprovalSummary,
+  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
+  UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -7002,8 +7012,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
 - `tools/devicetest/app/` (1): build.gradle
 - `tools/devicetest/app/src/main/` (1): AndroidManifest
-- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (4): DumpProvider,
-  FakeAutofillService, MainActivity, ProbeAccessibilityService
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (5): DumpProvider,
+  FakeAutofillService, InkProbe, MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->
