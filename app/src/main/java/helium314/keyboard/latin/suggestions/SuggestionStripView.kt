@@ -629,6 +629,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (staleWords) return true // stage 89: outdated words, no long press and no list of more words
         // stage 96: the left word that can be put back has its own long press (restoreTouch), not the one of the view
         if (restoreFired || restoreRunnable != null) return true
+        // owner (build 53): the left word (the old word, or the word as it stands while deleting) never opens the list of more words;
+        // its long press only puts the word back. The list stays on the other words and on the swipe up.
+        if (isOwnWordSlot(view)) return true
         AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
         return if (view is TextView && wordViews.contains(view)) {
             onLongClickSuggestion(view)
@@ -656,6 +659,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             || index != helium314.keyboard.agent.CurrentWordShown.LEFT_INDEX || index >= words.size()) return null
         val word = words.getWord(index)
         return word.takeIf { latinIme()?.canRestoreWordBeforeDelete(it) == true }
+    }
+
+    /** [view] is the left word slot and holds the user's own word (typed form or the word as it stands), not a suggestion of the engine. */
+    private fun isOwnWordSlot(view: View): Boolean {
+        val index = view.tag as? Int ?: return false
+        val words = suggestedWords
+        if (index != helium314.keyboard.agent.CurrentWordShown.LEFT_INDEX || index >= words.size() || words.isPunctuationSuggestions) return false
+        return words.getInfo(index).mSourceDict == Dictionary.DICTIONARY_USER_TYPED
     }
 
     private fun cancelRestore() {

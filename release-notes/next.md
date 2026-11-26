@@ -1,3 +1,7 @@
+# Neu: Langdruck auf das linke Wort
+
+- **Langdruck auf das linke Wort** klappt die Wortliste nicht mehr aus; er holt nur noch das ursprüngliche Wort zurück. Die Wortliste gibt es weiter per Langdruck auf die anderen Vorschläge oder Hochwischen auf der Leiste.
+
 # Neu: Zwischenablage ohne Tastenzeile
 
 - **Standardmäßig aus**: Über deinem Zwischenablage-Verlauf steht keine Zeile mit Tasten mehr; der Verlauf bekommt den Platz. Einschalten kannst du sie unter Einstellungen → Knöpfe wählen und sortieren → „Werkzeugzeile in der Zwischenablage“; deine bisherige Tastenauswahl ist dann wieder da.
