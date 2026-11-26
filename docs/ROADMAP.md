@@ -19,8 +19,9 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“ (kein Wörterbuch und keine Liste kennt „gah“), „mocb“,
   „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Einträge im persönlichen Wörterbuch (Anzahl)“); Frage an den
   Owner, ob die Deutung „Rücknahme = nie wieder, Gewichte über den Tipp-Verlauf“ seine Absicht trifft (Konzept Abschnitt 5).
-- **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
-  Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
+- **102 Screenshots in der Zwischenablage**: gebaut (`docs/FEATURES.md`, Konzept `docs/SCREENSHOTS-KONZEPT.md`). Offen für den
+  Owner (Konzept Abschnitt 8): eigene Kopie für angeheftete Screenshots (überlebt das Löschen in der Galerie)? Screenshots aus
+  Inkognito-Feldern oder bei Sperre ausblenden (nur möglich, solange die Tastatur lief)? Wischen zum Ausblenden einzelner Screenshots?
 - **105 Satzzeichen automatisch** (Owner, 2026-11-25: „Es wäre schön, wenn zukünftig noch Satzzeichen automatisch ersetzt werden.“).
   Umfang offen, vor dem Bau klären: fehlende Satzzeichen setzen (Punkt am Satzende, Komma vor „dass/weil/aber“, Fragezeichen nach Fragewort)
   oder falsch getroffene ersetzen. Regel wie bei 104: nur Eindeutiges, jede Änderung mit einem Tipp rücknehmbar. Dazu als Fehlfall 10 von 101:

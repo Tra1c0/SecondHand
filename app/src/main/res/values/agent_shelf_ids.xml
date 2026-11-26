@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Screenshot shelf of the clipboard (stage 102). Own file so parallel work on other id files does not collide. -->
+<resources>
+    <item type="id" name="agent_shelf_card" />
+    <item type="id" name="agent_shelf_folder" />
+    <item type="id" name="agent_shelf_window" />
+    <item type="id" name="agent_shelf_back" />
+    <item type="id" name="agent_shelf_title" />
+    <item type="id" name="agent_shelf_count" />
+    <item type="id" name="agent_shelf_pin" />
+    <item type="id" name="agent_shelf_grid" />
+    <item type="id" name="agent_shelf_out" />
+    <item type="id" name="agent_shelf_new_in_folder" />
+    <item type="id" name="agent_shelf_new_folder" />
+    <item type="id" name="agent_shelf_shadow" />
+    <item type="id" name="agent_shelf_menu" />
+    <item type="id" name="agent_shelf_menu_pin" />
+    <item type="id" name="agent_shelf_menu_rename" />
+    <item type="id" name="agent_shelf_name_edit" />
+    <item type="id" name="agent_shelf_name_done" />
+</resources>

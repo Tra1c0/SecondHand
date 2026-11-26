@@ -2550,6 +2550,195 @@ def screenshot_perf(d):
     d.expect_equal("the clipboard list was open", screen.keyboard_node("clipboard_list") is not None, True)
 
 
+SHELF_CARD_ID = KEYBOARD_PACKAGE + ":id/agent_shelf_card"
+SHELF_FOLDER_ID = KEYBOARD_PACKAGE + ":id/agent_shelf_folder"
+FOLDER_DESC = re.compile(r"^Ordner (.+), (\d+) Screenshots")
+
+
+def shelf_tiles(screen):
+    """The shelf's tiles of the clipboard list (not those inside an open folder): [(kind, description, node)], top to bottom."""
+    window = screen.keyboard_node("agent_shelf_window")
+    found = []
+    for n in screen.nodes:
+        if n.rid in (SHELF_CARD_ID, SHELF_FOLDER_ID) and n.visible:
+            if window is not None and window.contains(*n.center):
+                continue
+            found.append(("folder" if n.rid == SHELF_FOLDER_ID else "card", n.desc, n))
+    return sorted(found, key=lambda t: (t[2].top, t[2].left))
+
+
+def folder_cells(screen):
+    """The screenshots of the open folder window, in reading order."""
+    grid = screen.keyboard_node("agent_shelf_grid")
+    if grid is None:
+        return []
+    cells = [n for n in screen.nodes if n.rid == SHELF_CARD_ID and n.visible and grid.contains(*n.center)]
+    return sorted(cells, key=lambda n: (n.top, n.left))
+
+
+def folders_of(screen):
+    """{name: count} of the folder tiles in the list."""
+    out = {}
+    for kind, desc, _ in shelf_tiles(screen):
+        match = FOLDER_DESC.match(desc or "")
+        if kind == "folder" and match:
+            out[match.group(1)] = int(match.group(2))
+    return out
+
+
+def shelf_report(screen):
+    return "tiles %s; window %s; cells %s" % ([(k, (desc or "")[:40]) for k, desc, _ in shelf_tiles(screen)],
+                                              "open" if screen.keyboard_node("agent_shelf_window") else "closed",
+                                              [n.desc[:24] for n in folder_cells(screen)])
+
+
+def lift_drag(points, hold=0.7, dwell_at=None, dwell=0.9):
+    """One finger: down at points[0], held until the tile lifts, then through the points; lifted at the last one.
+    dwell_at: index of a point where the finger rests for `dwell` seconds (and moves a pixel so the keyboard sees it)."""
+    x, y = points[0]
+    touch_down(x, y)
+    last = (x, y)
+    try:
+        time.sleep(hold)
+        for i, point in enumerate(points[1:], 1):
+            last = glide(last, point, steps=4)
+            if dwell_at == i:
+                time.sleep(dwell)
+                touch_move(point[0] + 2, point[1])
+                time.sleep(0.4)
+                last = (point[0] + 2, point[1])
+    finally:
+        touch_up(*last)
+    time.sleep(1.2)
+
+
+def screenshot_shelf_bundles(d):
+    """Stage 102 (A1, A2, A4, A5): two screenshots, one of them in DCIM/Screenshots like a Xiaomi phone, are two cards in the
+    clipboard; the third bundles all three into the folder "Screenshots"; a tap opens it with the back button top left,
+    and the back button closes it. Control run: no third screenshot, so no folder."""
+    shelf_setup(d)
+    delete_screenshot_files()
+    d.start("screenshot_shelf_bundles")
+    d.focus("text")
+    make_screenshot(d, SHOT_DIRS[0])
+    make_screenshot(d, SHOT_DIRS[1])
+    screen = open_clipboard(d)
+    screen = wait_report(d, lambda s: len(shelf_tiles(s)) >= 2, "two screenshot cards", limit=10)
+    d.expect_equal("two cards first (%s)" % shelf_report(screen), [k for k, _, _ in shelf_tiles(screen)], ["card", "card"])
+    shot(d, "two_cards")
+    hide_and_reopen(d)
+    if not d.control:
+        make_screenshot(d, SHOT_DIRS[0])
+    shell("logcat -c", check=False)
+    screen = open_clipboard(d)
+    time.sleep(1.5)
+    screen = dump()
+    d.expect_equal("one folder with the three (%s)" % shelf_report(screen), folders_of(screen), {"Screenshots": 3})
+    d.expect_equal("no card beside it", [k for k, _, _ in shelf_tiles(screen)], ["folder"])
+    folder = shelf_tiles(screen)[0][2]
+    gfx_reset()
+    tap(*folder.center)
+    screen = wait_report(d, lambda s: s.keyboard_node("agent_shelf_window") is not None and len(folder_cells(s)) == 3,
+                         "the folder window with three screenshots", limit=8)
+    lines = perf_lines("folder_open")
+    perf_report(d, "folder open", "%s; %s" % (lines[-1] if lines else "no line", gfx_stats()))
+    back = screen.keyboard_node("agent_shelf_back")
+    window = screen.keyboard_node("agent_shelf_window")
+    d.expect_equal("back button top left of the folder (%s in %s)" % (back.box if back else None, window.box),
+                   back is not None and back.left - window.left < 150 and back.top - window.top < 150, True)
+    shot(d, "folder_open")
+    tap(*back.center)
+    screen = wait_report(d, lambda s: s.keyboard_node("agent_shelf_window") is None, "the folder window to close", limit=6)
+    d.expect_equal("the folder tile again", folders_of(screen), {"Screenshots": 3})
+
+
+def screenshot_shelf_drag(d):
+    """Stage 102 (A6, A7, A9, A11, A12 restart): with real touches: a screenshot dragged inside the folder and brought back to its
+    start changes nothing; one held over "In die Ablage" closes the folder and is dropped in the list as a loose card; that card
+    dragged onto "Neuer Ordner" makes "Ordner 1"; after the keyboard process was stopped everything is as before. Control run:
+    the second drag ends where it started, so there is no loose card."""
+    shelf_setup(d)
+    d.start("screenshot_shelf_drag")
+    d.focus("text")
+    screen = open_clipboard(d)
+    if folders_of(screen).get("Screenshots") != 3:  # alone (--only): make the folder first
+        delete_screenshot_files()
+        for i in range(3):
+            make_screenshot(d, SHOT_DIRS[i % 2])
+        hide_and_reopen(d)
+        screen = open_clipboard(d)
+    screen = wait_report(d, lambda s: folders_of(s).get("Screenshots") == 3, "the folder of three", limit=8)
+    tap(*shelf_tiles(screen)[0][2].center)
+    screen = wait_report(d, lambda s: len(folder_cells(s)) == 3, "the folder window", limit=8)
+    cells = folder_cells(screen)
+    order = [n.desc for n in cells]
+    # 1. away and back to the start: nothing changes
+    start = cells[0].center
+    lift_drag([start, (start[0] + 250, start[1] + 150), start])
+    screen = dump()
+    d.expect_equal("back to the start changes nothing (%s)" % shelf_report(screen), [n.desc for n in folder_cells(screen)], order)
+    # 2. out of the folder: held over "In die Ablage", dropped in the list
+    cells = folder_cells(screen)
+    back = screen.keyboard_node("agent_shelf_back")
+    window = screen.keyboard_node("agent_shelf_window")
+    out_zone = (window.left + (window.right - window.left) // 4, back.center[1])
+    grid = screen.keyboard_node("agent_shelf_grid")
+    # right column, below the folder's row: the folder tile is the first (left) tile of the list
+    in_list = (grid.left + (grid.right - grid.left) * 3 // 4, grid.top + (grid.bottom - grid.top) * 3 // 5)
+    gfx_reset()
+    if d.control:
+        lift_drag([cells[1].center, (cells[1].center[0] + 200, cells[1].center[1]), cells[1].center])
+    else:
+        lift_drag([cells[1].center, out_zone, in_list], dwell_at=1)
+    perf_report(d, "drag out of the folder", gfx_stats())
+    screen = dump()
+    kinds = [k for k, _, _ in shelf_tiles(screen)]
+    d.expect_equal("a loose card beside the folder of two (%s)" % shelf_report(screen),
+                   (sorted(kinds), folders_of(screen)), (["card", "folder"], {"Screenshots": 2}))
+    shot(d, "dragged_out")
+    # 3. the loose card onto "Neuer Ordner" (the area shows at the bottom of the list while dragging)
+    card = next(n for k, _, n in shelf_tiles(screen) if k == "card")
+    lst = screen.keyboard_node("clipboard_list")
+    zone = ((lst.left + lst.right) // 2, lst.bottom - int(30 * d.density()))
+    lift_drag([card.center, ((card.center[0] + zone[0]) // 2, (card.center[1] + zone[1]) // 2), zone])
+    screen = dump()
+    d.expect_equal("a new folder with just that screenshot (%s)" % shelf_report(screen), folders_of(screen),
+                   {"Screenshots": 2, "Ordner 1": 1})
+    # 4. the keyboard process is stopped and started again: the shelf is read from its file
+    shell("am force-stop %s" % KEYBOARD_PACKAGE, check=False)
+    time.sleep(2.0)
+    d.start("screenshot_shelf_drag")
+    d.focus("text")
+    screen = open_clipboard(d)
+    screen = wait_report(d, lambda s: len(folders_of(s)) == 2, "both folders after the restart", limit=10)
+    d.expect_equal("the same folders after a restart", folders_of(screen), {"Screenshots": 2, "Ordner 1": 1})
+
+
+def screenshot_shelf_while_off(d):
+    """Stage 102 (A3, lückenlos): a screenshot taken while the keyboard's process does not run is in the clipboard the next time
+    it opens. Control run: no screenshot is taken."""
+    shelf_setup(d)
+    d.start("screenshot_shelf_while_off")
+    d.focus("text")
+    screen = open_clipboard(d)
+    time.sleep(1.0)
+    screen = dump()
+
+    def count(s):
+        return sum(1 if k == "card" else int((FOLDER_DESC.match(desc or "") or [0, 0, 0])[2]) for k, desc, _ in shelf_tiles(s))
+    before = count(screen)
+    shell("input keyevent KEYCODE_BACK", check=False)
+    shell("am force-stop %s" % KEYBOARD_PACKAGE, check=False)
+    time.sleep(1.5)
+    if not d.control:
+        make_screenshot(d, SHOT_DIRS[1])
+    d.start("screenshot_shelf_while_off")
+    d.focus("text")
+    open_clipboard(d)
+    screen = wait_report(d, lambda s: count(s) > before, "one screenshot more than %d" % before, limit=10) if not d.control else dump()
+    d.expect_equal("the screenshot taken while the keyboard was off is there (%s)" % shelf_report(screen), count(screen), before + 1)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -2558,7 +2747,9 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              # stage 88: the bar with real touches; each leaves the standard bar behind
              bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
              # stage 89: the quiet bar while writing
-             bar_calm_typing, revert_correction_shows_word]
+             bar_calm_typing, revert_correction_shows_word,
+             # stage 102: screenshots in the clipboard, with real touches; the second needs the first
+             screenshot_shelf_bundles, screenshot_shelf_drag, screenshot_shelf_while_off]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

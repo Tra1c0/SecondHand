@@ -1,3 +1,13 @@
+# Neu: Screenshots in der Zwischenablage
+
+- **Alle Screenshots**: Mit Zwischenablage-Verlauf und „Screenshots anbieten“ zeigt die Zwischenablage oben alle Screenshots deiner Galerie, auch die, die du gemacht hast, während die Tastatur nicht lief. Keine Kopien, keine Doppelten; was du in der Galerie löschst, verschwindet auch hier.
+- **Ab drei im Ordner**: Zwei Screenshots stehen einzeln da, ab dem dritten liegen sie im Ordner „Screenshots“. Tippen öffnet ihn sofort; oben links führt der Pfeil zurück, der Name lässt sich antippen und umbenennen, die Nadel heftet den Ordner an.
+- **Ziehen wie auf dem Startbildschirm**: Lange drücken, bis sich der Screenshot hebt, dann ziehen: im Ordner sortieren, über „In die Ablage“ halten und in der Liste loslassen, auf einen anderen Ordner oder Screenshot ziehen oder auf „Neuer Ordner“. Zurück an den Anfang oder Abbrechen ändert nichts.
+- **Anheften**: Lange drücken und loslassen zeigt „Anheften“. Angeheftete Screenshots und angeheftete Ordner bleiben; alles andere folgt der Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“).
+- **Früher kopierte Screenshots** im Verlauf werden einmal übernommen, ohne dass etwas verloren geht.
+
+Mit automatischen Tests und im Emulator mit echten Berührungen geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Langdruck auf das linke Wort
 
 - **Langdruck auf das linke Wort** klappt die Wortliste nicht mehr aus; er holt nur noch das ursprüngliche Wort zurück. Die Wortliste gibt es weiter per Langdruck auf die anderen Vorschläge oder Hochwischen auf der Leiste.

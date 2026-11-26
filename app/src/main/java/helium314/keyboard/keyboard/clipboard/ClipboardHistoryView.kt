@@ -68,6 +68,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private var vaultTextColor = 0
     private var vaultTypeface: android.graphics.Typeface? = null
     private lateinit var clipboardAdapter: ClipboardAdapter
+    /** Stage 102: the screenshot shelf, made when it is first shown; [activeShelf] while this visit shows it. */
+    private var shelfUi: helium314.keyboard.agent.shelf.ShelfUi? = null
+    private var activeShelf: helium314.keyboard.agent.shelf.ShelfUi? = null
+    private var withShelf: androidx.recyclerview.widget.ConcatAdapter? = null
+    private var listBottomPadding = 0
 
     lateinit var keyboardActionListener: KeyboardActionListener
     private lateinit var clipboardHistoryManager: ClipboardHistoryManager
@@ -200,8 +205,13 @@ class ClipboardHistoryView @JvmOverloads constructor(
             setTextColor(params.mTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, params.mLabelSize.toFloat() * 2)
         }
+        // stage 102: the screenshot tiles come first in the same list (opt-in, not when locked, incognito or in a password field)
+        val shelf = if (helium314.keyboard.agent.shelf.Shelf.isShown(context, Settings.getValues(), editorInfo)) shelf() else null
+        activeShelf = shelf
         clipboardRecyclerView.apply {
-            adapter = clipboardAdapter
+            adapter = if (shelf == null) clipboardAdapter else (withShelf ?: androidx.recyclerview.widget.ConcatAdapter(
+                androidx.recyclerview.widget.ConcatAdapter.Config.Builder().setIsolateViewTypes(true).build(),
+                shelf.mainAdapter, clipboardAdapter).also { withShelf = it }) // one, so no old one keeps listening
             val keyboardWidth = ResourceUtils.getKeyboardWidth(context, settings.current)
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
@@ -220,8 +230,13 @@ class ClipboardHistoryView @JvmOverloads constructor(
                 keyboardWidth, keyboardWidth, 0f)
                     * settings.current.mSidePaddingScale).toInt()
             keyboardAttr.recycle()
-            setPadding(leftPadding, paddingTop, rightPadding, paddingBottom)
+            if (listBottomPadding == 0) listBottomPadding = paddingBottom + 1 // + 1: remembered even when it is 0
+            // stage 102: room at the end, so that the last row can scroll above the drop area (always, so nothing jumps when a drag starts)
+            val bottom = (listBottomPadding - 1) + (shelf?.bottomRoom ?: 0)
+            clipToPadding = shelf == null
+            setPadding(leftPadding, paddingTop, rightPadding, bottom)
         }
+        shelf?.start()
 
         // absurd workaround so Android sets the correct color from stateList (depending on "activated")
         toolbarKeys.forEach { it.isEnabled = false; it.isEnabled = true }
@@ -286,6 +301,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     fun stopClipboardHistory() {
         if (!this::clipboardAdapter.isInitialized) return
+        activeShelf?.stop() // stage 102: a drag ends without a change, the folder window closes
+        activeShelf = null
         clipboardRecyclerView.adapter = null
         helium314.keyboard.agent.ClipVault.onChange = null
         editorInfo = null
@@ -326,12 +343,71 @@ class ClipboardHistoryView @JvmOverloads constructor(
             keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
     }
 
+    /** Stage 102: the clips come after the screenshot tiles in the list. */
+    private fun clipOffset() = activeShelf?.mainAdapter?.itemCount ?: 0
+
+    /**
+     * Stage 102: the screenshot shelf: created once, with the colours of the keyboard's design (E6) and the
+     * clipboard's pin icon; it inserts like an image clip (a copy in the keyboard's file provider, made off the main thread).
+     */
+    private fun shelf(): helium314.keyboard.agent.shelf.ShelfUi {
+        shelfUi?.let { return it }
+        val colors = Settings.getValues().mColors
+        val shelfColors = helium314.keyboard.agent.shelf.ShelfColors(colors.get(ColorType.KEY_BACKGROUND), colors.get(ColorType.KEY_TEXT),
+            colors.get(ColorType.ACTION_KEY_BACKGROUND), colors.get(ColorType.CLIPBOARD_PIN), vaultTypeface ?: KeyboardTypeface.customTypeface())
+        val container = clipboardRecyclerView.parent as android.widget.FrameLayout
+        val host = object : helium314.keyboard.agent.shelf.ShelfUi.Host {
+            override fun insert(shot: helium314.keyboard.agent.shelf.Shelf.Shot) = insertScreenshot(shot)
+            override fun cancelChildren() {
+                val now = android.os.SystemClock.uptimeMillis()
+                val cancel = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+                super@ClipboardHistoryView.dispatchTouchEvent(cancel)
+                cancel.recycle()
+            }
+            override fun haptic(event: HapticEvent) {
+                helium314.keyboard.latin.AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this@ClipboardHistoryView, event)
+            }
+        }
+        return helium314.keyboard.agent.shelf.ShelfUi(host, container, clipboardRecyclerView, shelfColors, pinIconId) {
+            colors.setBackground(it, ColorType.MAIN_BACKGROUND)
+        }.also { shelfUi = it }
+    }
+
+    /** Stage 102: a tap on a screenshot, like a tap on an image clip ([onKeyDown], [onKeyUp]). */
+    private fun insertScreenshot(shot: helium314.keyboard.agent.shelf.Shelf.Shot) {
+        keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
+        val field = editorInfo
+        val chipShot = helium314.keyboard.agent.ScreenshotChip.Shot(shot.id, shot.uri, shot.mimeType, shot.addedMillis)
+        screenshotCopies.execute {
+            val content = helium314.keyboard.agent.ScreenshotChip.copyForEditor(context, chipShot)
+            mainHandler.post {
+                // only into the field that was shown when tapped
+                if (content != null && editorInfo != null && helium314.keyboard.agent.ScreenshotChip.isSameField(field, editorInfo))
+                    keyboardActionListener.onContent(content)
+                keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
+                if (Settings.getValues().mAlphaAfterClipHistoryEntry)
+                    keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            }
+        }
+    }
+
+    private val screenshotCopies = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** Stage 102: every touch goes to the screenshot shelf first; it keeps the touches of a lifted or dragged tile. */
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        val shelf = activeShelf ?: return super.dispatchTouchEvent(event)
+        val container = clipboardRecyclerView.parent as View
+        if (shelf.onTouch(event, container.left.toFloat(), container.top.toFloat()) == helium314.keyboard.agent.shelf.ShelfUi.Touch.CONSUME) return true
+        return super.dispatchTouchEvent(event)
+    }
+
     override fun onClipInserted(position: Int) {
         // stage 102: measuring point, from the media change of a new screenshot to the frame that shows it
         if (clipboardHistoryManager.getHistoryEntry(position)?.filename != null)
             helium314.keyboard.agent.UiPerf.reportAtNextDraw(helium314.keyboard.agent.UiPerf.SHOT_VISIBLE, this) { perfCounts() }
         clipboardAdapter.notifyItemInserted(position)
-        clipboardRecyclerView.smoothScrollToPosition(position)
+        clipboardRecyclerView.smoothScrollToPosition(position + clipOffset())
     }
 
     override fun onClipsRemoved(position: Int, count: Int) {
@@ -341,7 +417,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     override fun onClipMoved(oldPosition: Int, newPosition: Int) {
         clipboardAdapter.notifyItemMoved(oldPosition, newPosition)
         clipboardAdapter.notifyItemChanged(newPosition)
-        if (newPosition < oldPosition) clipboardRecyclerView.smoothScrollToPosition(newPosition)
+        if (newPosition < oldPosition) clipboardRecyclerView.smoothScrollToPosition(newPosition + clipOffset())
     }
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {

@@ -1,5 +1,32 @@
 # Prüfnachweise
 
+## Etappe 102 — Screenshots in der Zwischenablage (Owner, 2026-11-26)
+
+Auftrag und Entscheidungen: `docs/SCREENSHOTS-KONZEPT.md` (E1–E13, Abnahme-Zeilen A1–A20, Kritik K1–K4; die Kritik vor dem Bau hat
+der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verfügbar). Code-Landkarte: `docs/ARCHITECTURE.md` →
+„Screenshot-Ablage (102)“, Format: `docs/STORAGE.md` → „Screenshot-Ablage (102)“.
+- Älterer Owner-Wunsch geprüft: die Werkzeugzeile der Zwischenablage ist seit 106 standardmäßig aus (`AgentPreferences.CLIPBOARD_TOOLBAR`)
+  und bleibt so; Smart-Paste-Chips gibt es nur an Textkarten, nie an Bildern/Screenshots (`ClipboardAdapter`); 102 ändert daran nichts.
+- Tests neu: `CT/clip/ScreenshotShelfTest.kt` (23), `CT/clip/ShelfDragTest.kt` (14), lokal grün (eigene Gradle-Hülle um `agent-core`,
+  Kotlin 2.4.0); `AT/shelf/ShelfStoreTest.kt` (6), `AT/shelf/ShelfViewTest.kt` (11) und `ScreenshotChipTest` (9) lokal grün
+  (Android-SDK 37 und JDK 17 im Container nachinstalliert, Robolectric-Jar über den Google-Spiegel von Maven Central, weil
+  `repo.maven.apache.org` mit 429 antwortete). Die volle Kern-Suite lief lokal nicht sinnvoll (39 Tests lesen Dateien über relative
+  Pfade des Projekts, die die Hülle nicht hat); maßgeblich ist der GitHub-Lauf unten.
+- Bewusst geändert: Sieben Tests von `ScreenshotChipTest` zur Kopie neuer Screenshots in den Verlauf (23g, Build 12, 65) sind entfernt,
+  weil das Verhalten entfallen ist (E1); ersetzt durch `aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf` und die Tests der Ablage.
+  Die alte Regel „bei Sperre/im Inkognito-Feld gemachte Screenshots nie in den Verlauf“ entfällt mit der Kopie (E10, offene Owner-Frage).
+- Robolectric-Hinweis: Die Berührungstoleranz in Robolectric ist größer als 42 px; die Tests ziehen deshalb weiter. Views, die
+  Robolectric nicht in einem Fenster zeigt, führen `View.post` nie aus: `ShelfUi` und das Einfügen posten auf den Main-Looper.
+- Emulator-Szenarien neu: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` (Kontrolllauf: fehlender
+  dritter Screenshot, Ziehen zurück an den Start, kein Screenshot bei beendeter Tastatur). Probe `screenshot_perf` (nur `--only`).
+- Messung vorher (Code = `main` 9228c5a0 + Messpunkte, Commit cd221dbd, Gerätetest-Lauf 45791319949, Probe `screenshot_perf`, 12 Screenshots
+  per `screencap`, Emulator Android 14 mit SwiftShader): Zwischenablage öffnen 107/106/113 ms (Median 107), dabei nur **4 von 12**
+  Screenshots im Verlauf (die alte Kopie nahm nicht alle); neuer Screenshot bis sichtbar 669 ms; Öffnen 2 Bilder, 2 janky; Scrollen
+  35 Bilder, 34 janky (97 %), p50 113 ms, p90 150 ms (SwiftShader: jedes Bild ist im Emulator janky, nur der Vergleich zählt).
+  Ordner öffnen: vorher nicht vorhanden. Nachher: unten.
+- Nicht geprüft: kein Telefon (Xiaomi/HyperOS, echtes Design des Owners auf dem Gerät), keine angesehenen Bilder (Emulator-Bilder sind
+  über den Proxy nicht ladbar), TalkBack nicht ausprobiert.
+
 ## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
 
 Owner: „Standardmäßig auf aus. Ich brauche das alles nicht in der Zwischenablage.“ Gebaut: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (Standard aus) in

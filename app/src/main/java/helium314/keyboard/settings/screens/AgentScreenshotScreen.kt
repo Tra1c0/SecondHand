@@ -57,7 +57,7 @@ fun AgentScreenshotScreen(onClickBack: () -> Unit) {
                     context.prefs().edit { putBoolean(AgentPreferences.SCREENSHOT_CHIP, it) }
                     if (!it) {
                         ScreenshotChip.cleanUp(context, System.currentTimeMillis(), all = true)
-                        ScreenshotChip.removeFromHistory(context)
+                        helium314.keyboard.agent.shelf.Shelf.keepPinnedOnly(context) // stage 102: pinned screenshots stay
                     }
                     if (it && !allowed) request.launch(ScreenshotChip.permission())
                 })
