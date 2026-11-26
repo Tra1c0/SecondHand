@@ -81,9 +81,9 @@ class InkTimingTest {
         pace.onGap(300); pace.onGap(320)
         assertEquals(900, pace.pauseMillis) // two gaps are no pace yet
         pace.onGap(340)
-        assertEquals(800, pace.pauseMillis) // 2.5 × 320
+        assertEquals(704, pace.pauseMillis) // stage 100: 2.2 × 320 (the longest, 1.5 × 340, is shorter)
         repeat(9) { pace.onGap(100) }
-        assertEquals(600, pace.pauseMillis) // fast hands: never below 600 ms
+        assertEquals(300, pace.pauseMillis) // fast hands: never below 300 ms (stage 100; 600 before)
         repeat(9) { pace.onGap(900) }
         assertEquals(1500, pace.pauseMillis) // slow hands: never above 1.5 s
         pace.onGap(-5) // a clock that went backwards is no gap
@@ -92,10 +92,23 @@ class InkTimingTest {
         assertEquals(900, pace.pauseMillis)
     }
 
-    @Test fun oneOddGapDoesNotMoveThePause() {
+    @Test fun theLongestGapKeepsTheNextStrokeOfAVaryingHand() {
+        // stage 100: gaps of 200 ms with one of 450 ms: 2.2 × the median (462) would only just keep the slow one
+        val pace = InkPace()
+        listOf(200L, 180L, 220L, 450L, 210L).forEach { pace.onGap(it) }
+        assertEquals(675, pace.pauseMillis) // 1.5 × 450
+        assertTrue(pace.pauseMillis > 450 * 1.4)
+    }
+
+    @Test fun aLongGapLengthensThePauseUntilNewerGapsPushItOut() {
+        // stage 100: before, one odd gap did not move the pause (median only); now a gap that was just too late (a late
+        // stroke, SymbolInk) must make the next pauses longer, up to the maximum, and nine newer gaps push it out
         val pace = InkPace()
         repeat(5) { pace.onGap(400) }
-        pace.onGap(5_000) // the user paused to think
-        assertEquals(1000, pace.pauseMillis)
+        assertEquals(880, pace.pauseMillis)
+        pace.onGap(5_000)
+        assertEquals(1500, pace.pauseMillis)
+        repeat(InkPace.KEPT) { pace.onGap(400) }
+        assertEquals(880, pace.pauseMillis)
     }
 }

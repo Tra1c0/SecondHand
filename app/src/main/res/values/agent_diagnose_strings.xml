@@ -38,6 +38,15 @@
     <string name="agent_diagnose_gestures_off_user">off: neither gesture typing nor drawn symbols</string>
     <string name="agent_diagnose_gestures_off_dictionary">off: no main dictionary for this language</string>
     <string name="agent_diagnose_gestures_off_talkback">off: TalkBack explore by touch</string>
+    <!-- stage 100: speed of drawn symbols, numbers only -->
+    <string name="agent_diagnose_symbol_ways">Written at once / after the pause / by a key / by the chip</string>
+    <string name="agent_diagnose_symbol_latency">Lift to text (median)</string>
+    <string name="agent_diagnose_symbol_latency_value">at once %1$s, after the pause %2$s</string>
+    <string name="agent_diagnose_symbol_pause">Pause for further strokes now</string>
+    <string name="agent_diagnose_symbol_pause_value">%1$d ms (from %2$d gaps)</string>
+    <string name="agent_diagnose_symbol_check">Check “can it go on?” (median)</string>
+    <string name="agent_diagnose_symbol_late">Late strokes after the pause / after at once</string>
+    <string name="agent_diagnose_symbol_ms">%1$d ms</string>
     <string name="agent_diagnose_language">Language switches</string>
     <string name="agent_diagnose_language_now">Language now</string>
     <string name="agent_diagnose_per_app">Language per app</string>

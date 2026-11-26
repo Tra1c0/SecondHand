@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Reads window content (to list the keys and the fields), all windows including the keyboard's,
-     with view ids. No touch exploration, no gestures, no key filtering. -->
+     with view ids. No touch exploration, no key filtering. Stage 100: it may perform gestures (InkProbe draws
+     symbols on the keyboard with real touches); it never does so on its own. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeAllMask"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagIncludeNotImportantViews|flagReportViewIds"
+    android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:notificationTimeout="1000" />

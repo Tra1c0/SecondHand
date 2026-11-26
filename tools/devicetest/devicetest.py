@@ -2387,6 +2387,296 @@ def revert_correction_shows_word(d):
     shot(d, "revert_word_shown")
 
 
+# ---------------------------------------------------------------------------- drawn symbols (stage 100)
+# Real touches through the test app's accessibility service (InkProbe.java: dispatchGesture, several strokes with real
+# gaps, taps as dots). The test app notes when its field changes (uptime clock of the device); the keyboard reports how
+# each drawing was written and how long after its last stroke (`symbolPerf:` line of `dumpsys input_method`). Numbers
+# and fixed test symbols only. Control run: the stroke each expectation depends on is left out (the last one unless
+# a case says otherwise), so every case gets something else than expected.
+
+INK_URI = "content://" + TEST_PACKAGE + ".dump"
+INK_CHECK_BUDGET = 150  # ms for the check "finished?" on the emulator's worker (logged as "check", median 50-125 ms)
+INK_SETTLE = 2.4  # seconds after the gesture: longer than the longest pause for a further stroke (1.5 s before stage 100)
+
+# strokes in a box of 0..100 (y downward), as the symbols are drawn
+INK_DASH = [(10, 50), (90, 50)]
+INK_DASH_BACK = [(90, 50), (10, 50)]
+INK_HEAD = [(62, 22), (92, 50), (62, 78)]
+INK_LESS = [(85, 6), (15, 36), (85, 66)]
+INK_BAR_LOW = [(15, 92), (85, 92)]
+INK_SLASH = [(82, 6), (18, 94)]
+INK_BAR_TOP = [(10, 36), (90, 36)]
+INK_BAR_BOTTOM = [(10, 64), (90, 64)]
+INK_INFINITY = [(50 + 46 * math.sin(2 * math.pi * k / 36), 50 + 22 * math.sin(4 * math.pi * k / 36)) for k in range(37)]
+INK_HOOK = [(50 + 26 * math.cos(math.radians(a)), 28 + 22 * math.sin(math.radians(a))) for a in range(200, 401, 10)] + [(50, 58), (50, 74)]
+
+
+def ink_dot(u, v):
+    return [(u, v)]
+
+
+class InkBox:
+    """Where a drawing goes on the keyboard: a square around the key "g", two rows ("t" to "b") times [scale] tall."""
+
+    def __init__(self, d, scale=1.0):
+        keys = [d.key_for(c) for c in "gtb"]
+        if any(k is None for k in keys):
+            d.refresh_keys()
+            keys = [d.key_for(c) for c in "gtb"]
+        if any(k is None for k in keys):
+            raise DeviceError("no keys g, t, b for the drawing; keys: %s" % d.key_list())
+        g, t, b = keys
+        self.key_width = g.right - g.left
+        self.cx, self.cy = g.center
+        self.size = (b.center[1] - t.center[1]) * scale
+
+    def point(self, u, v):
+        return int(self.cx + (u - 50) / 100.0 * self.size), int(self.cy + (v - 50) / 100.0 * self.size)
+
+
+def ink_spec(box, strokes, gaps=200, durations=None):
+    """The gesture for InkProbe: strokes one after the other, [gaps] ms (or a list) from one lift to the next touch. A
+    stroke of one point is a tap (40 ms). Returns the spec and the time of the last lift in ms from the start."""
+    parts, t = [], 0
+    for i, points in enumerate(strokes):
+        if i:
+            t += gaps[i - 1] if isinstance(gaps, (list, tuple)) else gaps
+        if len(points) == 1:
+            duration = 40
+        else:
+            duration = durations[i] if isinstance(durations, (list, tuple)) else (durations or 160 + 2 * len(points))
+        coords = ",".join("%d,%d" % box.point(u, v) for u, v in (points if len(points) > 1 else points * 2))
+        parts.append("%d@%d@%s" % (t, duration, coords))
+        t += duration
+    return ";".join(parts), t
+
+
+def symbol_perf():
+    """The keyboard's `symbolPerf:` line as a dict (finished, counts, last=[(way, ms)], pauseNow), {} if missing."""
+    line = _keyboard_dump_line("symbolPerf:")
+    match = re.search(r"symbolPerf: (.*)$", line)
+    if not match:
+        return {"raw": line}
+    out = {"raw": match.group(1)[:300]}
+    for key, value in re.findall(r"(\w+)=(-?\d+)", match.group(1)):
+        out[key] = int(value)
+    last = re.search(r"last=\[([^\]]*)\]", match.group(1))
+    out["last"] = [(e[0], int(e[1:])) for e in last.group(1).split(",") if len(e) > 1] if last and last.group(1) else []
+    return out
+
+
+def ink_report():
+    text = adb("shell", "content read --uri " + INK_URI + "/ink", timeout=40, check=False).strip()
+    try:
+        return json.loads(text)
+    except ValueError:
+        raise DeviceError("no ink report: %r" % text[:160])
+
+
+def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, control_drop=-1, settle=INK_SETTLE, check=None, way=None):
+    """Draws [strokes] with real touches in the text field (one field per scenario: a fresh test app for every case cost
+    too much time) and checks what came after the text that was there: exactly [expected] (or [check] on it), reached in
+    one change, not before the last lift. With [way] ("i" at once, "p" after the pause) the keyboard must
+    have written it that way (stage 100), at once well before the shortest pause. Logs the timing; returns (keyboard
+    entries, field latency)."""
+    if d.control and strokes:
+        drop = control_drop % len(strokes)
+        strokes = strokes[:drop] + strokes[drop + 1:]
+        if isinstance(gaps, (list, tuple)):
+            gaps = list(gaps[:max(0, drop - 1)]) + list(gaps[drop:]) if drop else list(gaps[1:])
+    start_text = d.field("text")
+    before = symbol_perf()
+    if strokes:
+        spec, end = ink_spec(box, strokes, gaps, durations)
+        out = shell("content call --uri %s --method ink --arg '%s'" % (INK_URI, spec), timeout=40, check=False)
+        if "ink=ok" not in out:
+            raise DeviceError("the test app did not draw: %s" % out.strip()[:200])
+        time.sleep(end / 1000.0 + settle)
+        report = ink_report()
+    else:  # control run: the only stroke was left out
+        time.sleep(settle)
+        report = {"changes": []}
+    after = symbol_perf()
+    new = after.get("finished", 0) - before.get("finished", 0)
+    entries = after.get("last", [])[-new:] if new > 0 else []
+    texts = []
+    for change in report.get("changes", []):
+        if change.get("f") == "text" and (not texts or texts[-1][1] != change.get("text")):
+            texts.append((change.get("t"), change.get("text")))
+    planned = report.get("plannedEnd", -1)
+    first = texts[0][0] - planned if texts and planned > 0 else None
+    field = texts[-1][1] if texts else start_text
+    if field.startswith(start_text):
+        field = field[len(start_text):]
+    log("INFO symbol %s/%s: keyboard %s, field %s ms after the planned last lift (gesture done %s ms after it), "
+        "%d field change(s), pause now %s ms from %s gaps, check %s ms" % (
+            d.name, name, ",".join("%s%d" % e for e in entries) or "nothing", first,
+            report.get("completed", -1) - planned if planned > 0 else "?", len(texts), after.get("pauseNow"), after.get("gaps"),
+            after.get("decideMed")))
+    d.notes.append("%s: %s %s ms" % (name, ",".join("%s%d" % e for e in entries) or "-", first))
+    if check is not None:
+        d.expect_equal("%s: the field (%r)" % (name, field), bool(check(field)), True)
+    else:
+        d.expect_equal("%s: the field" % name, field, expected)
+        # no early and no second input: one change, after the last lift
+        d.expect_equal("%s: changes of the field %s" % (name, [t for _, t in texts]), len(texts), 1)
+        d.expect_equal("%s: the symbol came after the last lift (%s ms)" % (name, first), first is not None and first >= -5, True)
+        # the keyboard's own view (code review, finding 5: the planned end is only the planned last lift): it wrote exactly
+        # one drawing, so nothing went in before the last stroke and nothing twice
+        d.expect_equal("%s: drawings the keyboard wrote %s" % (name, entries), len(entries), 1)
+    if way is not None:
+        d.expect_equal("%s: written as %s" % (name, entries), entries[-1][0] if entries else None, way)
+        if way == "i" and entries:
+            # at once, measured by the keyboard from the lift to the end of writing: before the pause that was waiting would
+            # have ended (the old path, a timer of pauseNow, had to wait at least that long and then still write); the frame
+            # budget is checked over all instant cases together (_instant_budget)
+            ms, pause = entries[-1][1], after.get("pauseNow", 0)
+            d.expect_equal("%s: at once, %d ms after the lift, before the pause of %d ms would have ended" % (name, ms, pause), ms < pause, True)
+            d.instant = getattr(d, "instant", []) + [(name, ms)]
+    return entries, first
+
+
+def _fresh_field(d):
+    """A fresh test app with the keyboard in its text field, keeping the notes and checks of the scenario so far."""
+    notes, checks = d.notes, d.checks
+    d.start(d.name)
+    d.focus("text")
+    d.notes, d.checks = notes, checks
+
+
+def _symbol_drawing_on(d):
+    """Symbole malen on: a dash drawn with real touches must become "–". Otherwise the quick switch on the settings'
+    start page is tapped once and the dash is drawn again. Not part of the control run."""
+    control, d.control = d.control, False
+    try:
+        for attempt in range(2):
+            _fresh_field(d)
+            box = InkBox(d)
+            spec, end = ink_spec(box, [INK_DASH])
+            shell("content call --uri %s --method ink --arg '%s'" % (INK_URI, spec), timeout=40, check=False)
+            time.sleep(end / 1000.0 + INK_SETTLE)
+            if d.field("text") == "–":
+                return
+            if attempt:
+                raise DeviceError("Symbole malen could not be switched on (the dash gave %r)" % d.field("text"))
+            shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+            time.sleep(2.0)
+            for _ in range(2):  # "Build N ist da" or "Neu in Build N" over the start page
+                texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+                if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+                    shell("input keyevent KEYCODE_BACK", check=False)
+                    time.sleep(1.5)
+            d.tap_text("Symbole malen")
+            shell("input keyevent KEYCODE_HOME", check=False)
+            time.sleep(1.0)
+    finally:
+        d.control = control
+
+
+def _frames_reset():
+    shell("dumpsys gfxinfo %s reset" % KEYBOARD_PACKAGE, check=False, timeout=40)
+
+
+def _instant_budget(d):
+    """The instant symbols drawn since the frame reset, each within the frame budget of this emulator measured over the same
+    drawings: the check (at most INK_CHECK_BUDGET) plus three frames at the 90th percentile (dumpsys gfxinfo since the
+    reset). Writing the symbol and rebuilding the strip take two to three passes of the main thread, which renders in
+    software here (about 150 ms a frame); on a phone a frame is about 8 to 16 ms."""
+    text = shell("dumpsys gfxinfo %s" % KEYBOARD_PACKAGE, check=False, timeout=40)
+    match = re.search(r"90th percentile: (\d+)ms", text)
+    p90 = int(match.group(1)) if match else 150
+    budget = INK_CHECK_BUDGET + 3 * p90
+    cases = getattr(d, "instant", [])
+    log("INFO symbol frames %s/instant cases: 90th percentile %d ms, budget %d ms, %s" % (d.name, p90, budget, cases))
+    for name, ms in cases:
+        d.expect_equal("%s: at once, %d ms after the lift, within the frame budget %d ms (3 x %d + %d)" % (
+            name, ms, budget, p90, INK_CHECK_BUDGET), ms < budget, True)
+    d.instant = []
+
+
+def _frames_report(d, what):
+    """Frame timing of the keyboard while drawing (dumpsys gfxinfo since the reset): numbers only."""
+    text = shell("dumpsys gfxinfo %s" % KEYBOARD_PACKAGE, check=False, timeout=40)
+    wanted = ("Total frames rendered", "Janky frames", "50th percentile", "90th percentile", "95th percentile", "99th percentile",
+              "Number Slow UI thread", "Number Frame deadline missed")
+    found = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(wanted) and line not in found:
+            found.append(line)
+    log("INFO symbol frames %s/%s: %s" % (d.name, what, "; ".join(found[:len(wanted)]) or "no gfxinfo"))
+
+
+def symbol_draw_latency(d):
+    """Drawn symbols with real touches (stage 100): each symbol exactly once, never before the last lift, and how long
+    from the last lift to the text in the field. → from "–" and ">" in both orders and directions, % from "/" and two
+    tapped dots, ÷, ≤, ∞, =, a lone "–". The timings go to the log (INFO symbol …), the frames of the drawing too."""
+    d.start("symbol_draw_latency")
+    _symbol_drawing_on(d)
+    _fresh_field(d)
+    box = InkBox(d)
+    time.sleep(2.0)  # the parts of the check are worked out once after the first drawing (the dash of the switch-on)
+    d.instant = []
+    _frames_reset()
+    try:
+        _latency_cases(d, box)
+    finally:
+        _frames_report(d, "all cases")
+
+
+def _latency_cases(d, box):
+    # the symbols that cannot go on first, while the pause is still its start value (900 ms: fewer than three gaps before a
+    # stroke; dots do not count): "at once" must then beat a pause that is long enough for this slow emulator. Later the
+    # pause learns the test's 200 ms gaps and gets as short as 300 ms, then a slow check can lose to it (same symbol, same
+    # text, written by the pause; run 45802675105)
+    draw_symbol(d, "divide", box, [INK_DASH, ink_dot(50, 16), ink_dot(50, 84)], "÷", way="i")
+    draw_symbol(d, "less or equal", box, [INK_LESS, INK_BAR_LOW], "≤", way="i")
+    draw_symbol(d, "infinity", box, [INK_INFINITY], "∞", way="i")
+    draw_symbol(d, "question mark", box, [INK_HOOK, ink_dot(50, 97)], "?", way="i")
+    _instant_budget(d)
+    draw_symbol(d, "arrow dash then head", box, [INK_DASH, INK_HEAD], "→", way="p")
+    draw_symbol(d, "arrow head then dash backwards", box, [INK_HEAD, INK_DASH_BACK], "→", way="p")
+    draw_symbol(d, "percent slash then dots", box, [INK_SLASH, ink_dot(20, 20), ink_dot(80, 80)], "%", way="p")
+    draw_symbol(d, "percent other dot first", box, [INK_SLASH, ink_dot(80, 80), ink_dot(20, 20)], "%", way="p")
+    draw_symbol(d, "equals", box, [INK_BAR_TOP, INK_BAR_BOTTOM], "=", way="p")
+    draw_symbol(d, "dash alone", box, [INK_DASH], "–", way="p")
+
+
+def symbol_draw_variants(d):
+    """Drawn symbols under other conditions (stage 100), real touches: fast and slow strokes, small and large drawings, a
+    gap just under the pause (still one symbol) and one far over it (two drawings, never →), a slash alone, and a key
+    right after a stroke (the symbol first, at once)."""
+    d.start("symbol_draw_variants")
+    _symbol_drawing_on(d)
+    _fresh_field(d)
+    box = InkBox(d)
+    _frames_reset()
+    try:
+        _variant_cases(d, box)
+    finally:
+        _frames_report(d, "all cases")
+
+
+def _variant_cases(d, box):
+    draw_symbol(d, "arrow fast strokes", box, [INK_DASH, INK_HEAD], "→", durations=[70, 80])
+    draw_symbol(d, "arrow slow strokes", box, [INK_DASH, INK_HEAD], "→", durations=[700, 700])
+    # sizes are a question of recognition: the way is logged, not checked (the pause has learned the test's gaps here)
+    draw_symbol(d, "less or equal small", InkBox(d, 0.55), [INK_LESS, INK_BAR_LOW], "≤")
+    draw_symbol(d, "less or equal large", InkBox(d, 1.45), [INK_LESS, INK_BAR_LOW], "≤")
+    pause = symbol_perf().get("pauseNow", 600)
+    draw_symbol(d, "arrow gap 70 percent of the pause", box, [INK_DASH, INK_HEAD], "→", gaps=int(pause * 0.7))
+    # far over the pause (and over two pauses: no late stroke that would lengthen the pause): the dash is written alone, the
+    # head on its own is no arrow (control: the dash is left out)
+    draw_symbol(d, "dash, long pause, head", box, [INK_DASH, INK_HEAD], None, gaps=2 * pause + 400, control_drop=0,
+                check=lambda text: text.startswith("–") and "→" not in text)
+    draw_symbol(d, "slash alone", box, [INK_SLASH], "/")
+    # a letter key far right of the drawing, 120 ms after the stroke: the dash is written at once, then the letter
+    p = d.key_for("p")
+    far = ((p.center[0] - box.cx) * 100.0 / box.size + 50, (p.center[1] - box.cy) * 100.0 / box.size + 50)
+    draw_symbol(d, "dash then a key", box, [INK_DASH, ink_dot(*far)], None, gaps=120, control_drop=0,
+                check=lambda text: text.lower() == "–p")
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -2395,7 +2685,9 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              # stage 88: the bar with real touches; each leaves the standard bar behind
              bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
              # stage 89: the quiet bar while writing
-             bar_calm_typing, revert_correction_shows_word]
+             bar_calm_typing, revert_correction_shows_word,
+             # stage 100: drawn symbols with real touches, timing in the log; they switch Symbole malen on
+             symbol_draw_latency, symbol_draw_variants]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

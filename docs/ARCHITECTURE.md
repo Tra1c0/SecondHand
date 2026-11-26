@@ -547,7 +547,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
-  `HapticChain`).
+  `HapticChain`; Etappe 100: `onCodeInput` und `onTextInput` rufen `SymbolInk.onTypedInput`).
 - Etappe 87 (Cursor als Trackpad, P410–P433), jede Änderung von einem Prüfer lesen lassen:
   `PointerTracker.java` (+19 Zeilen in Etappe 87, dazu in Etappe 87c +1 Zeile: `static int getPointerStep()`, der Getter für `sPointerStep`, sonst nichts; alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
@@ -3576,7 +3576,7 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   Pause (36, `C/InkTiming.kt` `InkPace`): 900 ms, ab drei gemessenen Lücken (Loslassen bis
   nächstes Aufsetzen, nur innerhalb eines Symbols, `SystemClock.uptimeMillis`) 2,5 × Median der
   letzten neun, begrenzt auf 600–1500 ms; nur im Speicher. Vorher fest 500 ms (Rückmeldung zu
-  Build 14: der Rest eines Symbols begann ein neues). Ein Tipp (36: Bewegung unter
+  Build 14: der Rest eines Symbols begann ein neues). Seit 100: max(2,2 × Median, 1,5 × längste) der Lücken vor einem Strich, 300–1500 ms (unten „Sofort, wenn fertig“). Ein Tipp (36: Bewegung unter
   `InkTap.SLOP_DP` = 8 dp wie Androids Touch-Slop (Nachprüfer F3; 6 dp nach dem ersten Prüfer) vom
   Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
   von 36 4 dp, Prüfer H1) ist nur dann ein
@@ -3603,8 +3603,9 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   und tippt den Grundbuchstaben, kein Popup. Der Randfall eines Wortvorschlags im Fenster bei
   einbuchstabiger Vorhersage bzw. Satzzeichen-Leiste (P97) bleibt wie er ist.
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
-  (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich geschrieben, weil
-  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
+  (`flush`) gehen die Striche an die Senke. Bis 99 wurde nie sofort nach einem Strich geschrieben, weil
+  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠); seit 100 sofort, wenn nichts mehr folgen kann
+  (unten „Sofort, wenn fertig“).
 - Punkte (43, Rückmeldung zu Build 19: ÷/% verloren oder Symbol plus Buchstabe): Ein Tipp, dem
   `isDot` zustimmt, ist ein möglicher Punkt: `SymbolInk.onInkUp` legt ihn als einen Punkt (seine
   Mitte) in die Gruppe, merkt Index, Zeiger, Aufsetzpunkt und Lücke (`Possible`) und tippt nichts.
@@ -3759,6 +3760,41 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   löschen), `InputLogicTest.symbolDraw*` (echte Weiterleitung, Einfügen, Chips, Sperre; 31: Vorschlag
   im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
+
+- Sofort, wenn fertig (100, Konzept `docs/SYMBOLE-TEMPO-KONZEPT.md`): `SymbolInk.add` meldet nach jedem Strich und jedem
+  möglichen Punkt `Sink.onStrokeEnded(strokes, possibleDots, serial)`; `SymbolDrawing.checkFinished` prüft auf dem Hilfs-Thread
+  (`previewExecutor`, in Tests direkt; übersprungen, wenn `SymbolInk.currentSerial` schon weiter ist), ob mögliche Punkte Punkte
+  blieben (`InkDots.keeps`) und `C/InkCompletion.kt` `finished(cloud, result)` gilt: bestes Symbol vollständig und ≤
+  `ACCEPT_DISTANCE`, nicht `extendable` (eine seiner Vorlagen liegt ≤ `EXTEND_DISTANCE` 2,0 an einem Teil einer Vorlage mit mehr
+  Strichen; ein Teil ist jede echte Teilmenge der Striche, bei mehr als `MAX_SUBSETS` 35 Teilmengen nur die ersten Striche), und die
+  Zeichnung selbst liegt an keinem Teil (≤ `PART_DISTANCE` 2,0). Dann postet es `SymbolInk.onFinished(serial)`, das nur schreibt
+  (`finish(Way.INSTANT)`), wenn `serial` gleich ist (jeder Strichbeginn, jedes Schreiben, Verwerfen, Chip und `onBatchStart` zählt
+  hoch), etwas wartet und kein Strich auf den Tasten ist. Der Timer der Pause bleibt immer gesetzt (Rückweg ohne Antwort). Die
+  Teile rechnet `InkCompletion` faul (`SymbolDrawing.recognizer` baut es mit dem Erkenner aus denselben Vorlagen, eingebaut, eigen,
+  persönlich), ob ein Text erweiterbar ist, je Text gemerkt; vorab rechnet ein eigener Thread niedriger Priorität („symbol-parts“) alle
+  Texte (Code-Prüfung, Befund 3: auf dem gemeinsamen Hilfs-Thread stauten sich danach Vorschau und Prüfung; alle eingebauten zusammen
+  ca. 0,3 s auf dem JVM); eine Prüfung, die vorher kommt, rechnet ihren Text selbst. Teile werden nur gedreht, wenn sie aufrecht unter 1,6-mal der Grenze lagen (wie im Erkenner). Die Prüfung
+  kostet ca. 5 µs (Median, meist ist das Symbol erweiterbar) bis 8 ms (90 %) auf dem JVM; der Erkenner rechnet die Zeichnung dabei einmal, `write` nimmt das Ergebnis aus seinem Merker.
+  Pause (100, `InkPace`): max(2,2 × Median, 1,5 × längste) der letzten neun Lücken vor einem Strich, 300–1500 ms, anfangs 900;
+  Lücken zwischen getippten Punkten zählen nicht mehr (Kritik, Befund 1). Nachzügler (`SymbolInk.noteLateStroke`): beginnt bis
+  `LATE_PAUSES` 2 Pausen nach einer nach der Pause oder sofort geschriebenen Zeichnung (`Written`) eine neue nahe an ihr
+  (`InkTap.nearDrawing`, Tastenbreite aus `KeyboardSwitcher`), ohne getippte Taste oder Text dazwischen
+  (`SymbolInk.onTypedInput` aus `KeyboardActionListenerImpl.onCodeInput`/`onTextInput`; der Druck auf die Taste, auf der der neue Strich
+  beginnt, zählt nicht), nur nach einem Symbol ohne nachfolgende Buchstaben (`resolve` gibt die geschriebenen Striche zurück), und ergeben
+  beide ein anderes angenommenes Symbol (`Sink.joins`, `SymbolDrawing`: zwei Erkennungen auf dem Hilfs-Thread, Antwort im Hauptthread),
+  zählt `SymbolPerf.late`; nach der Pause zählt die Lücke
+  (Beginn der Geste `onBatchStart` bis zum Ende des letzten Strichs) für die Pause. Geschriebenes bleibt.
+  Tests: `CT/InkCompletionTest.kt` (Finger-Modell: keine Früheingabe in 8593 Anfängen, auch mit 40 persönlichen Symbolen; Anteil
+  sofort je Symbol; → aus „–“ und „>“ in jeder Reihenfolge und Richtung; % aus „/“ und zwei Punkten; ÷ erst nach dem zweiten Punkt;
+  Verwechslungen; eigenes Symbol lässt seinen Anfang warten; Zeit), `CT/InkTimingTest.kt` (Pause),
+  `InputLogicTest.symbolDrawTwoTappedDotsMakeADivisionSign` (÷ sofort, einmal).
+- Messpunkte (100): `A/SymbolPerf.kt` zählt je geschriebener Zeichnung den Weg (`Way`: sofort, nach der Pause, per Taste, per
+  Chip; `SymbolInk.finish(way)`, `takeWaiting`) und die Zeit vom Loslassen des letzten Strichs bis zum Ende des Schreibens
+  (`SystemClock.uptimeMillis`), dazu die Dauer der Prüfung „kann weitergehen?“ und Nachzügler; nur Zahlen, nur im Speicher.
+  Ausgabe: Zeile `symbolPerf:` in `LatinIME.dump` (`SymbolInk.perfLine`, `dumpsys input_method`, auf dem Binder-Thread, darum
+  mit `runCatching`) und fünf Zeilen in der Diagnose-Karte „Symbole“ (`Diagnose.symbolSpeed`). `InkPace.size`: Zahl der Lücken.
+  Gerätetests `symbol_draw_latency`, `symbol_draw_variants` (`tools/devicetest/devicetest.py`) malen mit echten Berührungen über
+  `InkProbe.java` der Test-App und schreiben die Zeiten als `INFO symbol …`.
 
 ## Zeichen-Kunst
 
@@ -4146,7 +4182,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
   `./gradlew -p tools/devicetest :app:assembleDebug`; das Haupt-`settings.gradle` kennt sie nicht.
   `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
-  Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
+  Inhalt. `InkProbe.java` (100): malt auf Anfrage (`content call … --method ink`, `DumpProvider.call`) Striche und Tipps
+  mit echten Berührungen über `dispatchGesture` des Bedienungshilfe-Dienstes (`canPerformGestures`), notiert Start, geplantes Ende
+  und jede Feldänderung (Uhrzeit des Geräts) und liefert das als JSON (`content read …/ink`). `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
   aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
   `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294). `FakeAutofillService.java`: Autofill-Dienst nur in
   der Test-App für das Szenario `autofill_inline` (73c), bietet seit 79 drei feste erfundene Datensätze mit den Titeln „Test 73c“,
@@ -6769,6 +6807,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P505** Kreis neben den Wörtern (99): Der Kreis neben Wörtern und Chips ist ein **zweiter Knopf** (`SuggestionStripView.endCircle`, Id `agent_bar_end_circle`) am Ende von `suggestions_strip_wrapper`, nicht der Platz der Zeile. Er hat keine Id `agent_bar_tool`, zählt nicht als Platz (`FixedBar.slots`, Ziehen, `slotCentres`) und wird vom Gerätetest nicht als Werkzeug gelesen (`bar_slots` schließt `END_CIRCLE_ID` aus). Wer Größe, Rand oder Farben des letzten Platzes ändert, ändert sie in `FixedBar.styleSlot` (gilt für beide); wer die Sichtbarkeit eines Teils der Leiste setzt, setzt sie in `applyBarState` (P380). Nur in Feldern mit `BarState.calm`; neben Chips erst ab `CHIPS_WITH_CIRCLE_MIN_DP` (340).
 - **P506** Pause der Schreibsitzung (99): `writingPause` hängt nur an Tasten (`onTyped`), nie am Inhalt der Mitte; das war die Quelle des „mal so, mal so“ in 89b. Wer einen Weg einbaut, der in der Sitzung Text tippt, ruft `onAgentTyped` (P492), sonst kommen mitten im Schreiben die Werkzeuge. Tests, die länger als 4 s ohne Taste warten (`idleFor`), sehen danach die Werkzeuge.
 - **P507** Zwischenablage ohne Werkzeugzeile (106): Versteckt der Standardstil den Streifen (`ClipboardHistoryView.hidesStrip`), muss die Ansicht genau seine Höhe (`config_suggestions_strip_height`) zusätzlich messen und der Liste geben, sonst springt die Tastaturhöhe beim Öffnen der Zwischenablage. `setMainKeyboardFrame` zeigt den Streifen beim Zurückwechseln wieder. Der flache Stil behält den Streifen (Zurück-Knopf); ohne Streifen insgesamt (Modus versteckt) gilt die alte Rechnung. Die Tasten werden im Konstruktor gelesen: der Schalter ruft `setThemeNeedsReload`.
+- **P508** Gezeichnete Symbole, Antwort des Hilfs-Threads (100): `SymbolInk.onFinished(serial)` schreibt nur, wenn `serial` noch der
+  Stand ist, für den `SymbolDrawing.checkFinished` geprüft hat. Jede Änderung an der Gruppe, an `inkPointer` oder an einem Weg des
+  Schreibens (neuer Strich, `onBatchStart`, `finish`, `takeWaiting`, `cancel`, `add`) muss `serial` erhöhen; sonst schreibt eine
+  späte Antwort eine Zeichnung, die inzwischen weitergeht (Früheingabe), oder ein zweites Mal. Der Timer der Pause bleibt immer
+  gesetzt: ohne Antwort schreibt die Pause wie vor 100. Wer eine neue Eingabe einbaut, die keine Taste ist, ruft
+  `SymbolInk.onTypedInput`, sonst zählt eine Zeichnung danach als Nachzügler.
 - **P499** Langlebige Ansicht, kurzlebige Einstellung (Etappe 95): Was eine View einmal im Konstruktor aus `SettingsValues` liest, bleibt für ihre ganze Lebenszeit. `SettingsValues` enthält Zustände des Augenblicks (Sperre → `mToolbarMode` HIDDEN, also `mFixedBar` falsch). `SuggestionStripView.fixedBar` liest deshalb die Einstellung selbst (`Settings.readToolbarMode`, `AgentPreferences.FIXED_BAR`); im Sperrzustand gebaut kam sonst nach dem Entsperren die alte Leiste zurück.
 
 ## Datei-Inventar
@@ -6777,6 +6821,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 
 <!-- gen:inventory -->
 <details><summary>Alle kartierten Dateien nach Ordner (796 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (799 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6803,6 +6848,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   RuleCorrections, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
   SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
   SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
+  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
+  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
+  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, SymbolPerf, ToolApprovalSummary,
   ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
   UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
@@ -6852,28 +6901,29 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (63): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (64): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, CorrectionWeights, CursorTrack, DateFormatting, EditorSession, EmojiKeywords,
   EmojiMix, EmojiNames, EmojiSynonyms, EnglishI, EventParser, ExecutionPolicy, FieldReport,
-  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords, InkDots,
-  InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve, RgbLighting,
-  RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding, SnippetTemplate,
-  SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition, TimerParser,
-  Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords,
+  InkCompletion, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols,
+  PendingBatchGate, PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve,
+  RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding,
+  SnippetTemplate, SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition,
+  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
+  Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (62): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (63): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, CorrectionWeightsTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest,
   EmojiKeywordsTest, EmojiMixTest, EnglishITest, EventParserTest, FieldReportTest,
   ForcedCorrectionTest, GermanShortFormsTest, GermanVerbAgreementTest, GermanVerbFormsTest,
-  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
+  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkCompletionTest, InkDotFlowTest, InkDotsTest,
+  InkFingerModel, InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
+  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
   OtherLanguageWordTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest,
   PlacesTest, QuestionCaptureTest, RareWordWeightsTest, ReleaseNotesTest, RgbCurveTest,
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
@@ -7003,8 +7053,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
 - `tools/devicetest/app/` (1): build.gradle
 - `tools/devicetest/app/src/main/` (1): AndroidManifest
-- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (4): DumpProvider,
-  FakeAutofillService, MainActivity, ProbeAccessibilityService
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (5): DumpProvider,
+  FakeAutofillService, InkProbe, MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->

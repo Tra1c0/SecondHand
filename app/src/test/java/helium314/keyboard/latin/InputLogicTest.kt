@@ -6952,7 +6952,9 @@ class InputLogicTest {
         assertTrue(helium314.keyboard.agent.SymbolInk.onInkUp(0, 150, 40)) // a letter: the arrow is written now
         assertEquals("→", text)
         val after = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()!!
-        assertEquals(1, after.recognitions - (if (after === before) start else 0))
+        // stage 100: the check "finished?" after the first stroke matches the dash alone (one match); the arrow itself is
+        // still matched exactly once, shared by the check after the second stroke, the dot check and the written symbol
+        assertEquals(2, after.recognitions - (if (after === before) start else 0))
     }
 
     @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {
@@ -7273,11 +7275,139 @@ class InputLogicTest {
         setText("a ")
         drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
         symbolInk.onInkDown(0, 150, 40); assertFalse(symbolInk.onInkUp(0, 150, 40))
+        assertTrue(symbolInk.isWaiting) // stage 100: a dash with one dot may still get its second one
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        handleMessages()
+        assertTrue(symbolInk.isWaiting)
         symbolInk.onInkDown(0, 152, 160); assertFalse(symbolInk.onInkUp(0, 152, 160))
-        afterPreview()
-        assertEquals(symbolDrawing.PREVIEW_MARK + "÷", chipLabels(symbolChips()!!).first())
-        afterThePause()
+        // stage 100: ÷ cannot go on, so it is written right after the second dot (the check's answer is posted, no
+        // time passes), not after the pause (before: the preview chip "✎ ÷" showed and the pause wrote it)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        handleMessages()
         assertEquals("a ÷", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a ÷", text) // written once
+    }
+
+    // stage 100: "≤" drawn as "<" and a bar: nothing can follow it
+    private val lessOrEqualStrokes = arrayOf(floatArrayOf(255f, 18f, 45f, 108f, 255f, 198f), floatArrayOf(45f, 276f, 255f, 276f))
+
+    private fun idleMain() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+    @Test fun symbolDrawFinishedSymbolIsWrittenRightAfterItsLastStrokeAndOnlyOnce() {
+        // stage 100: no pause for a symbol that cannot go on; its first stroke alone still waits
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(lessOrEqualStrokes[0])
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        drawStrokes(lessOrEqualStrokes[1])
+        idleMain(); handleMessages() // no time passes: only the posted answer of the check
+        assertEquals("a ≤", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a ≤", text) // written once
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawArrowWaitsForAPossibleSecondHeadThenComesOnce() {
+        // stage 100: "→" can become "↔", so it waits for the pause, and nothing is written before
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(*arrowStrokes)
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        afterThePause()
+        assertEquals("a →", text)
+    }
+
+    @Test fun symbolDrawAStrokeJustTooLateLengthensThePauseAndChangesNothingWritten() {
+        // stage 100: the head of an arrow that comes just after the dash was written: the dash stays, the gap counts
+        enableSymbolDrawing()
+        symbolInk.resetPace()
+        try {
+            setText("a ")
+            val late = helium314.keyboard.agent.SymbolPerf.lateCounts().first
+            drawStrokes(arrowStrokes[0])
+            afterThePause()
+            assertEquals("a –", text)
+            assertEquals(0, symbolInk.pauseGaps)
+            drawStrokes(arrowStrokes[1]) // 1.6 s after the dash: within two pauses, near it, and both make "→"
+            idleMain() // the check runs on the worker (here inline) and answers on the main thread
+            assertEquals(late + 1, helium314.keyboard.agent.SymbolPerf.lateCounts().first)
+            assertEquals(1, symbolInk.pauseGaps)
+            afterThePause()
+            assertTrue(text.startsWith("a –") && "→" !in text, text)
+        } finally {
+            symbolInk.resetPace()
+        }
+    }
+
+    @Test fun symbolDrawALetterTypedBetweenEndsTheWatchForALateStroke() {
+        // stage 100, code review finding 1: dash written, a letter typed, then a stroke near the dash: no late stroke, the
+        // pause keeps its gaps (the gap would hold typing time)
+        enableSymbolDrawing()
+        symbolInk.resetPace()
+        try {
+            setText("a ")
+            val late = helium314.keyboard.agent.SymbolPerf.lateCounts().first
+            drawStrokes(arrowStrokes[0])
+            afterThePause()
+            latinIME.mKeyboardActionListener.onCodeInput('x'.code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            handleMessages()
+            drawStrokes(arrowStrokes[1])
+            idleMain()
+            assertEquals(late, helium314.keyboard.agent.SymbolPerf.lateCounts().first)
+            assertEquals(0, symbolInk.pauseGaps)
+            symbolInk.cancel()
+        } finally {
+            symbolInk.resetPace()
+        }
+    }
+
+    @Test fun symbolDrawAFinishedSymbolRightAfterTypingIsWrittenAtOnceNotTypedAsAKey() = withTapper {
+        // stage 100, code review finding 7: a first stroke right after typing (stage 43) that is a finished symbol
+        enableSymbolDrawing()
+        setText("a ")
+        val listener = latinIME.mKeyboardActionListener
+        // "∞" in one stroke, 2.8 key widths wide: no sliding tap, and nothing can follow it
+        val infinity = FloatArray(2 * 37) { k -> val t = 2 * Math.PI * (k / 2) / 36
+            (if (k % 2 == 0) 150 + 138 * Math.sin(t) else 150 + 66 * Math.sin(2 * t)).toFloat() }
+        listener.onStartBatchInput()
+        symbolInk.onStartAfterTyping(0, 150, 150, 100)
+        val pointers = helium314.keyboard.latin.common.InputPointers(64)
+        for (i in 0 until infinity.size / 2) pointers.addPointer(infinity[2 * i].toInt(), infinity[2 * i + 1].toInt(), 0, 10 * i)
+        listener.onEndBatchInput(pointers)
+        idleMain(); handleMessages() // no time passes
+        assertEquals("a ∞", text)
+        assertFalse(symbolInk.isWaiting)
+    }
+
+    @Test fun symbolDrawAnAnswerForAnOlderDrawingWritesNothing() {
+        // stage 100: the check of "≤" comes back only after a further stroke began: that stroke's drawing is not written
+        enableSymbolDrawing()
+        val tasks = ArrayList<Runnable>()
+        symbolDrawing.previewExecutor = java.util.concurrent.Executor { tasks += it }
+        setText("a ")
+        drawStrokes(*lessOrEqualStrokes)
+        symbolInk.onInkDown(0, 150, 150) // a further stroke begins near the drawing
+        tasks.forEach { it.run() }
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        symbolInk.cancel()
+        tasks.clear()
+        // the same with the answer posted before the stroke began, but handled after it
+        symbolDrawing.previewExecutor = java.util.concurrent.Executor { it.run() }
+        drawStrokes(*lessOrEqualStrokes) // the answer is posted, not yet handled
+        symbolInk.onInkDown(0, 150, 150)
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        symbolInk.cancel()
     }
 
     @Test fun symbolDrawPreviewChipWithAPossibleDotWritesTheSymbolThenTheLetter() = withTapper {

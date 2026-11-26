@@ -490,8 +490,8 @@ class SymbolInkTest {
             idle(100) // quick hands: 100 ms between two strokes
             stroke(40f + 60 * i, 20f, 70f + 60 * i, 40f)
         }
-        assertEquals(600, SymbolInk.pauseMillis) // 2.5 × 100 ms, but never below 600 ms
-        idle(650)
+        assertEquals(300, SymbolInk.pauseMillis) // stage 100: 2.2 × 100 ms, but never below 300 ms (600 before)
+        idle(350)
         assertEquals(1, drawings.size) // the drawing ended after the shorter pause
         assertEquals(4, drawings.single().size)
     }

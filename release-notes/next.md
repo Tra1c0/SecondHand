@@ -5,6 +5,14 @@
 - **Nachsehen**: Diagnose → „Korrektur & Sprache“ → „Gelernte Wörter nach dem letzten Update entfernt“.
 
 Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+# Neu: Gemalte Symbole ohne Wartezeit
+
+- **Sofort, wenn fertig**: Kann zu einem gemalten Symbol nichts mehr dazukommen (≤, ≥, ±, ÷ nach dem zweiten Punkt, ∞, #, ?, meist auch ×, √, ♥, ★, &), steht es gleich nach dem Loslassen im Feld.
+- **Kürzere Pause**: Symbole, die noch weitergehen können (aus „–“ kann →, = oder ÷ werden, aus → ein ↔, aus % ein ‰), warten nur noch so lange, wie du zwischen zwei Strichen brauchst, mindestens 0,3 statt 0,6 Sekunden. Kommt ein Strich knapp zu spät, wird die Pause von selbst länger.
+- **Reihenfolge egal**: → aus „–“ und „>“ oder erst „>“ und dann „–“; % aus „/“ und zwei Punkten. Was noch wartet, steht nie vorab im Feld.
+- **Diagnose**: Die Karte „Symbole“ zeigt, wie viele Symbole sofort oder nach der Pause kamen und wie schnell.
+
+Im Emulator mit echten Berührungen gemessen, noch nicht auf deinem Telefon.
 
 # Neu: Langdruck auf das linke Wort
 

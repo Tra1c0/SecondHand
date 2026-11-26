@@ -2199,6 +2199,7 @@ public class LatinIME extends InputMethodService implements
         p.println(settingsValues.dump());
         p.println(mDictionaryFacilitator.dump(this));
         p.println(helium314.keyboard.agent.InlineAutofillCounters.shared.line()); // stage 79b: numbers only
+        p.println(helium314.keyboard.agent.SymbolInk.perfLine()); // stage 100: drawn symbols, numbers only
     }
 
     // slightly modified from Simple Keyboard: https://github.com/rkkr/simple-keyboard/blob/master/app/src/main/java/rkr/simplekeyboard/inputmethod/latin/LatinIME.java
