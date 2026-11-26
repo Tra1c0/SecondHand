@@ -1,3 +1,12 @@
+# Neu: Nachkorrektur im Satz und Satzzeichen
+
+- **Nachkorrektur im Satz**: Zeigt der Rest eines deutschen Satzes, dass ein früheres Wort falsch war, korrigiert die Tastatur es von selbst: „Ich haben das“ → „Ich habe das“, „Mir gehen es gut“ → „Mir geht es gut“, „Er habe mir“ → „Er hat mir“, „Ihr seit schon da“ → „Ihr seid schon da“, „zu hause“ → „zu Hause“, „mit der Polen Zeit“ → „mit der Polizei“, „die Haus Tür“ → „die Haustür“. Namen, Slang, Englisch und Spanisch bleiben stehen. Noch nicht: „einen Gefallen“, „seit gestern“, „keinen Sinn“.
+- **Satzzeichen ergänzen**: Komma vor „dass“, „weil“, „wenn“ & Co., sobald der Nebensatz zu Ende ist; Punkt oder Fragezeichen direkt am letzten Wort, wenn du in einem mehrzeiligen Feld Enter drückst. Nicht in Listen, nach Zahlen, Links oder Emojis und nie beim Senden.
+- **Zurücknehmen**: Rücktaste oder Rückgängig direkt danach holt deinen Text zurück; dann kommt diese Änderung im Feld nicht wieder.
+- **Schalter**: Tippen & Korrektur → Regeln → „Nachkorrektur im Satz“ und „Satzzeichen ergänzen“, beide anfangs an.
+
+Nur mit automatischen Tests und im Emulator geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Langdruck auf das linke Wort
 
 - **Langdruck auf das linke Wort** klappt die Wortliste nicht mehr aus; er holt nur noch das ursprüngliche Wort zurück. Die Wortliste gibt es weiter per Langdruck auf die anderen Vorschläge oder Hochwischen auf der Leiste.

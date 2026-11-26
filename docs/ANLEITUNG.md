@@ -123,6 +123,29 @@ Verbformen abschalten. Die bisherige Autokorrektur ist dann weiter verfügbar.
 Mit **Rücktaste macht Autokorrektur rückgängig** holst du direkt nach einer Korrektur mit
 der Rücktaste dein getipptes Wort zurück. Beide Schalter sind anfangs an.
 
+Unter **Regeln → Nachkorrektur im Satz** (anfangs an) korrigiert die Tastatur ein früheres Wort, sobald der Rest des
+deutschen Satzes zeigt, dass es falsch ist, auch ein Wort, das für sich richtig ist (dafür gilt „Richtige Wörter nie ändern“
+nicht): „Ich haben das“ → „Ich habe das“, „Mir gehen es gut“ → „Mir geht es gut“, „Er habe mir“ → „Er hat mir“, „Ihr seit
+schon da“ → „Ihr seid schon da“, „Das machen kein Sinn.“ → „Das macht kein Sinn.“, „mit der Hund“ → „mit dem Hund“, „zu hause“ →
+„zu Hause“, „mit der Polen Zeit“ → „mit der Polizei“, „die Haus Tür“ → „die Haustür“, „Ich glaube das er kommt.“ → „… dass er
+kommt.“. Sie wartet, bis der Satz es zeigt (meist ein Wort mehr oder ein Satzzeichen), und lässt alles stehen, was nicht
+eindeutig ist: Namen, Slang („Digga“, „wallah“), englische und spanische Sätze, deine eigenen Wörter. Nicht gebaut sind
+„einen Gefallen“, „seit gestern“ und „keinen Sinn“ (dafür bräuchte sie Wortpaar-Häufigkeiten, siehe
+`docs/NACHKORREKTUR-KONZEPT.md`). **Zurücknehmen**: direkt danach die Rücktaste oder Rückgängig (Leertaste nach oben, wenn du es
+so belegt hast), dein Text ist wieder da, und diese Änderung kommt in diesem Feld nicht wieder (mit „Rückgängig gemachte
+Korrekturen merken“ oder „Personalisierte Vorschläge“ zählt sie wie jede zurückgenommene Korrektur). Änderst du das Wort
+später selbst zurück, zählt das genauso. Nie in Passwortfeldern, privaten Feldern, im Inkognito-Modus und bei gesperrtem
+Gerät; alles auf dem Gerät.
+
+Unter **Regeln → Satzzeichen ergänzen** (anfangs an) setzt die Tastatur im Deutschen das Komma vor einem Nebensatz, sobald er
+mit seinem Verb zu Ende ist („Ich weiß dass er kommt und“ → „Ich weiß, dass er kommt und“; auch „…, auch wenn“, „…, ohne
+dass“) und nach einem vorangestellten („Wenn du kommst bringe ich Kuchen mit“ → „Wenn du kommst, bringe …“). Drückst du in
+einem mehrzeiligen Feld Enter nach einem Satz ohne Satzzeichen, steht direkt am letzten Wort ein Punkt, bei einer klaren
+Frage ein Fragezeichen („Kommst du morgen“, „Wie geht es dir“; bei „Kann ich …“ nichts, weil das oft keine Frage ist).
+Nichts in Listen („- Milch“, „1. …“), Überschriften und Grüßen ohne Verb, nach Zahlen, Links, Abkürzungen, Emojis oder Code,
+nichts doppelt und nie beim Senden aus einem einzeiligen Feld. Zurücknehmen wie oben; ein gelöschtes Zeichen kommt an dieser
+Stelle nicht wieder.
+
 Unter **Regeln → Buchstabendreher** korrigiert die Tastatur sehr häufige kurze Wörter, in denen zwei
 Nachbarbuchstaben vertauscht sind: „idr“ wird „dir“, „teh“ wird „the“. Sie greift nur bei Wörtern mit
 3 bis 5 Buchstaben, die kein Wörterbuch kennt, nur wenn genau ein Tausch ein sehr häufiges Wort der

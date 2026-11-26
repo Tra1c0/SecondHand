@@ -9382,7 +9382,7 @@ class InputLogicTest {
         retroType("⌫")
         assertEquals("Ich haben das ", text)
         assertEquals(text.length, cursor)
-        assertEquals(1.0, RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected)
+        assertTrue((RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected ?: 0.0) > 0.99, "one rejection (faded by the test's seconds)")
         retroType("nicht ")
         assertEquals("Ich haben das nicht ", text)
         // the second Backspace deletes as usual
@@ -9415,6 +9415,20 @@ class InputLogicTest {
         assertEquals(text.length, cursor)
     }
 
+    // emulator run 45794233933: "er habe mir ein" became "er hat mir eein": the editor reported the shorter text late
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 the editor's late report of the correction is no cursor move of the user`() = withRetro {
+        assertEquals("Er hat mir ", retroTyped("Er habe mir "))
+        retroType("e")
+        // only now the editor reports the correction (the cursor went from 12 to 11)
+        latinIME.onUpdateSelection(12, 12, 11, 11, -1, -1)
+        handleMessages()
+        retroType("in ")
+        assertEquals("Er hat mir ein ", text)
+        // a real move of the user afterwards is one again
+        assertTrue(!inputLogic.mRetroCorrections.consumeOwnUpdate(12, 11, 11))
+    }
+
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 104 with the cursor in the middle only the text before it changes`() = withRetro {
         setText("Ende")
@@ -9433,7 +9447,7 @@ class InputLogicTest {
         setCursorPosition(text.length)
         retroType("nicht ")
         assertEquals("Ich haben das nicht ", text)
-        assertEquals(1.0, RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected)
+        assertTrue((RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected ?: 0.0) > 0.99, "one rejection (faded by the test's seconds)")
     }
 
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])

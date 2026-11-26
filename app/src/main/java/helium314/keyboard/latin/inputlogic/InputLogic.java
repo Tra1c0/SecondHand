@@ -700,7 +700,10 @@ public final class InputLogic {
     public boolean onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart,
              int newSelEnd, int composingSpanStart, int composingSpanEnd, SettingsValues settingsValues) {
         boolean expectCursorMove = mightBeExpectedCursorMove(); // reset the timer
-        if (mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd)) {
+        // fork, stages 104/105: the editor reports the keyboard's own correction of the sentence late (after the next key);
+        // a shorter text moved the cursor back, which the check below would take for a move of the user
+        if (mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd)
+                || mRetroCorrections.consumeOwnUpdate(oldSelStart, newSelStart, newSelEnd)) {
             // return whether we expect a user-initiated explicit cursor move (i.e. not as result of other input, but e.g. space swipe)
             // note that arrow keys are not considered, because for them isBelatedExpectedUpdate returns false
             return expectCursorMove;

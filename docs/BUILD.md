@@ -285,6 +285,20 @@ Die abgeleitete Liste enthält nur kleingeschriebene Infinitive, ergänzt um hä
 steht unter derselben Lizenz. Nach dem Download der festgeschriebenen Datei `deu` erzeugt
 `python3 -I tools/build_german_verb_lemmas.py deu` die Liste. Das Skript prüft die SHA-256-Summe.
 
+## Deutsches Lexikon der Satzprüfung (Etappen 104/105)
+
+`app/src/main/assets/agent/german_verb_forms.txt` (443 Verben, etwa 21 KB) enthält die finiten Formen deutscher Verben, die vom
+regelmäßigen Muster in `agent-core/.../sentence/GermanVerbs.kt` abweichen, aus derselben festgeschriebenen UniMorph-Datei wie die
+Verbliste (CC BY-SA 3.0), nur Verben, die das deutsche Hauptwörterbuch mit Häufigkeit ≥ 60 kennt; „sein“ und „tun“ fehlen in UniMorph
+und stehen mit ihrem Standardparadigma im Skript. `app/src/main/assets/agent/german_nouns.txt` (etwa 43 000 Formen, 0,8 MB) enthält
+die Fälle deutscher Nomen mit Genus und Numerus aus dem Datensatz
+[german-nouns](https://github.com/gambolputty/german-nouns/blob/da71a2bc519b952b28c9b0b80971cff6efb508f6/german_nouns/nouns.csv)
+(deutsches Wiktionary, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)), ohne Namen, nur Nomen, die das
+Hauptwörterbuch mit Häufigkeit ≥ 70 kennt, mit dieser Häufigkeit je Form. Beide Dateien stehen unter der Lizenz ihrer Quelle.
+Nach dem Download der beiden festgeschriebenen Dateien erzeugt `python3 -I tools/build_german_lexicon.py deu nouns.csv` beide;
+das Skript prüft die SHA-256-Summen. Geprüft und verworfen (Etappe 104): Bigramme aus den Wörterbüchern (`main_de.dict` enthält
+keine), UD German HDT (Text nur für akademische Nutzung), Wikipedia und Tatoeba über Hugging Face (Download vom Proxy gesperrt).
+
 ## Mitgelieferte Emoji-Wörterbücher
 
 Aus `https://codeberg.org/Helium314/aosp-dictionaries`, Ordner `emoji_cldr_signal_dictionaries`

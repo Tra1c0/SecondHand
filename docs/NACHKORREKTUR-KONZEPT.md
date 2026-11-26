@@ -86,7 +86,7 @@ steht (ein Wort Vorlauf).
 - **R1 Subjekt–Verb-Kongruenz.** Ein Satz (ab Satzanfang) mit Verb an zweiter Stelle: Vorfeld genau ein Wort (Pronomen,
   Adverb, „das/dies“), dann das finite Verb V. Subjektkandidaten sind alle Wörter des Satzes, die Nominativ sein können
   (Personalpronomen; Artikel+Nomen mit Nominativ-Lesart; „das“, „es“, „sie“ mit allen Lesarten). Ist ein Kandidat **nur**
-  Nominativ (ich, du, er, wir, ihr als Pronomen), ist er das Subjekt. Sonst müssen alle Kandidaten auf dieselbe Person und
+  Nominativ (ich, du, er, wir, man), ist er das Subjekt (nach dem Bau eingeschränkt, Abschnitt 10). Sonst müssen alle Kandidaten auf dieselbe Person und
   Zahl zeigen. Passt V zu keinem Kandidaten und ergibt sich genau eine passende Form desselben Verbs, wird V ersetzt.
   Hängt die Entscheidung an einem mehrdeutigen „es/sie/das“ nach dem Verb, braucht es danach ein Wort, das kein Nomen,
   Artikel oder Pronomen ist (sonst könnte das echte Subjekt noch kommen: „Dann machen es die anderen“). Kopula (sein, werden,
@@ -212,3 +212,31 @@ Emulator. Erster Commit nur Messpunkte → Vorher-Werte auf `main`-Stand.
   außer P3.
 - Die drei offenen Kollokationen (Abschnitt 3).
 - Gestenschreiben: geprüft wird nach dem Wortende genauso; die Rücknahme gilt nur für die Nachkorrektur.
+
+## 10. Kritik vor dem Bau und was daraus wurde
+
+Ein Prüfer (Opus, nur lesend, Sitzung vom 2026-11-26) hat das Konzept gegen den Chat-Alltag des Owners gelesen. Befunde und Folgen:
+
+1. **R1 sucht das Subjekt im ganzen Satz** (hoch): „Morgen kommen die Jungs weil ich Geburtstag habe“, „Gestern haben meine Eltern
+   gesagt ich soll kommen“, „Gestern waren Max und ich im Kino“, „Das gefällt ihr bestimmt“. **Geändert:** Kandidaten nur bis zum
+   ersten Einleiter, Komma oder „und/oder“; ein sicheres Subjekt im Mittelfeld nur direkt nach dem Verb, sonst nichts; „ihr“ ist kein
+   sicheres Subjekt mehr (auch Dativ und Begleiter), nur noch für R2; ein unbekanntes großgeschriebenes Wort (Name) bricht ab; ein
+   zweites finites Verb im Satz, das zum Subjekt passt, bricht ab. Alle Sätze als Gegenfälle in `SentenceRepairTest`.
+2. **R3 und P1 entscheiden zu früh** (mittel bis hoch): „Ich habe das ich weiß nicht mehr wo“, „Ich war gestern da er war auch da“.
+   **Geändert:** „dass“ und das Komma erst, wenn der Teilsatz zu Ende ist (Satzzeichen, „und“/„oder“, Enter, das finite Verb des
+   nächsten Satzes); „da“ wird nie beurteilt. Gegenfälle in den Tests.
+3. **Rücknahme mit Leertaste ↑** (mittel): ↑ sendet Strg+Z an die App, was dort mit der Ersetzung geschieht, ist offen.
+   **Geändert:** `KeyCode.UNDO` direkt nach einer Nachkorrektur nimmt sie in der Tastatur zurück (kein Strg+Z), wie die Rücktaste.
+   Eine spätere Rückänderung von Hand erkennt die Nachkorrektur selbst (gesetztes Paar an derselben Stelle wieder alt), nicht über den
+   Feldbeobachter.
+
+Zusätzlich nach dem Bau gemessen (eigene Prüfung): Alle 15 589 Sätze der Baumbank UD German GSD (Webtexte, CC BY-SA 4.0) Wort für Wort
+als Präfix geprüft (wie beim Tippen): anfangs 398 Änderungen, nach den Schutzregeln 62, davon fast alle echte Fehler im Korpus
+(kleingeschriebene Nomen, „das“ statt „dass“, „für einen Zeit“); verbliebene Fehlgriffe: Konjunktiv I in Nachrichtentext („Er habe zwei …“,
+vom Owner für „Er habe mir“ ausdrücklich gewünscht) und Namen wie „die Saale“. Kommas ohne Kommas im Text: 117 richtig gesetzt, 12
+nicht im Original, davon die Hälfte doch richtig; verpasst wird der Großteil (Relativsätze, Aufzählungen, Infinitive: bewusst nicht
+gebaut). Durchschnitt einer Prüfung auf dem Rechner etwa 20 µs.
+
+## 11. Stand der Abnahme-Zeilen
+
+Siehe `docs/VALIDATION.md` → „Etappen 104 und 105“.

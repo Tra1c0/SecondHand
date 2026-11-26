@@ -2454,12 +2454,12 @@ def retro_send_single_line(d):
     """Stage 105: in a one-line field that sends with Enter no full stop is added."""
     d.start("retro_send_single_line")
     d.focus("chat")
-    d.type("ich")
+    d.type("und")  # not "ich": the capital I key has another name ("Großbuchstabe I")
     d.wait_for_suggestions()
     d.type(" komme morgen vorbei")
     d.press("enter")
     time.sleep(1.5)
-    d.expect_field("chat", "Ich komme morgen vorbei")
+    d.expect_field("chat", "Und komme morgen vorbei")
 
 
 # ------------------------------------------------------------------- measurement (stages 104/105, numbers only)

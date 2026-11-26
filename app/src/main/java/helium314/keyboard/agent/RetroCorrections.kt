@@ -3,6 +3,7 @@ package helium314.keyboard.agent
 
 import android.content.Context
 import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import dev.agentkeyboard.core.ApplyOutcome
 import dev.agentkeyboard.core.sentence.GermanNouns
 import dev.agentkeyboard.core.sentence.GermanVerbs
@@ -44,6 +45,8 @@ class RetroCorrections(private val logic: InputLogic) {
     private val rejectedHere = HashSet<String>()
     /** Pairs the keyboard set in this field: field position of the changed word -> "old\u0000new". */
     private val appliedHere = HashMap<Int, String>()
+    /** The cursor move of the last own edit (from, to) that the editor still has to report (main thread). */
+    private var ownMove: Pair<Int, Int>? = null
 
     /** A new field (or the same one restarted): forget everything of the old one. */
     fun fieldStarted() {
@@ -51,6 +54,19 @@ class RetroCorrections(private val logic: InputLogic) {
         undo = null
         rejectedHere.clear()
         appliedHere.clear()
+        ownMove = null
+    }
+
+    /**
+     * Whether the editor's selection update (from [oldStart] to the cursor [newStart]/[newEnd]) is the late report of the
+     * keyboard's own last edit; consumed once. An edit that shortened the text moved the cursor back, which looks like a move
+     * of the user when the next key came before the report (InputLogic.onUpdateSelection).
+     */
+    fun consumeOwnUpdate(oldStart: Int, newStart: Int, newEnd: Int): Boolean {
+        val move = ownMove ?: return false
+        if (newStart != newEnd || move.first != oldStart || move.second != newStart) return false
+        ownMove = null
+        return true
     }
 
     /** Whether an edit could be taken back now (for tests and the diagnosis). */
@@ -66,6 +82,8 @@ class RetroCorrections(private val logic: InputLogic) {
         if (logic.mConnection.expectedSelectionStart != u.cursorAfter || logic.mConnection.hasSelection()) return false
         val outcome = logic.applyRetroEdit(u.replacement, u.original, u.cursorAfter)
         if (outcome != ApplyOutcome.SUBMITTED) return false
+        val back = u.cursorAfter - u.replacement.length + u.original.length
+        ownMove = if (back != u.cursorAfter) u.cursorAfter to back else null
         for ((old, new) in u.pairs) {
             rejectedHere.add(key(old, new))
             RejectedCorrections.remember(ime, old, new, settings)
@@ -84,7 +102,10 @@ class RetroCorrections(private val logic: InputLogic) {
         val punctuate = settings.mAutoPunctuation
         if (!repair && !punctuate || !eligible(ime, settings)) return
         if (!logic.mayCheckRetro()) return
-        val text = logic.mConnection.getTextBeforeCursor(MAX_TEXT, 0)?.toString() ?: return
+        // Enter that sends or goes on (an editor action) put no line break into this text: nothing to check
+        if (codePoint == Constants.CODE_ENTER && InputTypeUtils.getImeOptionsActionIdFromEditorInfo(
+                ime.currentInputEditorInfo ?: return) != EditorInfo.IME_ACTION_NONE) return
+        val text = try { logic.mConnection.getTextBeforeCursor(MAX_TEXT, 0)?.toString() } catch (_: RuntimeException) { null } ?: return
         if (text.isEmpty()) return
         val cursor = logic.mConnection.expectedSelectionStart
         if (cursor < text.length) return
@@ -134,6 +155,7 @@ class RetroCorrections(private val logic: InputLogic) {
         if (outcome != ApplyOutcome.SUBMITTED) { stale.incrementAndGet(); KeyLatency.retro(nanos, "refused"); return }
         val cursorAfter = from + edit.replacement.length
         undo = Undo(cursorAfter, edit.old, edit.replacement, edit.pairs)
+        ownMove = if (cursorAfter != cursor) cursor to cursorAfter else null
         edit.pairs.forEachIndexed { i, (old, new) ->
             appliedHere[fieldStart + edit.pairStarts[i]] = key(old, new)
             RuleCorrections.offered(old, new) // a rejection is learning data like that of the other rule corrections

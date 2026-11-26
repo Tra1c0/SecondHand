@@ -21,10 +21,10 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   Owner, ob die Deutung „Rücknahme = nie wieder, Gewichte über den Tipp-Verlauf“ seine Absicht trifft (Konzept Abschnitt 5).
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
-- **105 Satzzeichen automatisch** (Owner, 2026-11-25: „Es wäre schön, wenn zukünftig noch Satzzeichen automatisch ersetzt werden.“).
-  Umfang offen, vor dem Bau klären: fehlende Satzzeichen setzen (Punkt am Satzende, Komma vor „dass/weil/aber“, Fragezeichen nach Fragewort)
-  oder falsch getroffene ersetzen. Regel wie bei 104: nur Eindeutiges, jede Änderung mit einem Tipp rücknehmbar. Dazu als Fehlfall 10 von 101:
-  „i“ im englischen Satz wird „I“.
+- **104/105 Rest** (gebaut: `docs/FEATURES.md`, Konzept `docs/NACHKORREKTUR-KONZEPT.md`). Offen: die Kollokationen „ein → einen Gefallen“,
+  „Zeit → seit gestern“, „kein → keinen Sinn“ (Vorschlag: Wortpaar-Häufigkeiten aus dem Tipp-Verlauf mit einer Lese-Schnittstelle in
+  `ExpandableBinaryDictionary` und einer auf dem Telefon geeichten Schwelle, oder ein mitgelieferter Bigramm-Bestand; Entscheidung des Owners);
+  Adjektivendungen, Relativsatz- und Infinitivkommas, Fragezeichen im Spanischen; Messung auf dem Telefon.
 - **109 Animationen (Designentscheidung, erst wenn Runde 4 funktioniert)**. Owner, 2026-11-26: „Als nächstes möchte ich eine
   Designentscheidung in die Roadmap, direkt nachdem hier alles funktioniert … wirklich, wenn alles funktioniert. Ich würde gerne ein paar
   Animationen anfügen, die das Ganze geschmeidiger machen, moderner, cleaner, ein bisschen verspielter. Dazu sage ich später mehr.“ Nicht
@@ -32,9 +32,6 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   `docs/LEERTASTE-ANIMATION.md`) und W8 (Menü neu entwerfen und animieren).
 - **103 Spracheingabe mit eigenem Modell (Zukunft)**: „Whisper-Modell oder eins aus der Google-Familie. Ziel: extrem schnell und zuverlässig.“
   Löst W6 ab (geparkt am 2026-11-20). Nicht jetzt.
-- **104 Semantische Nachkorrektur (Zukunft)**: „Automatische Nachkorrigierung im Falle sehr offensichtlicher semantischer Fehler nach
-  Wahrscheinlichkeiten, etwa ‚mit der Polen Zeit‘ → ‚mit der Polizei‘. Nur bei Dingen, die eindeutig sind. Die Regeln müssen festgelegt werden.“
-  Hängt an 101 bzw. 103.
 
 
 - **Runde 3 (Auftrag des Owners, 2026-11-20, Vergleich mit Gboard auf dem Xiaomi 15).** Bestandsaufnahme mit
