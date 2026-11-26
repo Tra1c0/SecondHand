@@ -68,6 +68,12 @@ Symbols mit mehr Strichen ist, und die Zeichnung selbst ist kein solcher Teil), 
   p50 125 / p90 150 / p95 200 / p99 250 ms, langsamer UI-Thread 72; variants: 142 Frames, 100 %, 125/150/200/250, 47. Nachher
   (45836325702) latency: 164 Frames, 98,78 %, 113/150/200/250, 49; variants: 137 Frames, 98,54 %, 121/200/200/250, 43. Kein Verlust
   messbar (Software-Rendering überdeckt alles); die Prüfung läuft nicht im Hauptthread.
+  Nachmessung auf `main` d676b827 (Etappe 100 eingemischt), nur die zwei Symbol-Szenarien, Lauf **45875736378** (Versuch 3; Versuche 1
+  und 2 scheiterten am Bau mit Maven 429): latency 135 Frames, 100 % janky, p50 150 / p90 250 / p95 250 / p99 350 ms, langsamer
+  UI-Thread 56; variants 123 Frames, 100 %, 150/200/250/300, 50. Beide Szenarien grün (sofort: ÷ 344, ≤ 548, ∞ 227, ? 140 ms, Budget
+  900 ms bei p90 250). Gegenüber vorher (p50 125 ms, 99,4 % janky) ist dieser Emulator-Lauf langsamer; die Streuung zwischen
+  Emulator-Läufen ist so groß wie der Unterschied (nachher in 45836325702: p50 113/121 ms, 98,8/98,5 %). Kein Unterschied, der sich
+  der Etappe zuordnen ließe; am Telefon nicht gemessen.
 - **Kontrolllauf** (der Strich, von dem die Erwartung abhängt, fällt weg): Läufe 45801093442 (068c011f) und 45841421917 (bc0bdc74),
   beide Szenarien FAIL wie verlangt (÷ ohne zweiten Punkt: „–“ plus Buchstabe; → ohne Kopf: „–“).
 - **SecondHand Tests:** Lauf 45836326041 (bc0bdc74) alle vier Jobs grün (agent 2441 Tests, 0 Fehler; upstream 2310, nur die fünf
