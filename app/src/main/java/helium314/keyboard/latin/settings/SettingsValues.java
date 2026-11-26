@@ -86,6 +86,9 @@ public class SettingsValues {
     // stage 20a, see helium314.keyboard.agent.CorrectionGuard
     public final boolean mKeepValidWords;
     public final boolean mContextualAutocorrection;
+    /** Fork, stages 104/105: corrections of the sentence after a word ended, and automatic punctuation. */
+    public final boolean mRetroRepair;
+    public final boolean mAutoPunctuation;
     public final boolean mSwappedLettersCorrection; // fork, stage 75
     public final boolean mKeepUmlautVariants;
     public final boolean mRememberRejectedCorrections;
@@ -240,6 +243,8 @@ public class SettingsValues {
         mLearningPaused = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.LEARNING_PAUSED, false);
         mKeepValidWords = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false);
         mContextualAutocorrection = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true);
+        mRetroRepair = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_RETRO_REPAIR, true);
+        mAutoPunctuation = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTO_PUNCTUATION, true);
         mSwappedLettersCorrection = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, true);
         mKeepUmlautVariants = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true);
         mRememberRejectedCorrections = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false);

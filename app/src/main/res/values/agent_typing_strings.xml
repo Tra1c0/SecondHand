@@ -71,4 +71,8 @@
     <string name="agent_forced_close">Done</string>
     <string name="agent_forced_remove_for">Remove %1$s</string>
     <string name="agent_forced_not_installed">not found</string>
+    <string name="agent_typing_retro_repair">Correct the sentence afterwards</string>
+    <string name="agent_typing_retro_repair_sub">Fixes an earlier word once the rest of the German sentence shows it is wrong (“Ich haben das” → “Ich habe das”), also a correct word. Backspace right after it takes it back.</string>
+    <string name="agent_typing_auto_punctuation">Add punctuation</string>
+    <string name="agent_typing_auto_punctuation_sub">Comma before a German subordinate clause such as “dass”, full stop or question mark at the end of a line in multi-line fields. Never when sending. Backspace right after it takes it back.</string>
 </resources>

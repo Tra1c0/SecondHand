@@ -58,6 +58,18 @@
         android:maxLines="2"
         android:textSize="15sp" />
 
+    <!-- Stages 104/105: a one-line chat field that sends with Enter (no line break); shown only in the retro_send scenario -->
+    <EditText
+        android:id="@+id/field_chat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="chat"
+        android:imeOptions="actionSend"
+        android:importantForAutofill="no"
+        android:inputType="text|textCapSentences|textAutoCorrect"
+        android:visibility="gone"
+        android:textSize="15sp" />
+
     <EditText
         android:id="@+id/field_password"
         android:layout_width="match_parent"
@@ -114,6 +126,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/mirror_chat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/mirror_password"

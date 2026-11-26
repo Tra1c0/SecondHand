@@ -22,6 +22,10 @@ object AgentPreferences {
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */
     const val AUTOCORRECT_KEEP_VALID_WORDS = "agent_autocorrect_keep_valid_words"
     const val AUTOCORRECT_SENTENCE_CONTEXT = "agent_autocorrect_sentence_context"
+    /** Stage 104: a word of the sentence is corrected once the rest of the sentence shows it is wrong (default on). */
+    const val AUTOCORRECT_RETRO_REPAIR = "agent_autocorrect_retro_repair"
+    /** Stage 105: missing commas before subordinate clauses and the mark at the end of a line are added (default on). */
+    const val AUTO_PUNCTUATION = "agent_auto_punctuation"
     /** Stage 75: a very common short word typed with two letters swapped ("idr" -> "dir") is corrected (default on). */
     const val AUTOCORRECT_SWAPPED_LETTERS = "agent_autocorrect_swapped_letters"
     /** Never replace a known word by one that differs only by an umlaut, e.g. mochte/möchte (default on). */

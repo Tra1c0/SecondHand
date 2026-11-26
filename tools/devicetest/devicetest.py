@@ -2387,6 +2387,81 @@ def revert_correction_shows_word(d):
     shot(d, "revert_word_shown")
 
 
+# ------------------------------------------------------------------- stages 104/105: the sentence corrected afterwards
+# Each case in a fresh multi-line text field, after "und" (the dictionary is loaded then, and "Und" starts the sentence):
+# the words are typed with real touches, the field is read after the last space or line break.
+
+def _retro_cases(d, name, cases):
+    for typed, expected in cases:
+        d.start(name)
+        d.focus("text")
+        d.type("und")
+        d.wait_for_suggestions()
+        if typed.endswith("\n"):
+            d.type(" " + typed[:-1])
+            d.press("enter")
+        else:
+            d.type(" " + typed)
+        d.expect_field("text", "Und " + expected, limit=8.0)
+        d.notes.append("%r ok" % typed.strip())
+
+
+def retro_examples(d):
+    """Stage 104: the owner's examples, typed key by key, are corrected once the sentence shows the error."""
+    _retro_cases(d, "retro_examples", [
+        ("mir gehen es gut ", "mir geht es gut "),
+        ("ich haben das nicht gewusst ", "ich habe das nicht gewusst "),
+        ("ihr seit schon da ", "ihr seid schon da "),
+        ("ich war mit der Polen Zeit ", "ich war mit der Polizei "),
+        ("er habe mir ein Gefallen getan ", "er hat mir ein Gefallen getan "),
+    ])
+
+
+def retro_keeps_correct(d):
+    """Stage 104: correct sentences and slang stay as typed."""
+    _retro_cases(d, "retro_keeps_correct", [
+        ("sie haben das nicht gewusst ", "sie haben das nicht gewusst "),
+        ("dann machen es die anderen ", "dann machen es die anderen "),
+        ("mir geht es gut ", "mir geht es gut "),
+    ])
+
+
+def retro_undo(d):
+    """Stage 104: Backspace right after the correction brings the typed word back, and it is not corrected again."""
+    d.start("retro_undo")
+    d.focus("text")
+    d.type("und")
+    d.wait_for_suggestions()
+    d.type(" ich haben das ")
+    d.expect_field("text", "Und ich habe das ", limit=8.0)
+    d.press("delete")
+    d.expect_field("text", "Und ich haben das ")
+    d.type("nicht ")
+    time.sleep(1.5)
+    d.expect_field("text", "Und ich haben das nicht ")
+
+
+def retro_punctuation(d):
+    """Stage 105 (with 104): comma before "dass" and the full stop or question mark at the end of a line."""
+    _retro_cases(d, "retro_punctuation", [
+        ("ich hoffe dass er kommt\n", "ich hoffe, dass er kommt.\n"),
+        ("ich glaube das er kommt\n", "ich glaube, dass er kommt.\n"),
+        ("kommst du morgen\n", "kommst du morgen?\n"),
+    ])
+
+
+def retro_send_single_line(d):
+    """Stage 105: in a one-line field that sends with Enter no full stop is added."""
+    d.start("retro_send_single_line")
+    d.focus("chat")
+    d.type("ich")
+    d.wait_for_suggestions()
+    d.type(" komme morgen vorbei")
+    d.press("enter")
+    time.sleep(1.5)
+    d.expect_field("chat", "Ich komme morgen vorbei")
+
+
 # ------------------------------------------------------------------- measurement (stages 104/105, numbers only)
 LATENCY_TAG = "SHLatency"  # KeyLatency.TAG in the keyboard: on only while this run sets the log property
 # lower case, no noun, no clause that the sentence check or the punctuation would touch: the field must hold what was typed
@@ -2475,8 +2550,8 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots,
              # stage 89: the quiet bar while writing
              bar_calm_typing, revert_correction_shows_word,
-             # stages 104/105: key latency and frames (METRIC lines), before and after the sentence check
-             typing_latency]
+             # stages 104/105: the sentence corrected afterwards, punctuation, key latency and frames (METRIC lines)
+             retro_examples, retro_keeps_correct, retro_undo, retro_punctuation, retro_send_single_line, typing_latency]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

@@ -363,6 +363,24 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - Autokorrektur nach den Fehlfällen des Owners (Etappe 101, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`): rein in `C/`: `GermanVerbForms.kt` (regelmäßige Form eines Verbs der Liste), `OtherLanguageWord.kt` (Schutz eines gewöhnlichen Worts einer anderen aktivierten Sprache), `EnglishI.kt` („i“ → „I“), `NeighborKeys.kt` (eine Nachbartaste, QWERTZ/QWERTY), `SentenceLanguage.evidenceOfFrequencies` (Satzbeleg mit Vorsprung 60). `A/OtherLanguageDictionaries.kt`: Hauptwörterbücher der anderen aktivierten Sprachen nur lesend, geöffnet auf `ForeignWords.worker`, geschlossen mit `ForeignWords.closeDictionaries` (nicht mit dessen Leerlauf), `source` in Tests ersetzbar. `A/CorrectionGuards.blocksTarget` (Ziel nur aus Großbuchstaben, fremder Akzent) als Veto in `Suggest.shouldBeAutoCorrected`. In `Suggest.kt`: `isUnknownGermanVerbForm` (in `guardAllows` und `applySwappedLetters`), `isCommonWordOfOtherLanguage` (in `guardAllows` nach `passiveOnlyTarget`), `applyEnglishI` und `applyNeighborKey` (vor bzw. nach `applySwappedLetters`, an `mContextualAutocorrection`), Hilfen `activeLanguages`, `frequencyIn`, `sentenceLean`. Tests: `AutocorrectReportTest` „stage 101 …“, `CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest`, `AT/CorrectionGuardsTest`.
 - Etappen 107/108 (Konzept Abschnitte 5 und 6): `C/RareWordWeights.kt` (Formel seltenes Wort → häufiger Nachbar: Häufigkeit ≤ 80, Kandidat ≥ 150, Verlauf ≥ 111 und 20 Punkte Vorsprung, ohne Verlauf Folgewort-Vorsprung 20, Ablehnung = nie), `C/GermanShortForms.kt` („gibts“ → „gibt's“), `NeighborKeys.candidate` mit eigener Schwelle, `A/RuleCorrections.kt` (zuletzt angebotene Regelpaare im Speicher, Zähler behalten/zurückgenommen für die Diagnose), `C/CorrectionWeights.kt` (Paar zurückgehalten, solange bestätigt < 3 × abgelehnt; Halbwertszeit 30 Tage, Ablehnung < 0,25 vergessen); `RejectedCorrections` (in `A/CorrectionMemory.kt`) speichert je Paar bestätigt/abgelehnt/Zeit (Schlüssel `weights`, alte Menge `rejected` wird als eine Ablehnung übernommen), `confirm` aus `Memory.onWordCommitted`, `remember` mit Doppelzählschutz 60 s, Regelpaare auch nur mit „Personalisierte Vorschläge“; `FieldCorrectionWatcher.checkpoint` zählt „Y → drittes Wort“ als Ablehnung von „X → Y“ (107b), `DictionaryFacilitatorImpl.historyFrequency`/`hasHistory` (Tipp-Verlauf nur lesend). In `Suggest.kt`: `applyShortForm` (vor den Buchstabendrehern), `applyRareWord` (nach `applyNeighborKey`, mit den Folgewort-Ergebnissen des Kontexts), Hilfen `ruleMayCorrect`, `sentenceLeansToOtherLanguage`, `putRuleCorrectionFirst`. Diagnose-Zeile `agent_diagnose_corr_rule_corrections`. Tests: `AutocorrectReportTest` „stage 107 …“/„stage 108 …“, `InputLogicTest` „stage 107 …“/„stage 107b …“, `CT/RareWordWeightsTest`, `CT/GermanShortFormsTest`, `CT/CorrectionWeightsTest`.
+- Satzprüfung nach dem Wortende (Etappen 104/105, Konzept `docs/NACHKORREKTUR-KONZEPT.md`), rein in `C/sentence/` (Paket
+  `dev.agentkeyboard.core.sentence`): `GermanVerbs.kt` (finite Formen: regelmäßiges Muster `derive` plus die abweichenden Formen
+  aus `app/src/main/assets/agent/german_verb_forms.txt`, Vorsilben „ver-“, „ab-“ … nehmen die Formen des Grundverbs; `readings`,
+  `form`, `isListed`), `GermanNouns.kt` (Fälle mit Genus/Numerus als 16-Bit-Maske aus `app/src/main/assets/agent/german_nouns.txt`,
+  sortiertes Feld mit Binärsuche, `withPrefix`), `GermanWords.kt` (geschlossene Wortklassen: Pronomen mit Person, Artikel und
+  Begleiter mit Lesarten, Präpositionen mit Kasus, Einleiter, Fragewörter), `SentenceText.kt` (Wörter des letzten Satzes vor der
+  Schreibmarke, `Tok`, `Sentence`; nichts mit Code, Link oder Adresse), `SentenceRepair.kt` (104, Regeln R1–R6, `SentenceContext`,
+  `SentenceLexicon`, `Change`, Schwellen `MIN_ARTICLE_NOUN_FREQUENCY` 70, `MIN_JOINED_FREQUENCY` 100, `MIN_COMPOUND_FREQUENCY` 40),
+  `AutoPunctuation.kt` (105, P1–P3), `RetroCheck.kt` (104 dann 105 auf demselben Text, eine `Edit` mit Wortpaaren und deren
+  Stellen). Die beiden Dateien macht `tools/build_german_lexicon.py` aus festgeschriebenen Quellen (UniMorph Deutsch wie die Verbliste
+  von 72, german-nouns aus dem deutschen Wiktionary; `docs/BUILD.md`). App: `A/RetroCorrections.kt` (eine je `InputLogic`: `afterKey`
+  aus `LatinIME.onEvent`, Prüfung auf dem Vorschlags-Thread, Anwenden nur bei unverändertem Stand über `InputLogic.applyRetroEdit`,
+  `revert` für Rücktaste und Undo, Feldgedächtnis der Ablehnungen und der gesetzten Paare, Zähler `applied`/`undone`/`stale`/`checked`,
+  Lexikon einmal geladen in `lexicon`). Schalter `AgentPreferences.AUTOCORRECT_RETRO_REPAIR`/`AUTO_PUNCTUATION` →
+  `SettingsValues.mRetroRepair`/`mAutoPunctuation`, Seite `AgentAreaTypingScreen` (Regeln), Diagnose-Zeilen in `Diagnose.correction`.
+  Tests: `CT/sentence/SentenceRepairTest.kt`, `CT/sentence/AutoPunctuationTest.kt`, `CT/sentence/GermanLexiconTest.kt` (alle mit den
+  ausgelieferten Dateien und dem deutschen Hauptwörterbuch über `CT/sentence/RealLexicon.kt`), `InputLogicTest` „stage 104 …“/„stage 105 …“,
+  Emulator-Szenarien `retro_*` in `tools/devicetest/devicetest.py`.
 - Untersuchung Autokorrektur (2026-11-21, keine Produktänderung): `AutocorrectReportTest.kt` hält mit festen Engine-Ergebnissen fest, was `Suggest`/`CorrectionGuard` heute tun (Ziel „nicbmal“ aus dem Verlauf ohne Wörterbuch-Prüfung, „i“ → „I“ bei „Richtige Wörter nie ändern“ blockiert, englischer Tippfehler im englischen Satz → deutsches Wort); Namen „reported finding N“. `tools/devicetest/devicetest.py`: Szenarien `reported_finding_*` (nur mit `--only` bzw. Workflow-Eingabe `only`) tippen mit echten Berührungen, schreiben Zeilen `PROBE …` ins Log und halten das heutige Verhalten fest (dokumentiert, nicht gutgeheißen).
 - Diagnose „Korrektur & Sprache“ (Etappe 90a): `Diagnose.correction` (Part `CORRECTION`, Karte direkt nach „Letztes Feld“ in `AgentDiagnoseScreen`) liest nur Einstellungen (`TypingAutocorrect.current`, Schalter, Layout und zweite Sprachen je aktivem Subtyp) und Zahlen aus `Diagnose.correctionCounts` (Hintergrund-Thread, `runCatching`, nicht lesbar = null = „unbekannt"): Verlaufswörter je Sprache, `TypoMemory`, `FieldCorrectionMemory`, `RejectedCorrections`. Kein Wort. Test `AT/DiagnoseCorrectionTest.kt`; Texte `agent_diagnose_corr_*` in `agent_diagnose_strings.xml`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
@@ -1200,6 +1218,14 @@ eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgra
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
 - `LatinIME.java` und `MainKeyboardView.java` (104/105): `KeyLatency.eventStarted`/`eventEnded` am Anfang und Ende von `onEvent`,
   `KeyLatency.touch` am Anfang von `onTouchEvent` (Messpunkte, aus ohne Log-Eigenschaft).
+- `LatinIME.java` (104/105): `onEvent` ruft nach `updateStateAfterInputTransaction` `mInputLogic.mRetroCorrections.afterKey`.
+- `InputLogic.java` (104/105): Feld `mRetroCorrections`; `startInput` → `fieldStarted`; `handleBackspaceEvent` ruft im Zweig ohne
+  Kompositionswort vor der Rücknahme der Autokorrektur `mRetroCorrections.revert` (nur mit „Rücktaste macht Autokorrektur rückgängig“);
+  `KeyCode.UNDO` ruft zuerst `revert` (dann kein Strg+Z an die App); neue Methoden `mayCheckRetro` (nichts komponiert/markiert, keine
+  Geste, Autokorrektur des letzten Worts nicht mehr rücknehmbar), `applyRetroEdit` (`RichInputConnection.replaceTextBeforeCursorIfUnchanged`,
+  danach `mFieldCorrections.untrusted()`, Leerzeichen-Zustand und `mLastComposedWord` bleiben), `retroTouchesPrivateText`,
+  `postToSuggestionThread`. `RichInputConnection` unverändert.
+- `SettingsValues.java` (104/105): `mRetroRepair`, `mAutoPunctuation`.
 - `LatinIME.java` (82): `getAgentSelection` (markierter Bereich, sonst null), `getAgentEditorGeneration` (Nummer der Editor-Sitzung,
   `AndroidEditorAdapter.generation`), `tryShowSelectionChips` (ohne Eingriff in die Werkzeugleiste, nicht mit `mAutoShowToolbar`) in
   `setSuggestedWords` (nach den Symbol-Chips, vor dem Screenshot-Chip, nicht für Wischtipp-Stile `UPDATE_BATCH`/`TAIL_BATCH` und
@@ -6783,7 +6809,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (796 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (808 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6794,7 +6820,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (106): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (107): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6806,13 +6832,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   JournaledModelCall, JournaledRun, KeyLatency, KeyboardCommands, KeyboardProfileStore, LastField,
   LearningData, LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings,
   MyData, MyDesigns, OnDeviceSpeechEngine, OtherLanguageDictionaries, PillColors, PlaceCommand,
-  PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
-  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
-  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
-  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolGridView,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, UndoOffer,
-  WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  PromptStore, RetroCorrections, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture,
+  RuleCorrections, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
+  SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
+  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
+  UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6873,6 +6899,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
+- `C/sentence/` (7): AutoPunctuation, GermanNouns, GermanVerbs, GermanWords, RetroCheck,
+  SentenceRepair, SentenceText
 - `C/suggest/` (1): ContextSuggest
 - `CT/` (62): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, CorrectionWeightsTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest,
@@ -6892,6 +6920,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
+- `CT/sentence/` (4): AutoPunctuationTest, GermanLexiconTest, RealLexicon, SentenceRepairTest
 - `CT/suggest/` (1): ContextSuggestTest
 - `K/accessibility/` (2): KeyCodeDescriptionMapper, KeyboardAccessibilityNodeProvider
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,

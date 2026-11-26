@@ -191,6 +191,11 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
             SectionCard(stringResource(R.string.agent_typing_rules)) {
                 PrefSwitch(R.string.agent_typing_sentence_context, stringResource(R.string.agent_typing_sentence_context_sub),
                     AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true, autocorrect, needsAutocorrect, ::bool, ::put)
+                // stages 104/105: corrections of the sentence after a word ended, and punctuation
+                PrefSwitch(R.string.agent_typing_retro_repair, stringResource(R.string.agent_typing_retro_repair_sub),
+                    AgentPreferences.AUTOCORRECT_RETRO_REPAIR, true, autocorrect, needsAutocorrect, ::bool, ::put)
+                PrefSwitch(R.string.agent_typing_auto_punctuation, stringResource(R.string.agent_typing_auto_punctuation_sub),
+                    AgentPreferences.AUTO_PUNCTUATION, true, autocorrect, needsAutocorrect, ::bool, ::put)
                 // stage 75: "idr" becomes "dir"
                 PrefSwitch(R.string.agent_typing_swapped_letters, stringResource(R.string.agent_typing_swapped_letters_sub),
                     AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, true, autocorrect, needsAutocorrect, ::bool, ::put)

@@ -71,4 +71,8 @@
     <string name="agent_forced_close">Fertig</string>
     <string name="agent_forced_remove_for">%1$s entfernen</string>
     <string name="agent_forced_not_installed">nicht gefunden</string>
+    <string name="agent_typing_retro_repair">Nachkorrektur im Satz</string>
+    <string name="agent_typing_retro_repair_sub">Korrigiert ein früheres Wort, sobald der Rest des deutschen Satzes zeigt, dass es falsch ist („Ich haben das“ → „Ich habe das“), auch ein richtiges Wort. Die Rücktaste direkt danach nimmt es zurück.</string>
+    <string name="agent_typing_auto_punctuation">Satzzeichen ergänzen</string>
+    <string name="agent_typing_auto_punctuation_sub">Komma vor deutschen Nebensätzen wie „dass“, Punkt oder Fragezeichen am Zeilenende in mehrzeiligen Feldern. Nie beim Senden. Die Rücktaste direkt danach nimmt es zurück.</string>
 </resources>

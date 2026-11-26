@@ -298,4 +298,6 @@
     <string name="agent_diagnose_corr_add_personal">Automatisch zum persönlichen Wörterbuch hinzufügen</string>
     <string name="agent_diagnose_corr_personal_words">Einträge im persönlichen Wörterbuch (Anzahl)</string>
     <string name="agent_diagnose_corr_counting">wird gezählt …</string>
+    <string name="agent_diagnose_corr_retro">Nachkorrekturen seit Start (gemacht / zurückgenommen / veraltet verworfen)</string>
+    <string name="agent_diagnose_corr_retro_value">%1$d / %2$d / %3$d</string>
 </resources>

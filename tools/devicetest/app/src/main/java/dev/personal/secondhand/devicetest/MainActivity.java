@@ -38,7 +38,9 @@ public class MainActivity extends Activity {
         mirror(R.id.field_number, R.id.mirror_number);
         mirror(R.id.field_login, R.id.mirror_login);
         mirror(R.id.field_secret, R.id.mirror_secret);
+        mirror(R.id.field_chat, R.id.mirror_chat);
         showAutofillFields(getIntent());
+        showChatField(getIntent());
     }
 
     /**
@@ -56,6 +58,14 @@ public class MainActivity extends Activity {
         }
         findViewById(R.id.field_login).setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
         findViewById(R.id.field_secret).setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+    }
+
+    /** Stages 104/105: the one-line chat field that sends with Enter appears only in the scenarios that use it. */
+    private void showChatField(Intent intent) {
+        final String name = intent == null ? null : intent.getStringExtra("scenario");
+        if (name == null || !name.startsWith("retro_send")) return;
+        findViewById(R.id.field_chat).setVisibility(View.VISIBLE);
+        findViewById(R.id.mirror_chat).setVisibility(View.VISIBLE);
     }
 
     @Override

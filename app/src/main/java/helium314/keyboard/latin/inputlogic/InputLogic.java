@@ -114,6 +114,8 @@ public final class InputLogic {
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
     // fork, stage 96: the word before the delete key removed its characters, for a long press on the left word
     public final helium314.keyboard.agent.WordBeforeDelete mWordBeforeDelete = new helium314.keyboard.agent.WordBeforeDelete();
+    /** Fork, stages 104/105: corrections of the sentence after a word ended (see RetroCorrections). */
+    public final helium314.keyboard.agent.RetroCorrections mRetroCorrections = new helium314.keyboard.agent.RetroCorrections(this);
     private static final int VERB_CONTEXT_CHARS = 24;
     private static final long VERB_CONTEXT_SLOW_MS = 40;
     private static final long VERB_CONTEXT_PAUSE_MS = 4000;
@@ -321,6 +323,38 @@ public final class InputLogic {
         return applyGenerated(() -> mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position), generated);
     }
 
+    /**
+     * Fork, stages 104/105: whether the sentence check may run or apply its result now: nothing composed or selected, no
+     * gesture pending, and the automatic correction of the last word can no longer be taken back with Backspace (that one
+     * comes first; the next word end checks again).
+     */
+    public boolean mayCheckRetro() {
+        if (mWordComposer.isComposingWord() || mConnection.hasSelection() || mInputLogicHandler.hasPendingBatchInput()) return false;
+        return !(mLastComposedWord.canRevertCommit() && Settings.getValues().mBackspaceRevertsAutocorrect);
+    }
+
+    /**
+     * Fork, stages 104/105: replaces the text before the cursor from [position - expected.length] for the sentence check, only
+     * while the editor still shows [expected] there (RichInputConnection#replaceTextBeforeCursorIfUnchanged). The space state
+     * and the last committed word stay as they are; the field watcher of stage 49 does not take the change for the user's.
+     */
+    public ApplyOutcome applyRetroEdit(final String expected, final String replacement, final int position) {
+        if (mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput()) return ApplyOutcome.REJECTED;
+        final ApplyOutcome outcome = mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position);
+        if (outcome != ApplyOutcome.REJECTED) mFieldCorrections.untrusted();
+        return outcome;
+    }
+
+    /** Fork, stages 104/105: whether field positions [from, to) touch a private text (stages 44/45). */
+    public boolean retroTouchesPrivateText(final int from, final int to) {
+        return mPrivateRanges.touches(from, to, mPrivateEditor);
+    }
+
+    /** Fork, stages 104/105: runs [work] on the suggestion thread (after the suggestions already asked for). */
+    public void postToSuggestionThread(final Runnable work) {
+        mInputLogicHandler.mNonUIThreadHandler.post(work);
+    }
+
     /** minSdk 21: no java.util.function. */
     private interface GeneratedCommit { ApplyOutcome run(); }
 
@@ -403,6 +437,7 @@ public final class InputLogic {
         mTypedWordFirst.clear(); // fork, stage 48
         mWordBeforeDelete.clear(); // fork, stage 96
         mFieldCorrections.start(); // fork, stage 49
+        mRetroCorrections.fieldStarted(); // fork, stages 104/105
         mConnection.onStartInput();
         if (!mWordComposer.getTypedWord().isEmpty()) {
             // For messaging apps that offer send button, the IME does not get the opportunity
@@ -1178,6 +1213,8 @@ public final class InputLogic {
                 }
                 break;
             case KeyCode.UNDO:
+                // fork, stages 104/105: Undo right after a correction of the sentence takes it back here, not in the app
+                if (mRetroCorrections.revert(mLatinIME, sv)) break;
                 if (GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onUndo(mWordComposer.isComposingWord() ? mWordComposer.getTypedWord() : mLastComposedWord.mCommittedWord);
                 sendDownUpKeyEventWithMetaState(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON);
@@ -1659,6 +1696,12 @@ public final class InputLogic {
             updateInlineEmojiSearch();
             inputTransaction.setRequiresUpdateSuggestions();
         } else {
+            // fork, stages 104/105: Backspace right after a correction of the sentence takes it back (one unit)
+            if (inputTransaction.getSettingsValues().mBackspaceRevertsAutocorrect
+                    && mRetroCorrections.revert(mLatinIME, inputTransaction.getSettingsValues())) {
+                inputTransaction.setRequiresUpdateSuggestions();
+                return;
+            }
             if (mLastComposedWord.canRevertCommit() && inputTransaction.getSettingsValues().mBackspaceRevertsAutocorrect
                     && revertTargetIsBeforeCursor()) { // fork, stage 92 (Codex P0): never delete text that is not the correction
                 final String lastComposedWord = mLastComposedWord.mTypedWord;

@@ -756,6 +756,8 @@ object Diagnose {
         rows += Row(s(R.string.agent_diagnose_corr_keep_umlaut), onOff(context, pref(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true)))
         rows += Row(s(R.string.agent_diagnose_corr_swapped), onOff(context, pref(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, true)))
         rows += Row(s(R.string.agent_diagnose_corr_sentence), onOff(context, pref(AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true)))
+        rows += Row(s(R.string.agent_typing_retro_repair), onOff(context, pref(AgentPreferences.AUTOCORRECT_RETRO_REPAIR, true)))
+        rows += Row(s(R.string.agent_typing_auto_punctuation), onOff(context, pref(AgentPreferences.AUTO_PUNCTUATION, true)))
         val selected = runCatching { SubtypeSettings.getSelectedSubtype(prefs) }.getOrNull()
         rows += Row(s(R.string.agent_diagnose_corr_layout), selected?.let { "${it.locale().toLanguageTag()} (${it.mainLayoutNameOrQwerty()})" } ?: s(R.string.agent_diagnose_field_unknown))
         val enabled = runCatching { SubtypeSettings.getEnabledSubtypes(true) }.getOrDefault(emptyList())
@@ -787,6 +789,9 @@ object Diagnose {
         // stages 107/108: corrections of the weighted rules since the keyboard started, kept and taken back (numbers only)
         rows += Row(s(R.string.agent_diagnose_corr_rule_corrections),
             context.getString(R.string.agent_diagnose_corr_rule_corrections_value, RuleCorrections.kept.get(), RuleCorrections.undone.get()))
+        // stages 104/105: corrections of the sentence after a word ended (numbers only)
+        rows += Row(s(R.string.agent_diagnose_corr_retro), context.getString(R.string.agent_diagnose_corr_retro_value,
+            RetroCorrections.applied.get(), RetroCorrections.undone.get(), RetroCorrections.stale.get()))
         rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
         return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }

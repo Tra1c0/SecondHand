@@ -9310,6 +9310,193 @@ class InputLogicTest {
         assertEquals(0, delayedMessages.size)
     }
 
+    // ------------------------------------------------------------------ stages 104/105: corrections of the sentence afterwards
+
+    /** The German words of the sentences below, as the main dictionary of the real facilitator (no "hause" in lower case). */
+    private val retroWords = mapOf("de" to WordLists.of(
+        "mir:125", "gehen:141", "geht:150", "es:190", "gut:170", "ich:139", "haben:167", "habe:146", "hat:175", "das:195", "nicht:180",
+        "gewusst:110", "er:180", "ein:194", "einen:181", "Gefallen:120", "getan:120", "bin:160", "Zeit:157", "gestern:140",
+        "wieder:150", "zu:190", "Hause:117", "ihr:150", "seit:170", "seid:85", "schon:170", "da:170", "machen:150", "macht:150",
+        "kein:149", "keinen:144", "Sinn:117", "mehr:170", "war:170", "mit:190", "der:200", "Polen:129", "Polizei:122", "glaube:130",
+        "dass:179", "kommt:150", "weiß:150", "kommst:120", "du:180", "morgen:150", "komme:140", "sie:190", "Digga:0", "was:190",
+        "ab:150", "vorbei:120", "wir:180", "dann:180", "die:200", "anderen:150", "Ende:140", "gehen:141",
+    ))
+    private val retroPending = ArrayList<Runnable>()
+
+    /**
+     * The real facilitator with [retroWords], German, autocorrection in a text field; the check runs at once (on the test
+     * thread) and its result is applied at once, or, with [delayed], only when the test calls [retroApply].
+     */
+    private fun withRetro(delayed: Boolean = false, body: () -> Unit) {
+        retroPending.clear()
+        helium314.keyboard.agent.RetroCorrections.workerForTest = java.util.concurrent.Executor { it.run() }
+        helium314.keyboard.agent.RetroCorrections.mainForTest = java.util.concurrent.Executor { if (delayed) retroPending.add(it) else it.run() }
+        RejectedCorrections.clear(latinIME)
+        try {
+            withLanguages(retroWords, germanSubtype) { body() }
+        } finally {
+            helium314.keyboard.agent.RetroCorrections.workerForTest = null
+            helium314.keyboard.agent.RetroCorrections.mainForTest = null
+            RejectedCorrections.clear(latinIME)
+            retroPending.clear()
+        }
+    }
+
+    private fun retroApply() { val work = ArrayList(retroPending); retroPending.clear(); work.forEach { it.run() }; handleMessages() }
+
+    /** Key by key through LatinIME.onEvent, as a finger types; "⌫" is Backspace. */
+    private fun retroType(keys: String) {
+        for (c in keys) {
+            if (c == '⌫') functionalKeyPress(KeyCode.DELETE)
+            else { latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(c.code)); handleMessages() }
+        }
+    }
+
+    private fun retroTyped(keys: String): String { setText(""); retroType(keys); return text }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 the owner's examples typed key by key`() = withRetro {
+        assertEquals("Mir geht es gut ", retroTyped("Mir gehen es gut "))
+        assertEquals("Ich habe das nicht gewusst ", retroTyped("Ich haben das nicht gewusst "))
+        // "einen" stays open: "ein Gefallen" is a grammatical neuter accusative (docs/NACHKORREKTUR-KONZEPT.md)
+        assertEquals("Er hat mir ein Gefallen getan ", retroTyped("Er habe mir ein Gefallen getan "))
+        // "seit" stays open: "Zeit" is a possible noun there
+        assertEquals("Ich bin Zeit gestern wieder zu Hause.", retroTyped("Ich bin Zeit gestern wieder zu hause."))
+        assertEquals("Ihr seid schon da ", retroTyped("Ihr seit schon da "))
+        // "keinen" stays open ("Das macht kein Mensch" is right); the verb once the sentence is over
+        assertEquals("Das macht kein Sinn.", retroTyped("Das machen kein Sinn."))
+        assertEquals("Ich war mit der Polizei ", retroTyped("Ich war mit der Polen Zeit "))
+        // the same rules on other words, no list of the examples
+        assertEquals("Wir gehen dann ", retroTyped("Wir geht dann "))
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 correct sentences, slang and other languages stay`() = withRetro {
+        for (sentence in listOf("Sie haben das ", "Mir geht es gut ", "Dann machen es die anderen ", "Digga was geht ab ",
+                "I have no idea what das ist ", "Ich habe das nicht gewusst ")) assertEquals(sentence, retroTyped(sentence))
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 Backspace right after takes the correction back and it does not come again`() = withRetro {
+        assertEquals("Ich habe das ", retroTyped("Ich haben das "))
+        retroType("⌫")
+        assertEquals("Ich haben das ", text)
+        assertEquals(text.length, cursor)
+        assertEquals(1.0, RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected)
+        retroType("nicht ")
+        assertEquals("Ich haben das nicht ", text)
+        // the second Backspace deletes as usual
+        retroType("⌫")
+        assertEquals("Ich haben das nicht", text)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 the keyboard's Undo right after takes the correction back instead of the app`() = withRetro {
+        assertEquals("Ihr seid schon ", retroTyped("Ihr seit schon "))
+        ShadowInputMethodService.keyDownCodes.clear()
+        functionalKeyPress(KeyCode.UNDO)
+        assertEquals("Ihr seit schon ", text)
+        assertTrue(ShadowInputMethodService.keyDownCodes.isEmpty(), "no Ctrl+Z to the app")
+        // taken back once, the pair stays as typed in this field
+        retroType("da ")
+        assertEquals("Ihr seit schon da ", text)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 typing on before the result arrives drops it, the next word end checks again`() = withRetro(delayed = true) {
+        setText("")
+        retroType("Ich haben das ")
+        retroType("n")
+        retroApply()
+        assertEquals("Ich haben das n", text, "no replacement while the next word is typed")
+        retroType("icht ")
+        retroApply()
+        assertEquals("Ich habe das nicht ", text)
+        assertEquals(text.length, cursor)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 with the cursor in the middle only the text before it changes`() = withRetro {
+        setText("Ende")
+        setCursorPosition(0)
+        retroType("Ich haben das ")
+        assertEquals("Ich habe das Ende", text)
+        assertEquals("Ich habe das ".length, cursor)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 a word changed back by hand is not corrected again`() = withRetro {
+        assertEquals("Ich habe das ", retroTyped("Ich haben das "))
+        // the owner puts "haben" back himself (cursor after "habe", type "n", back to the end)
+        setCursorPosition(8)
+        retroType("n")
+        setCursorPosition(text.length)
+        retroType("nicht ")
+        assertEquals("Ich haben das nicht ", text)
+        assertEquals(1.0, RejectedCorrections.weights(latinIME, "haben", "habe")?.rejected)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 never in password, no-learning or locked fields, nor switched off`() = withRetro {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertEquals("Ich haben das ", retroTyped("Ich haben das "))
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)
+        retroType("Ich haben das ")
+        assertEquals("Ich haben das ", text)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_RETRO_REPAIR, false) }
+        reloadSettings()
+        startField(null)
+        retroType("Ich haben das ")
+        assertEquals("Ich haben das ", text)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_RETRO_REPAIR, true) }
+        reloadSettings()
+        val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+        helium314.keyboard.agent.LockState.resetForTest()
+        try {
+            startField(null)
+            retroType("Ich haben das ")
+            assertEquals("Ich haben das ", text)
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            helium314.keyboard.agent.LockState.resetForTest()
+        }
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 105 the mark at the end of a line, the comma, and both with stage 104 in one undo`() = withRetro {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        retroType("Ich komme morgen vorbei\n")
+        assertEquals("Ich komme morgen vorbei.\n", text)
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        retroType("Kommst du morgen\n")
+        assertEquals("Kommst du morgen?\n", text)
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        retroType("Ich glaube das er kommt\n")
+        assertEquals("Ich glaube, dass er kommt.\n", text)
+        retroType("⌫")
+        assertEquals("Ich glaube das er kommt\n", text, "one Backspace takes all three changes back")
+        retroType("Ich weiß dass er kommt.")
+        assertEquals("Ich glaube das er kommt\nIch weiß, dass er kommt.", text)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 105 no mark when sending from a one-line field and none twice`() = withRetro {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+        startField(null, imeOptions = EditorInfo.IME_ACTION_SEND)
+        retroType("Ich komme morgen vorbei\n")
+        assertEquals("Ich komme morgen vorbei", text)
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        retroType("Ich komme morgen vorbei.\n")
+        assertEquals("Ich komme morgen vorbei.\n", text)
+        startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        retroType("- Milch kaufen\n")
+        assertEquals("- Milch kaufen\n", text)
+    }
+
     /** Messages of the suggestion thread run there only in [withSimilarWords] (stage 48), as before otherwise. */
     private fun dispatch(message: Message) {
         val target = message.target
