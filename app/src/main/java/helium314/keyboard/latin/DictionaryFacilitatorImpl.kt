@@ -625,6 +625,11 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
 
     private fun isBlacklisted(word: String): Boolean = dictionaryGroups.any { it.isBlacklisted(word) }
 
+    /** Fork, stage 110: takes [word] out of the typing history of every language (nothing is blacklisted). */
+    fun removeFromUserHistory(word: String) {
+        for (dictionaryGroup in dictionaryGroups) dictionaryGroup.getSubDict(Dictionary.TYPE_USER_HISTORY)?.removeUnigramEntryDynamically(word)
+    }
+
     override fun removeWord(word: String) {
         for (dictionaryGroup in dictionaryGroups) {
             dictionaryGroup.removeWord(word)

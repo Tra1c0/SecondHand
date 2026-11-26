@@ -91,6 +91,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
                       settingsValuesForSuggestion: SettingsValuesForSuggestion, inputStyleIfNotPrediction: Int,
                       isCorrectionEnabled: Boolean, sequenceNumber: Int, followingText: () -> CharSequence?): SuggestedWords {
         val typedWordString = wordComposer.typedWord
+        startRuleClassCleanup()
         val resultsArePredictions = !wordComposer.isComposingWord
         val suggestionResults = if (typedWordString.isEmpty())
                 getNextWordSuggestions(ngramContext, keyboard, inputStyleIfNotPrediction, settingsValuesForSuggestion)
@@ -474,6 +475,60 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         if (!GermanVerbForms.isRegularForm(lower) { GermanVerbLemmas.contains(context, it) }) return false
         val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return true
         return facilitator.mainFrequency(typed, "de") < 0 && facilitator.mainFrequency(lower, "de") < 0
+    }
+
+    /**
+     * Fork, stage 110: once per app version and keyboard language, takes the learned words that a rule class corrects now out of
+     * the own words, kept foreign words, personal dictionary and typing history ([helium314.keyboard.agent.RuleClassCleanup]).
+     * Waits for a loaded main dictionary; cheap once done.
+     */
+    private fun startRuleClassCleanup() {
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return
+        if (!facilitator.hasAtLeastOneInitializedMainDictionary()) return
+        val context = Settings.getCurrentContext() ?: return
+        val language = facilitator.mainLocale.language
+        // the other enabled languages must be open: a word one of them knows is not a typo of this one
+        val ready = {
+            val active = activeLanguages()
+            val wanted = ForeignWords.enabledLocales().map { it.language }.filter { it.isNotEmpty() && it !in active }.toSet()
+            OtherLanguageDictionaries.languages(context, active).toSet().containsAll(wanted)
+        }
+        helium314.keyboard.agent.RuleClassCleanup.maybeRun(context, language, ready, { word -> ruleClassTarget(word, language) }) {
+            facilitator.removeFromUserHistory(it)
+        }
+    }
+
+    /**
+     * Fork, stage 110: the correction a rule class makes of [word] typed in lower case on the keyboard of [language], or null.
+     * The same classes and exclusions as while typing, without the typing state: the short forms ("gibts" -> "gibt's", stage
+     * 108), a very common word with one neighbouring key and two swapped letters (stages 101, 75), each only with its switch.
+     * The learned stores themselves (own words, foreign words, personal dictionary, history) do not count; a main dictionary
+     * of an active or enabled language that knows the word in any case form does, and so do slang and German verb forms.
+     */
+    internal fun ruleClassTarget(word: String, language: String): String? {
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return null
+        val locale = facilitator.mainLocale
+        if (locale.language != language || !facilitator.hasAtLeastOneInitializedMainDictionary()) return null
+        val settings = Settings.getValues() ?: return null
+        val context = Settings.getCurrentContext() ?: return null
+        // a word kept with a capital (a name) is left alone; rule classes correct lower case words
+        if (word.isEmpty() || word.first().isUpperCase() || !word.all { it.isLetter() }) return null
+        val lower = word.lowercase(locale)
+        if (listOf(lower, lower.replaceFirstChar { it.uppercase(locale) }, lower.uppercase(locale))
+                .any { facilitator.mainLocalesKnowing(it).isNotEmpty() }) return null
+        for (other in OtherLanguageDictionaries.languages(context, activeLanguages()))
+            if (OtherLanguageDictionaries.frequencyOfForms(other, lower) >= 0) return null
+        if (settings.mContextualAutocorrection && language == "de") {
+            GermanShortForms.target(lower, { facilitator.mainFrequency(it, "de") >= 0 }) { GermanVerbLemmas.contains(context, it) }
+                ?.let { return it }
+        }
+        if (isUnknownGermanVerbForm(lower)) return null
+        if (helium314.keyboard.agent.InformalWordsStore.protects(context, lower, language, language)) return null
+        if (settings.mContextualAutocorrection)
+            NeighborKeys.candidate(lower, language) { facilitator.mainFrequency(it, language) }?.let { return it }
+        if (settings.mSwappedLettersCorrection)
+            SwappedLetters.candidate(lower, language, { false }) { facilitator.mainFrequency(it, language) }?.let { return it }
+        return null
     }
 
     /** Fork, stage 101: the languages the engine uses now (keyboard language and the layout's second languages). */

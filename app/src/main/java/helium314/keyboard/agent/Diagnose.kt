@@ -788,6 +788,11 @@ object Diagnose {
         rows += Row(s(R.string.agent_diagnose_corr_rule_corrections),
             context.getString(R.string.agent_diagnose_corr_rule_corrections_value, RuleCorrections.kept.get(), RuleCorrections.undone.get()))
         rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
+        // stage 110: words the cleanup after the last update took out of the learned stores, per keyboard language (number only)
+        val cleaned = listOf("de", "en", "es").mapNotNull { language ->
+            RuleClassCleanup.lastRemoved(context, language).takeIf { it >= 0 }?.let { "$language $it" } }
+        rows += Row(s(R.string.agent_diagnose_corr_rule_cleanup),
+            if (cleaned.isEmpty()) s(R.string.agent_diagnose_corr_rule_cleanup_none) else cleaned.joinToString(", "))
         return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }
 

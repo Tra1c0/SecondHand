@@ -1,5 +1,11 @@
 # Prüfnachweise
 
+## Etappe 110 — Bereinigung gelernter Wörter der Regelklassen nach einem Update (Owner, 2026-11-26)
+
+Auftrag: „gibts wird nicht korrigiert … dreht's funktioniert … nach jedem Update das Wörterbuch, die eigenen Wörter etc. nur für solche Fälle automatisch überschreiben. Die anderen Wörter dürfen nicht erwischt werden.“ Befund aus dem Code: Vor Etappe 108 blieb „gibts“ unkorrigiert; nach drei Übernahmen eines Worts, das kein Hauptwörterbuch kennt, wird es ein eigenes Wort (`Memory`, Etappe 46), und eigene Wörter sperren jede Regelkorrektur (`applyShortForm` u. a.). „drehts“ war seltener getippt und nie gelernt. Ob „gibts“ beim Owner wirklich ein eigenes Wort ist, zeigt die Seite „Was ich mir gemerkt habe“; nicht am Telefon gesehen.
+
+Nachweis: `AutocorrectReportTest` „stage 110 the cleanup after an update frees learned short forms and typos and nothing else“ (vorher blockiert, danach „gibt's“/„ich“; bleiben: Name mit Großbuchstaben, Slang, echtes Wort, zurückgenommenes Paar; gleiche Wörter verlassen den Tipp-Verlauf) und „stage 110 the cleanup runs once per update and keyboard language, and never without an update“ (keine Bereinigung ohne Update, Warten auf offene Wörterbücher, einmal je Update, auch nach Neustart). Das persönliche Wörterbuch (Android-Anbieter) ist in Robolectric nicht vorhanden; dieser Pfad ist nur per Codeprüfung belegt. Kein Gerätetest. CI: siehe unten.
+
 ## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
 
 Owner: „Standardmäßig auf aus. Ich brauche das alles nicht in der Zwischenablage.“ Gebaut: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (Standard aus) in

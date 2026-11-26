@@ -294,6 +294,8 @@
     <string name="agent_diagnose_corr_rejected">Zurückgenommene Korrekturen (Anzahl)</string>
     <string name="agent_diagnose_corr_rule_corrections">Seltene Wörter und Kurzformen korrigiert seit Start (behalten / zurückgenommen)</string>
     <string name="agent_diagnose_corr_rule_corrections_value">%1$d / %2$d</string>
+    <string name="agent_diagnose_corr_rule_cleanup">Gelernte Wörter nach dem letzten Update entfernt (Regelklassen)</string>
+    <string name="agent_diagnose_corr_rule_cleanup_none">noch nicht</string>
     <string name="agent_diagnose_corr_active_layouts">Aktive Layouts (Anzahl)</string>
     <string name="agent_diagnose_corr_add_personal">Automatisch zum persönlichen Wörterbuch hinzufügen</string>
     <string name="agent_diagnose_corr_personal_words">Einträge im persönlichen Wörterbuch (Anzahl)</string>

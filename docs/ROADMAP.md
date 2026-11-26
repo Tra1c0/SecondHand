@@ -19,6 +19,8 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“ (kein Wörterbuch und keine Liste kennt „gah“), „mocb“,
   „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Einträge im persönlichen Wörterbuch (Anzahl)“); Frage an den
   Owner, ob die Deutung „Rücknahme = nie wieder, Gewichte über den Tipp-Verlauf“ seine Absicht trifft (Konzept Abschnitt 5).
+  110 (gelernte Wörter der Regelklassen werden nach jedem Update entfernt; Owner 2026-11-26: „gibts“ blieb, weil es als eigenes Wort gelernt war) ist gebaut
+  (`docs/FEATURES.md`).
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
 - **105 Satzzeichen automatisch** (Owner, 2026-11-25: „Es wäre schön, wenn zukünftig noch Satzzeichen automatisch ersetzt werden.“).

@@ -1,3 +1,11 @@
+# Neu: gelernte Tippfehler blockieren neue Korrekturen nicht mehr
+
+- **„gibts“ wird wieder „gibt's“**: Wörter, die du vor einer neuen Korrekturregel oft unkorrigiert getippt hast, hatte die Tastatur gelernt, und gelernte Wörter korrigiert sie nie. Nach jedem Update nimmt sie jetzt genau diese Wörter aus deinen eigenen Wörtern, dem persönlichen Wörterbuch und dem Tipp-Verlauf: Kurzformen ohne Apostroph, Tippfehler häufiger Wörter mit einer Nachbartaste („icj“) und vertauschte Buchstaben.
+- **Alles andere bleibt**: Namen, Slang, echte Wörter und alles, was du nach einer Korrektur schon einmal zurückgeholt hast.
+- **Nachsehen**: Diagnose → „Korrektur & Sprache“ → „Gelernte Wörter nach dem letzten Update entfernt“.
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Langdruck auf das linke Wort
 
 - **Langdruck auf das linke Wort** klappt die Wortliste nicht mehr aus; er holt nur noch das ursprüngliche Wort zurück. Die Wortliste gibt es weiter per Langdruck auf die anderen Vorschläge oder Hochwischen auf der Leiste.
