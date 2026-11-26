@@ -21,8 +21,8 @@ import kotlin.math.min
  * have at most five strokes; a template with many strokes (an own symbol may have twelve) only offers the parts in the
  * order it was drawn ([MAX_SUBSETS]). Built-in, own and personal templates all count.
  *
- * Pure and thread-safe once built; the parts are built lazily on first use (the keyboard asks on its
- * worker thread). Nothing is stored.
+ * Pure and thread-safe once built; the parts are built lazily on first use, which symbols can go on per symbol when
+ * first asked (the keyboard works them out ahead on a background thread of their own, its worker asks). Nothing is stored.
  */
 class InkCompletion(templates: List<InkTemplate>, private val tuning: InkRecognizer.Tuning = InkRecognizer.Tuning.DEFAULT) {
     private val templates = templates.toList()

@@ -149,6 +149,7 @@ object SymbolDrawing {
      * drawing changes that earlier word; the symbol then still follows it after the pause.
      */
     @JvmStatic fun beforeSuggestionPick(replacesTypedWord: Boolean) {
+        SymbolInk.onTypedInput() // stage 100 (re-review N3): a picked word ends the watch for a late stroke
         if (!replacesTypedWord) beforeOtherInput()
     }
 
@@ -304,6 +305,7 @@ object SymbolDrawing {
 
     private fun replace(ime: LatinIME, state: Inserted, alternative: String) {
         if (shown !== state) return
+        SymbolInk.onTypedInput() // stage 100 (re-review N3): another symbol was picked; a stroke after it is no late one
         val outcome = ime.replaceCommandText(state.text, alternative, state.cursor)
         if (outcome == ApplyOutcome.SUBMITTED) {
             // the drawing was meant as [alternative]: learn it on top of the templates as they were
@@ -383,8 +385,11 @@ object SymbolDrawing {
             // priority (code review, finding 3: not on the worker the preview and the check share); a check that comes
             // first works out what it needs itself (per symbol, kept)
             val rule = InkCompletion(all).also { rule -> completion = rule }
-            Thread({ runCatching { all.map { t -> t.text }.distinct().forEach { text -> rule.extendable(text) } } }, "symbol-parts")
-                .apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
+            Thread({
+                // background priority, not the lowest: the worker may wait for the parts this thread is building (re-review N2)
+                runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND) }
+                runCatching { all.map { t -> t.text }.distinct().forEach { text -> rule.extendable(text) } }
+            }, "symbol-parts").apply { isDaemon = true }.start()
         }
     }
 
