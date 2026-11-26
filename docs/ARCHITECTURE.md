@@ -3602,8 +3602,9 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   und tippt den Grundbuchstaben, kein Popup. Der Randfall eines Wortvorschlags im Fenster bei
   einbuchstabiger Vorhersage bzw. Satzzeichen-Leiste (P97) bleibt wie er ist.
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
-  (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich geschrieben, weil
-  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
+  (`flush`) gehen die Striche an die Senke. Bis 99 wurde nie sofort nach einem Strich geschrieben, weil
+  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠); seit 100 sofort, wenn nichts mehr folgen kann
+  (unten „Sofort, wenn fertig“).
 - Punkte (43, Rückmeldung zu Build 19: ÷/% verloren oder Symbol plus Buchstabe): Ein Tipp, dem
   `isDot` zustimmt, ist ein möglicher Punkt: `SymbolInk.onInkUp` legt ihn als einen Punkt (seine
   Mitte) in die Gruppe, merkt Index, Zeiger, Aufsetzpunkt und Lücke (`Possible`) und tippt nichts.
@@ -3759,6 +3760,29 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
 
+- Sofort, wenn fertig (100, Konzept `docs/SYMBOLE-TEMPO-KONZEPT.md`): `SymbolInk.add` meldet nach jedem Strich und jedem
+  möglichen Punkt `Sink.onStrokeEnded(strokes, possibleDots, serial)`; `SymbolDrawing.checkFinished` prüft auf dem Hilfs-Thread
+  (`previewExecutor`, in Tests direkt; übersprungen, wenn `SymbolInk.currentSerial` schon weiter ist), ob mögliche Punkte Punkte
+  blieben (`InkDots.keeps`) und `C/InkCompletion.kt` `finished(cloud, result)` gilt: bestes Symbol vollständig und ≤
+  `ACCEPT_DISTANCE`, nicht `extendable` (eine seiner Vorlagen liegt ≤ `EXTEND_DISTANCE` 2,0 an einem Teil einer Vorlage mit mehr
+  Strichen; ein Teil ist jede echte Teilmenge der Striche, bei mehr als `MAX_SUBSETS` 35 Teilmengen nur die ersten Striche), und die
+  Zeichnung selbst liegt an keinem Teil (≤ `PART_DISTANCE` 2,0). Dann postet es `SymbolInk.onFinished(serial)`, das nur schreibt
+  (`finish(Way.INSTANT)`), wenn `serial` gleich ist (jeder Strichbeginn, jedes Schreiben, Verwerfen, Chip und `onBatchStart` zählt
+  hoch), etwas wartet und kein Strich auf den Tasten ist. Der Timer der Pause bleibt immer gesetzt (Rückweg ohne Antwort). Die
+  Teile und die Menge der erweiterbaren Texte rechnet `InkCompletion` faul; `SymbolDrawing.recognizer` baut es mit dem Erkenner
+  aus denselben Vorlagen (eingebaut, eigen, persönlich) und stößt die Berechnung auf `workerExecutor` an (ca. 0,5 s auf dem JVM je
+  Satz Vorlagen; bis dahin gilt die Pause). Die Prüfung kostet ca. 4 µs (Median, meist ist das Symbol erweiterbar) bis 14 ms (90 %) auf
+  dem JVM; der Erkenner rechnet die Zeichnung dabei einmal, `write` nimmt das Ergebnis aus seinem Merker.
+  Pause (100, `InkPace`): max(2,2 × Median, 1,5 × längste) der letzten neun Lücken vor einem Strich, 300–1500 ms, anfangs 900;
+  Lücken zwischen getippten Punkten zählen nicht mehr (Kritik, Befund 1). Nachzügler (`SymbolInk.noteLateStroke`): beginnt bis
+  `LATE_PAUSES` 2 Pausen nach einer nach der Pause oder sofort geschriebenen Zeichnung (`Written`) eine neue nahe an ihr
+  (`InkTap.nearDrawing`, Tastenbreite aus `KeyboardSwitcher`) und ergeben beide ein anderes angenommenes Symbol (`Sink.joins`,
+  `SymbolDrawing`: zwei Erkennungen im Hauptthread, nur in diesem Fall), zählt `SymbolPerf.late`; nach der Pause zählt die Lücke
+  (Beginn der Geste `onBatchStart` bis zum Ende des letzten Strichs) für die Pause. Geschriebenes bleibt.
+  Tests: `CT/InkCompletionTest.kt` (Finger-Modell: keine Früheingabe in 8593 Anfängen, auch mit 40 persönlichen Symbolen; Anteil
+  sofort je Symbol; → aus „–“ und „>“ in jeder Reihenfolge und Richtung; % aus „/“ und zwei Punkten; ÷ erst nach dem zweiten Punkt;
+  Verwechslungen; eigenes Symbol lässt seinen Anfang warten; Zeit), `CT/InkTimingTest.kt` (Pause),
+  `InputLogicTest.symbolDrawTwoTappedDotsMakeADivisionSign` (÷ sofort, einmal).
 - Messpunkte (100): `A/SymbolPerf.kt` zählt je geschriebener Zeichnung den Weg (`Way`: sofort, nach der Pause, per Taste, per
   Chip; `SymbolInk.finish(way)`, `takeWaiting`) und die Zeit vom Loslassen des letzten Strichs bis zum Ende des Schreibens
   (`SystemClock.uptimeMillis`), dazu die Dauer der Prüfung „kann weitergehen?“ und Nachzügler; nur Zahlen, nur im Speicher.
@@ -6785,7 +6809,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (797 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (799 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6861,28 +6885,29 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (63): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (64): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, CorrectionWeights, CursorTrack, DateFormatting, EditorSession, EmojiKeywords,
   EmojiMix, EmojiNames, EmojiSynonyms, EnglishI, EventParser, ExecutionPolicy, FieldReport,
-  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords, InkDots,
-  InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve, RgbLighting,
-  RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding, SnippetTemplate,
-  SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition, TimerParser,
-  Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords,
+  InkCompletion, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols,
+  PendingBatchGate, PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve,
+  RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding,
+  SnippetTemplate, SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition,
+  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
+  Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (62): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (63): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, CorrectionWeightsTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest,
   EmojiKeywordsTest, EmojiMixTest, EnglishITest, EventParserTest, FieldReportTest,
   ForcedCorrectionTest, GermanShortFormsTest, GermanVerbAgreementTest, GermanVerbFormsTest,
-  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
+  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkCompletionTest, InkDotFlowTest, InkDotsTest,
+  InkFingerModel, InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
+  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
   OtherLanguageWordTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest,
   PlacesTest, QuestionCaptureTest, RareWordWeightsTest, ReleaseNotesTest, RgbCurveTest,
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,

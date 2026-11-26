@@ -12,9 +12,11 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
 
-- **100 Symbole ohne Verzögerung**: „Symbole/Zeichen braucht dringend Schnelligkeit. Aktuell ca. eine halbe Sekunde. Ziel mehr oder weniger
-  instant.“ Erst messen (Karte „Tippen“, welcher Weg: Symbolseite öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben), dann beheben; 84 hat
-  nur das Einfügen bei Wortende-Zeichen behandelt.
+- **100 Symbole ohne Verzögerung**: für **gemalte** Symbole gebaut (Runde 5, Auftrag „Minimiere realistisch die Latenz ab
+  Zeichnungsabschluss …“; `docs/FEATURES.md` → Symbole malen, Konzept `docs/SYMBOLE-TEMPO-KONZEPT.md`). Offen: die alte Lesart „Symbolseite
+  öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben“ (Karte „Tippen“; 84 hat nur das Einfügen bei Wortende-Zeichen behandelt), falls
+  der Owner sie meinte; Vorschlag „<“ und „>“ als eigene gemalte Symbole (ein allein gemalter Kopf ergibt heute „Nicht erkannt“ oder „)“);
+  Prüfung am Telefon des Owners (Diagnose → Karte „Symbole“).
 - **101 Rest**: Die zehn Fehlfälle vom 2026-11-25 sind gebaut, dazu 107 (seltene Wörter nach Gewichten) und 108 (Kurzformen mit Apostroph)
   (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“ (kein Wörterbuch und keine Liste kennt „gah“), „mocb“,
   „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Einträge im persönlichen Wörterbuch (Anzahl)“); Frage an den

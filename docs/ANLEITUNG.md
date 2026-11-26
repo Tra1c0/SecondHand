@@ -1084,9 +1084,19 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   78 Grad) „|“. Passt ein einfacheres Symbol, gewinnt es: Ein Strich mit nur einem Punkt bleibt „–“
   oder „/“, die Leiste bietet „÷“ oder „%“ höchstens als zweite Wahl an. Passt keines, nimmt die
   Tastatur das nächste Symbol, dem Teile fehlen (z. B. „?“ ohne Punkt oder „+“ in einem Zug).
+- Fertige Symbole kommen sofort (seit Etappe 100): Kann zu einer Zeichnung kein Strich mehr
+  dazukommen, der ein anderes Symbol ergibt, steht sie gleich nach dem Loslassen im Feld, zum
+  Beispiel ≤, ≥, ±, ÷ (nach dem zweiten Punkt), ∞, #, ? und ¿, meist auch ×, √, ♥, ★, &, ‰, { und }.
+  Alles, was noch weitergehen kann, wartet auf den nächsten Strich: „–“ (kann =, →, ÷ werden), „/“
+  (kann % werden), → (kann ↔ werden), % (kann ‰ werden), = (kann ≠ werden), ° (kann % werden). Die
+  Striche dürfen in beliebiger Reihenfolge und Richtung kommen: → aus „–“ und „>“ oder aus „>“ und
+  „–“, % aus „/“ und zwei Punkten in beliebiger Reihenfolge der Punkte (der Strich zuerst: ein Tipp
+  ohne Zeichnung ist ein Buchstabe). Was wartet, steht nicht vorab im Feld.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
-  ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
-  Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
+  ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (seit Etappe 100: etwa 2,2-mal deine
+  übliche Lücke vor einem Strich, mindestens aber 1,5-mal deine längste der letzten neun, mindestens
+  0,3 und höchstens 1,5 Sekunden; vorher 2,5-mal, mindestens 0,6). Setzt du den Rest eines Symbols
+  knapp zu spät an, merkt sich die Tastatur das, und die Pause wird länger. Kurze Striche zählen
   dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen, aber nur in der Nähe
   der Zeichnung (etwa ihre halbe Größe drumherum, mindestens drei Tasten breit). Tippst du weiter
   weg, kommt das Symbol und dann die Taste, so geht beim Weitertippen nichts verloren. Auf

@@ -127,9 +127,16 @@ object InkTap {
 
 /**
  * The pause after a stroke during which the next stroke still belongs to the same symbol. It starts
- * at [DEFAULT_MILLIS] and follows the user's pace: [FACTOR] times the median of the last [KEPT]
- * gaps between two strokes of one symbol (lift to next touch), between [MIN_MILLIS] and
- * [MAX_MILLIS]. Kept in memory only, never stored.
+ * at [DEFAULT_MILLIS] and follows the user's pace: the longer of [FACTOR] times the median and
+ * [LONGEST_FACTOR] times the longest of the last [KEPT] gaps between two strokes of one symbol (lift to
+ * next touch), between [MIN_MILLIS] and [MAX_MILLIS]. Kept in memory only, never stored.
+ *
+ * Stage 100: since a drawing that cannot go on is written at once (InkCompletion), this pause is only
+ * waited when a further stroke may come, and it is shorter: before, 2.5 × median and never under 600 ms
+ * (the owner's "about half a second"). The longest gap counts so that a hand whose gaps vary is not cut
+ * off; a stroke that came just too late (SymbolInk, late strokes) is added as a gap and makes the next
+ * pauses longer. Only gaps before a stroke count, not those between tapped dots (much shorter, review finding 1).
+ * The start stays 900 ms (owner feedback on build 14: 500 ms split his symbols).
  */
 class InkPace {
     private val gaps = ArrayDeque<Long>()
@@ -140,7 +147,7 @@ class InkPace {
         val sorted = gaps.sorted()
         val median = if (sorted.size % 2 == 1) sorted[sorted.size / 2].toDouble()
             else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2.0
-        return (median * FACTOR).toLong().coerceIn(MIN_MILLIS, MAX_MILLIS)
+        return maxOf(median * FACTOR, sorted.last() * LONGEST_FACTOR).toLong().coerceIn(MIN_MILLIS, MAX_MILLIS)
     }
 
     /** A further stroke of the same symbol started [gapMillis] after the previous one ended. */
@@ -157,9 +164,16 @@ class InkPace {
 
     companion object {
         const val DEFAULT_MILLIS = 900L
-        const val MIN_MILLIS = 600L
+        /** Stage 100: 300 instead of 600 ms; a pause is only waited when a further stroke may come. */
+        const val MIN_MILLIS = 300L
         const val MAX_MILLIS = 1500L
-        const val FACTOR = 2.5
+        /**
+         * Stage 100: 2.2 instead of 2.5 times the median, with [LONGEST_FACTOR] for hands whose gaps vary. Only gaps that
+         * were measured can count: a gap longer than the pause is never seen (it splits the symbol), so the estimate leans
+         * low; the longest gap times 1.5 keeps a margin above every gap seen (concept review, finding 1).
+         */
+        const val FACTOR = 2.2
+        const val LONGEST_FACTOR = 1.5
         const val KEPT = 9
         const val MIN_GAPS = 3
     }

@@ -29,7 +29,7 @@ danach (spekulativ). Ebenso: eine gewöhnliche Taste nach dem Symbol kommt verz�
 | Das Warten endet schon heute, sobald ein weiterer Strich aufsetzt (`onInkDown`) oder eine andere Taste gedrückt wird (`flush` in `beforeOtherInput`) | `SymbolInk.onInkDown`, `KeyboardActionListenerImpl` | richtig, bleibt |
 | Reihenfolge und Richtung der Striche sind dem Erkenner egal (`$P`-Punktwolke) | `C/InkRecognizer.kt` | → aus „–“ und „>“ in jeder Reihenfolge ist schon heute ein → (Test unten), % aus „/“ und zwei getippten Punkten auch (Etappe 43) |
 | Ein Tipp ohne wartende Zeichnung ist ein Buchstabe | `PointerTracker.startsInk` | % mit dem **Punkt zuerst** geht nicht (siehe 5) |
-| „-“ allein: es gibt kein Symbol „-“ (Bindestrich), ein waagrechter Strich ergibt „–“ (Gedankenstrich); „_“, „<“, „>“ gibt es nicht | `C/InkSymbols.kt` | „>“ allein ergibt „Nicht erkannt“ (Test unten) |
+| „-“ allein: es gibt kein Symbol „-“ (Bindestrich), ein waagrechter Strich ergibt „–“ (Gedankenstrich); „_“, „<“, „>“ gibt es nicht | `C/InkSymbols.kt` | „>“ allein ergibt je nach Form „Nicht erkannt“ oder „)“ (Tests unten) |
 
 Der Owner spürt „ca. eine halbe Sekunde“: das passt zur Untergrenze 600 ms, auf die ein geübter Finger nach drei Symbolen fällt.
 
@@ -62,13 +62,17 @@ kämen 5 Anfänge zu früh.
 
 ### 3b. Wenn etwas kommen kann: so lange, wie er zwischen zwei Strichen braucht
 
-`InkPace` neu: Wartezeit = max(1,8 × Median, 1,3 × längste) der letzten neun Lücken (Loslassen bis nächstes Aufsetzen innerhalb
-eines Symbols), begrenzt auf **250–1000 ms**, anfangs (unter drei Lücken) **600 ms** (die Untergrenze von heute, also nie länger als
-der Owner es kennt). Vorher 2,5 × Median, 600–1500, anfangs 900. Beispiel: Lücken um 200 ms, längste 300 → 390 ms statt 600.
+`InkPace` neu (nach der Kritik, Befund 1): Wartezeit = max(2,2 × Median, 1,5 × längste) der letzten neun Lücken vor einem
+**Strich** (Loslassen bis nächstes Aufsetzen innerhalb eines Symbols; Lücken zwischen getippten Punkten zählen nicht mehr, sie sind viel
+kürzer), begrenzt auf **300–1500 ms**, anfangs (unter drei Lücken) weiter **900 ms** (Rückmeldung zu Build 14: 500 ms teilten seine
+Symbole; der Test `aStrokeAfterMoreThanHalfASecondStillBelongsToTheSymbol` hält das fest). Vorher 2,5 × Median, 600–1500. Beispiel:
+Lücken 150–300 ms, Median 220 → max(484, 450) = 484 ms statt 600. Der Faktor 1,5 auf die längste Lücke hält Abstand zu jeder gesehenen
+Lücke, weil längere Lücken nie gemessen werden (sie teilen das Symbol).
 
-Nachzügler: Beginnt bis 1,5 s nach einer **nach der Wartezeit** geschriebenen Zeichnung eine neue Zeichnung nahe an ihr (im Bereich
-von `InkTap.nearDrawing`), war die Wartezeit vermutlich zu kurz: diese Lücke zählt wie eine Lücke im Symbol, die nächste Wartezeit
-wird also länger (1,3 × längste). Das Geschriebene bleibt, wie es ist (nie automatisch ersetzen). Gezählt wird das für die Diagnose.
+Nachzügler: Beginnt bis zur doppelten Wartezeit nach einer **nach der Wartezeit** geschriebenen Zeichnung eine neue Zeichnung nahe an ihr
+(`InkTap.nearDrawing`) **und ergeben beide zusammen ein anderes angenommenes Symbol** (nach der Kritik: „–“ und ein Kopf → „→“; „!“ nach
+„!“ nicht), war die Wartezeit zu kurz: diese Lücke zählt als Lücke, die nächsten Wartezeiten werden länger (1,5 × längste). Das
+Geschriebene bleibt, wie es ist (nie automatisch ersetzen). Gezählt wird das für die Diagnose („Nachzügler“).
 
 ### 3c. Messpunkte (zuerst, ohne Verhaltensänderung)
 
@@ -91,12 +95,12 @@ gesagt). G = Gerätetest im Emulator mit echten Berührungen, U = Unit-Test mit 
 | --- | --- | --- | --- | --- | --- |
 | 1 | wie oben | „<“ und Strich darunter (≤), Lücke 200 ms | ≤ steht im Feld kurz nach dem Loslassen (Weg „sofort“, unter 100 ms Rechenzeit) | wartet 600 ms | U, G (Zeit, Weg) |
 | 2 | wie oben | ∞ in einem Zug | sofort | wartet | U, G |
-| 3 | wie oben | „–“ dann „>“ (→), 200 ms Lücke | genau ein →, nach der Wartezeit (anfangs 600, gelernt ≈ 400 ms) | „–“ und ein zweites Zeichen; → zweimal | U, G (ein Feldwechsel, nicht vor dem Loslassen) |
+| 3 | wie oben | „–“ dann „>“ (→), 200 ms Lücke | genau ein →, nach der Wartezeit (anfangs 900, gelernt ≈ 450–500 ms) | „–“ und ein zweites Zeichen; → zweimal | U, G (ein Feldwechsel, nicht vor dem Loslassen) |
 | 4 | wie oben | „>“ zuerst, dann „–“ von rechts nach links | genau ein → | „Nicht erkannt“ nach „>“ | U, G |
 | 5 | wie oben | „/“, dann zwei Punkte getippt (in beiden Reihenfolgen der Punkte) | genau ein %, nach der Wartezeit (‰ ist möglich) | „/“ und Buchstaben; % plus Buchstabe | U, G |
 | 6 | wie oben | „–“ dann zwei Punkte (÷) | ÷ sofort nach dem zweiten Punkt | wartet; „–“ plus Buchstaben | U, G |
 | 7 | wie oben | nur „–“, nichts weiter | „–“ nach der Wartezeit | nie; sofort (dann wird ein = unmöglich) | U, G |
-| 8 | wie oben | „–“, Pause 1,5 s, dann „>“ | „–“, danach getrennt „Nicht erkannt“ (kein →); Nachzügler gezählt, nächste Wartezeit länger | ein → aus zwei getrennten Zeichnungen | U, G |
+| 8 | wie oben | „–“, Pause 1,5 s, dann „>“ | „–“, danach getrennt „)“ oder „Nicht erkannt“ (kein →); Nachzügler gezählt, nächste Wartezeiten länger | ein → aus zwei getrennten Zeichnungen | U, G |
 | 9 | wie oben | „–“, dann sofort ein Buchstabe weit weg | „–“ und der Buchstabe, sofort beim Aufsetzen | Buchstabe wartet | G (vorhanden: `flush`) |
 | 10 | wie oben | jede Zeichnung des Finger-Modells (alle 47 Symbole, Richtung, Reihenfolge, Größe 1,2–4 Tasten, Zittern) | kein echter Anfang wird sofort geschrieben | Früheingabe | U (`InkCompletionTest`, 8619 Anfänge) |
 | 11 | wie oben | schnelle (80 ms) und langsame (700 ms) Striche, kleine (1,5 Tasten) und große (5 Tasten) Zeichnung | gleiches Ergebnis wie normal | schneller Strich wird Tipp | G, U |
@@ -111,14 +115,16 @@ gesagt). G = Gerätetest im Emulator mit echten Berührungen, U = Unit-Test mit 
   normale Tippen verzögern, ihn später zu löschen wäre ein automatisches Ersetzen. Daher: % aus „/“ und zwei Punkten in jeder
   Reihenfolge der Punkte, aber der Strich zuerst; ein kleiner Kreis statt eines Punktes geht auch zuerst (er ist ein Strich). Wie
   bisher seit 43.
-- **„>“ allein** ergibt weiter „Nicht erkannt“. Vorschlag an den Owner (nicht gebaut): „<“ und „>“ als eigene Symbole (stehen seit 83
+- **„>“ allein** ergibt weiter „Nicht erkannt“ oder, je nach Form, „)“ (der Kopf von ⇒ gleicht einer Klammer). Vorschlag an den Owner (nicht gebaut): „<“ und „>“ als eigene Symbole (stehen seit 83
   als fehlend in der Roadmap); das würde einen allein gemalten Kopf zu „>“ machen und kann ) und ✓ Treffer wegnehmen.
 - **„-“ und „–“**: ein gemalter Strich ist der Gedankenstrich „–“. Der Bindestrich „-“ von der Symbolseite danach kollidiert nicht:
   der Wechsel zur Symbolseite ist eine Taste und schreibt das wartende „–“ zuerst; auf der Symbolseite wird nicht gemalt.
 - **Warum nicht „sofort und notfalls ersetzen“**: Das wäre spekulatives Eingeben, das der Owner ausdrücklich nicht will, und ein
   automatisches Ersetzen von Editortext (`CLAUDE.md`).
-- **Warum keine Wartezeit unter 250 ms**: Unter etwa 250 ms fängt auch ein schneller Finger den nächsten Strich nicht mehr sicher;
-  der Gewinn wäre klein, ein geteiltes Symbol teuer.
+- **Warum keine Wartezeit unter 300 ms**: Darunter fängt auch ein schneller Finger den nächsten Strich nicht mehr sicher; der Gewinn
+  wäre klein, ein geteiltes Symbol teuer.
+- **Ehrlich zum Gewinn** (Randnotiz der Kritik): Die drei Symbole, die der Owner am ehesten malt (→, %, =), können weitergehen (↔, ‰, ≠)
+  und warten weiter, nur kürzer (3b). „Sofort“ gilt für ≤ ≥ ± ÷ ∞ # ? ¿, meist auch × √ ♥ ★ & ‰ { }.
 - Eingriff: `PointerTracker`, `InputLogic`, `RichInputConnection` bleiben unberührt. Geändert werden `SymbolInk`, `SymbolDrawing`,
   `InkPace`, neu `InkCompletion`, `SymbolPerf`; `LatinIME.dump` bekommt eine Zeile.
 
@@ -130,3 +136,17 @@ gesagt). G = Gerätetest im Emulator mit echten Berührungen, U = Unit-Test mit 
 - G: `symbol_draw_latency` und `symbol_draw_variants` in `tools/devicetest/devicetest.py`; Kontrolllauf: der letzte Strich jeder
   Zeichnung fällt weg, dann muss jedes Szenario scheitern.
 - Messung vorher (Stand `main` 9228c5a0 plus nur Messpunkte) und nachher, Zahlen in `docs/VALIDATION.md`.
+
+## 7. Kritik vor dem Bau und was daraus wurde
+
+Ein Prüfer (eigene Sitzung, Modell Opus, nur lesend) hat das Konzept gelesen. Befunde und Einarbeitung:
+
+1. **hoch, Wartezeit lernt zu kurz** (Punkt-Lücken mischen sich ein; längere Lücken werden nie gemessen; Nachzügler-Regel schon bei
+   bloßer Nähe): Punkt-Lücken zählen nicht mehr; Faktoren 2,2 × Median und 1,5 × längste, Untergrenze 300 statt 250, Anfang 900; ein
+   Nachzügler zählt nur, wenn beide Zeichnungen zusammen ein anderes angenommenes Symbol ergeben (`Sink.joins`). Tests: `InkTimingTest`.
+2. **mittel, Eichung nur am Finger-Modell**: zusätzlicher Test mit 40 persönlichen Symbolen aus Finger-Zeichnungen
+   (`InkCompletionTest.noTrueBeginningIsTakenAsFinishedWithPersonalTemplatesOfAShakyHand`): 0 von 2690 Anfängen zu früh; der Anfang, den
+   nur die Teile-Prüfung zurückhielt und der am weitesten von einem Teil lag, lag bei 1,57 (Grenze 2,0). ⇒ mit dem Kopf zuerst ist im
+   Finger-Modell enthalten (Reihenfolge zufällig). Ein eigenes Symbol, das ein sonst fertiges Symbol fortsetzt, lässt es warten (Test).
+3. **niedrig, Warteschlange**: eine Prüfung für einen älteren Zustand wird auf dem Hilfs-Thread übersprungen (`SymbolInk.currentSerial`);
+   Doppel- oder Verlust-Eingaben sah der Prüfer nicht (Zähler bei jedem Strichbeginn, Schreiben, Verwerfen, Chip).

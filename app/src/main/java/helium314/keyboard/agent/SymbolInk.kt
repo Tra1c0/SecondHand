@@ -12,6 +12,7 @@ import dev.agentkeyboard.core.InkPace
 import dev.agentkeyboard.core.InkStroke
 import dev.agentkeyboard.core.InkSymbols
 import dev.agentkeyboard.core.InkTap
+import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.common.InputPointers
 import helium314.keyboard.latin.settings.Settings
 import java.lang.ref.WeakReference
@@ -59,6 +60,17 @@ object SymbolInk {
          * only for a single stroke right after typing, which is otherwise typed as its key ([onStartAfterTyping]).
          */
         fun recognizes(strokes: List<InkStroke>): Boolean = true
+        /**
+         * Stage 100: whether [stroke], the first stroke of a new drawing, makes a symbol together with [before], the drawing
+         * written just before (concept review, finding 1: only then a new drawing close to it is a late stroke of it).
+         */
+        fun joins(before: List<InkStroke>, stroke: InkStroke): Boolean = false
+        /**
+         * Stage 100: a stroke (or a possible dot) ended; the waiting drawing is [strokes]. The sink checks off the main
+         * thread whether it is finished (nothing can follow, InkCompletion) and then calls [onFinished] with [serial]:
+         * the drawing is written at once instead of after the pause. Without an answer the pause applies.
+         */
+        fun onStrokeEnded(strokes: List<InkStroke>, possibleDots: List<Int>, serial: Int) {}
     }
 
     private var sinkRef: WeakReference<Sink>? = null
@@ -124,6 +136,31 @@ object SymbolInk {
     /** The gap before the continuation stroke being drawn; it counts for the pace only if that is a stroke. */
     private var inkGap = -1L
 
+    /**
+     * Stage 100: changes with every change of the waiting drawing (a stroke begins or ends, it is written or dropped), so
+     * an answer of [Sink.onStrokeEnded] for an older state is ignored ([onFinished]).
+     */
+    @Volatile private var serial = 0
+
+    /** Stage 100: the state of the waiting drawing now; a check for an older one is skipped on the worker. */
+    @JvmStatic val currentSerial: Int get() = serial
+
+    /**
+     * Stage 100: the drawing written last after the pause or at once, its strokes and when its last stroke ended, to notice
+     * a late stroke ([LATE_PAUSES]); null after any other way of writing or once a new drawing started.
+     */
+    private class Written(val strokes: List<InkStroke>, val strokeEnd: Long, val way: SymbolPerf.Way)
+    private var written: Written? = null
+    /** Stage 100: when the first stroke of the drawing now being drawn started as ink (uptime), or -1. */
+    private var batchStart = -1L
+
+    /**
+     * Stage 100: a new drawing that starts within this many pauses after a drawing was written after the pause, near it
+     * and making another symbol with it, was probably its next stroke, just too late: its gap counts for the pace (so the
+     * next pauses get longer). Later than that it is a new symbol after a moment of thought.
+     */
+    const val LATE_PAUSES = 2.0
+
     /** True when the setting is on; gesture typing is then off (SettingsValues). */
     @JvmStatic fun isEnabled(): Boolean = Settings.getValues()?.mSymbolDrawing == true
 
@@ -175,6 +212,8 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
         afterTyping = null
+        serial++
+        batchStart = SystemClock.uptimeMillis()
     }
 
     /**
@@ -202,7 +241,28 @@ object SymbolInk {
         for (i in 0 until size) if (ids[i] == first) {
             coordinates[next++] = xs[i].toFloat(); coordinates[next++] = ys[i].toFloat()
         }
+        if (group.isEmpty) noteLateStroke(coordinates)
         add(InkStroke(coordinates))
+    }
+
+    /**
+     * Stage 100: the first stroke of a new drawing (its points [coordinates]) began shortly after a drawing was written
+     * and near it: was the pause too short? After the pause its gap counts for the pace; counted for the diagnostics
+     * either way. What was written stays (never replaced automatically).
+     */
+    private fun noteLateStroke(coordinates: FloatArray) {
+        val last = written ?: return
+        written = null
+        val start = batchStart
+        if (start < 0 || coordinates.size < 2) return
+        val gap = start - last.strokeEnd
+        if (gap < 0 || gap > pace.pauseMillis * LATE_PAUSES) return
+        val keyWidth = runCatching { KeyboardSwitcher.getInstance().keyboard?.mMostCommonKeyWidth }.getOrNull() ?: 0
+        if (!InkTap.nearDrawing(last.strokes, coordinates[0], coordinates[1], keyWidth.toFloat())) return
+        // only when both make another symbol together ("–" and a head: "→"); "!" after "!" is a new symbol
+        if (sink?.joins(last.strokes, InkStroke(coordinates)) != true) return
+        SymbolPerf.late(last.way)
+        if (last.way == SymbolPerf.Way.PAUSE) pace.onGap(gap)
     }
 
     /** HeliBoard gave up the gesture (moved far above the keyboard, cancelled touch): no symbol. */
@@ -252,6 +312,7 @@ object SymbolInk {
     @JvmStatic fun onInkDown(pointerId: Int, x: Int, y: Int) {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        serial++
         inkGap = if (lastStrokeEnd >= 0) SystemClock.uptimeMillis() - lastStrokeEnd else -1
         inkPointer = pointerId
         sink?.onStrokeStarted()
@@ -324,6 +385,8 @@ object SymbolInk {
         if (!isWaiting || inkPointer >= 0) return false
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        serial++
+        written = null
         val ended = lastStrokeEnd
         lastStrokeEnd = -1
         afterTyping = null // the chip was picked: a symbol
@@ -337,6 +400,8 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
         val hadStrokes = !group.isEmpty
+        serial++
+        written = null
         group.clear()
         possible.clear()
         afterTyping = null
@@ -366,6 +431,18 @@ object SymbolInk {
         schedule()
         handler.removeCallbacksAndMessages(previewToken)
         handler.postAtTime(preview, previewToken, now + PREVIEW_DELAY_MILLIS)
+        // stage 100: may it be written at once? The sink answers with onFinished (off the main thread)
+        serial++
+        sink?.onStrokeEnded(group.drawn, possible.map { it.index }, serial)
+    }
+
+    /**
+     * Stage 100, the sink: the drawing as it was at [answer] is finished (nothing can follow it). Written at once if it
+     * is still exactly that drawing: no stroke began since, it was not written or dropped, and no stroke is on the keys.
+     */
+    @JvmStatic fun onFinished(answer: Int) {
+        if (answer != serial || group.isEmpty || inkPointer >= 0) return
+        finish(SymbolPerf.Way.INSTANT)
     }
 
     private fun schedule() {
@@ -379,13 +456,17 @@ object SymbolInk {
     private fun finish(way: SymbolPerf.Way) {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        serial++
         val ended = lastStrokeEnd
         lastStrokeEnd = -1
         val typed = afterTyping
         afterTyping = null
         if (group.isEmpty) return
+        val drawn = group.drawn
         resolve(typed) { strokes, _ -> sink?.onDrawing(strokes) }
         SymbolPerf.written(way, if (ended >= 0) SystemClock.uptimeMillis() - ended else -1)
+        // stage 100: a new drawing right after this one may show that the pause was too short (noteLateStroke)
+        written = if (ended >= 0 && (way == SymbolPerf.Way.PAUSE || way == SymbolPerf.Way.INSTANT)) Written(drawn, ended, way) else null
     }
 
     /**
@@ -410,10 +491,9 @@ object SymbolInk {
             for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
             return
         }
-        if (kept) {
-            for (tap in taps) if (tap.gap >= 0) pace.onGap(tap.gap)
-            return write(strokes, strokes.size)
-        }
+        // stage 100 (concept review, finding 1): the gaps between tapped dots no longer count for the pace; they are much
+        // shorter than those before a stroke and made the pause too short for the next arrow
+        if (kept) return write(strokes, strokes.size)
         write(drawing, strokes.size)
         for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
     }

@@ -7273,11 +7273,98 @@ class InputLogicTest {
         setText("a ")
         drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
         symbolInk.onInkDown(0, 150, 40); assertFalse(symbolInk.onInkUp(0, 150, 40))
+        assertTrue(symbolInk.isWaiting) // stage 100: a dash with one dot may still get its second one
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        handleMessages()
+        assertTrue(symbolInk.isWaiting)
         symbolInk.onInkDown(0, 152, 160); assertFalse(symbolInk.onInkUp(0, 152, 160))
-        afterPreview()
-        assertEquals(symbolDrawing.PREVIEW_MARK + "÷", chipLabels(symbolChips()!!).first())
-        afterThePause()
+        // stage 100: ÷ cannot go on, so it is written right after the second dot (the check's answer is posted, no
+        // time passes), not after the pause (before: the preview chip "✎ ÷" showed and the pause wrote it)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        handleMessages()
         assertEquals("a ÷", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a ÷", text) // written once
+    }
+
+    // stage 100: "≤" drawn as "<" and a bar: nothing can follow it
+    private val lessOrEqualStrokes = arrayOf(floatArrayOf(255f, 18f, 45f, 108f, 255f, 198f), floatArrayOf(45f, 276f, 255f, 276f))
+
+    private fun idleMain() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+    @Test fun symbolDrawFinishedSymbolIsWrittenRightAfterItsLastStrokeAndOnlyOnce() {
+        // stage 100: no pause for a symbol that cannot go on; its first stroke alone still waits
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(lessOrEqualStrokes[0])
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        drawStrokes(lessOrEqualStrokes[1])
+        idleMain(); handleMessages() // no time passes: only the posted answer of the check
+        assertEquals("a ≤", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a ≤", text) // written once
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawArrowWaitsForAPossibleSecondHeadThenComesOnce() {
+        // stage 100: "→" can become "↔", so it waits for the pause, and nothing is written before
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(*arrowStrokes)
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        afterThePause()
+        assertEquals("a →", text)
+    }
+
+    @Test fun symbolDrawAStrokeJustTooLateLengthensThePauseAndChangesNothingWritten() {
+        // stage 100: the head of an arrow that comes just after the dash was written: the dash stays, the gap counts
+        enableSymbolDrawing()
+        symbolInk.resetPace()
+        try {
+            setText("a ")
+            val late = helium314.keyboard.agent.SymbolPerf.lateCounts().first
+            drawStrokes(arrowStrokes[0])
+            afterThePause()
+            assertEquals("a –", text)
+            assertEquals(0, symbolInk.pauseGaps)
+            drawStrokes(arrowStrokes[1]) // 1.6 s after the dash: within two pauses, near it, and both make "→"
+            assertEquals(late + 1, helium314.keyboard.agent.SymbolPerf.lateCounts().first)
+            assertEquals(1, symbolInk.pauseGaps)
+            afterThePause()
+            assertTrue(text.startsWith("a –") && "→" !in text, text)
+        } finally {
+            symbolInk.resetPace()
+        }
+    }
+
+    @Test fun symbolDrawAnAnswerForAnOlderDrawingWritesNothing() {
+        // stage 100: the check of "≤" comes back only after a further stroke began: that stroke's drawing is not written
+        enableSymbolDrawing()
+        val tasks = ArrayList<Runnable>()
+        symbolDrawing.previewExecutor = java.util.concurrent.Executor { tasks += it }
+        setText("a ")
+        drawStrokes(*lessOrEqualStrokes)
+        symbolInk.onInkDown(0, 150, 150) // a further stroke begins near the drawing
+        tasks.forEach { it.run() }
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        symbolInk.cancel()
+        tasks.clear()
+        // the same with the answer posted before the stroke began, but handled after it
+        symbolDrawing.previewExecutor = java.util.concurrent.Executor { it.run() }
+        drawStrokes(*lessOrEqualStrokes) // the answer is posted, not yet handled
+        symbolInk.onInkDown(0, 150, 150)
+        idleMain(); handleMessages()
+        assertTrue(symbolInk.isWaiting)
+        assertEquals("a ", text)
+        symbolInk.cancel()
     }
 
     @Test fun symbolDrawPreviewChipWithAPossibleDotWritesTheSymbolThenTheLetter() = withTapper {

@@ -38,7 +38,7 @@
     <string name="agent_diagnose_gestures_off_dictionary">aus: kein Hauptwörterbuch für diese Sprache</string>
     <string name="agent_diagnose_gestures_off_talkback">aus: TalkBack „Tippen und Entdecken“</string>
     <!-- stage 100: speed of drawn symbols, numbers only -->
-    <string name="agent_diagnose_symbol_ways">Geschrieben: sofort / nach Pause / per Taste / per Chip</string>
+    <string name="agent_diagnose_symbol_ways">Geschrieben sofort / nach Pause / per Taste / per Chip</string>
     <string name="agent_diagnose_symbol_latency">Loslassen bis Text (Median)</string>
     <string name="agent_diagnose_symbol_latency_value">sofort %1$s, nach Pause %2$s</string>
     <string name="agent_diagnose_symbol_pause">Pause für weitere Striche jetzt</string>
