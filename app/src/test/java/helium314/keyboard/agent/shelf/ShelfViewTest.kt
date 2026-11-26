@@ -330,6 +330,28 @@ class ShelfViewTest {
         assertEquals(saved, Shelf.state)
     }
 
+    @Test fun insideAFolderAwayAndBackToTheStartChangesNothingAlsoWithTheViewsRelaidOut() {
+        // device test run 45802882053: the slot came from the view under the finger, which moved while the others made room
+        val view = open(4) // 4 3 2 1
+        val (fx, fy) = centre(view, tiles(view).single())
+        touch(view, MotionEvent.ACTION_DOWN, fx, fy)
+        touch(view, MotionEvent.ACTION_UP, fx, fy)
+        layout(view)
+        val cells = folderTiles(view)
+        val start = centre(view, cells[0])
+        val away = centre(view, cells[2])
+        val before = Shelf.state
+        touch(view, MotionEvent.ACTION_DOWN, start.first, start.second)
+        hold(ShelfUi.LIFT_MS + 50)
+        for (i in 1..6) { touch(view, MotionEvent.ACTION_MOVE, start.first + (away.first - start.first) * i / 6, start.second); hold(20) }
+        layout(view) // the others have made room: the views now stand elsewhere
+        for (i in 5 downTo 0) { touch(view, MotionEvent.ACTION_MOVE, start.first + (away.first - start.first) * i / 6, start.second); hold(20) }
+        layout(view)
+        touch(view, MotionEvent.ACTION_UP, start.first, start.second)
+        hold(400)
+        assertEquals(before, Shelf.state)
+    }
+
     @Test fun heldOverToTheClipboardTheFolderClosesAndTheDropMakesTheScreenshotLoose() {
         val view = open(4)
         val (fx, fy) = centre(view, tiles(view).single())

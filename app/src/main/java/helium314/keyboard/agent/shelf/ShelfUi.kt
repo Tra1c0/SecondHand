@@ -152,7 +152,7 @@ class ShelfUi(
     }
     private val grid = RecyclerView(context).apply {
         id = R.id.agent_shelf_grid
-        layoutManager = GridLayoutManager(context, 3)
+        layoutManager = GridLayoutManager(context, GRID_COLUMNS)
         adapter = folderAdapter
         clipToPadding = false
         setPadding(m(5), 0, m(5), m(8))
@@ -585,10 +585,9 @@ class ShelfUi(
             }
             val shot = grabbed?.shot ?: return ShelfTarget.None
             val members = folderAdapter.items.mapNotNull { (it as? ShelfItem.Card)?.shot?.id }
-            val view = childUnder(grid, x, y)
-            // the slot under the finger as it is drawn (layout position), whichever screenshot is there now
-            val slot = view?.let { grid.getChildViewHolder(it)?.layoutPosition }?.takeIf { it >= 0 }
-                ?: return (drag.target as? ShelfTarget.Order) ?: ShelfTarget.Order(open, members)
+            // the slot under the finger from the grid's geometry, not from the views: while the others make room they are
+            // animated, and a view moving away under the finger would flip the order back and forth (device test run 45802882053)
+            val slot = slotAt(x, y, members.size) ?: return (drag.target as? ShelfTarget.Order) ?: ShelfTarget.Order(open, members)
             val order = members.filter { it != shot }.toMutableList()
             order.add(slot.coerceIn(0, order.size), shot)
             return ShelfTarget.Order(open, order)
@@ -601,6 +600,23 @@ class ShelfUi(
             return if (key.startsWith("f")) ShelfTarget.Folder(id) else ShelfTarget.Card(id)
         }
         return if (rectIn(list).contains(x, y)) ShelfTarget.Out else ShelfTarget.None
+    }
+
+    /** The cell of the folder grid under (x, y): rows of [GRID_COLUMNS] square cells, counting what is scrolled away. */
+    private fun slotAt(x: Float, y: Float, count: Int): Int? {
+        if (count == 0) return null
+        val bounds = rectIn(grid)
+        if (!bounds.contains(x, y)) return null
+        val cell = (grid.width - grid.paddingLeft - grid.paddingRight) / GRID_COLUMNS.toFloat()
+        if (cell <= 0f) return null
+        val first = (0 until grid.childCount).map { grid.getChildAt(it) }.firstOrNull()
+        val row = first?.let { child ->
+            val params = child.layoutParams as ViewGroup.MarginLayoutParams
+            (child.height + params.topMargin + params.bottomMargin).toFloat()
+        }?.takeIf { it > 0f } ?: cell
+        val column = ((x - bounds.left - grid.paddingLeft) / cell).toInt().coerceIn(0, GRID_COLUMNS - 1)
+        val line = ((y - bounds.top - grid.paddingTop + grid.computeVerticalScrollOffset()) / row).toInt().coerceAtLeast(0)
+        return (line * GRID_COLUMNS + column).coerceAtMost(count - 1)
     }
 
     private fun startDrag(grab: ShelfDrag.Grab.Shot) {
@@ -739,5 +755,6 @@ class ShelfUi(
         private const val ZONE_DP = 48
         const val LIFT_MS = 350L
         private const val FRAME_MS = 16L
+        private const val GRID_COLUMNS = 3
     }
 }
