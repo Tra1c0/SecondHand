@@ -2472,15 +2472,18 @@ def ink_report():
         raise DeviceError("no ink report: %r" % text[:160])
 
 
-def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, control_drop=-1, settle=INK_SETTLE, check=None):
-    """Draws [strokes] with real touches in a fresh text field and checks the field: exactly [expected] (or [check] on the
-    text), reached in one change, not before the last lift. Logs the timing; returns (keyboard entries, field latency)."""
+def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, control_drop=-1, settle=INK_SETTLE, check=None, way=None):
+    """Draws [strokes] with real touches in the text field (one field per scenario: a fresh test app for every case cost
+    too much time) and checks what came after the text that was there: exactly [expected] (or [check] on it), reached in
+    one change, not before the last lift. With [way] ("i" at once, "p" after the pause) the keyboard must
+    have written it that way (stage 100), at once well before the shortest pause. Logs the timing; returns (keyboard
+    entries, field latency)."""
     if d.control and strokes:
         drop = control_drop % len(strokes)
         strokes = strokes[:drop] + strokes[drop + 1:]
         if isinstance(gaps, (list, tuple)):
             gaps = list(gaps[:max(0, drop - 1)]) + list(gaps[drop:]) if drop else list(gaps[1:])
-    _fresh_field(d)
+    start_text = d.field("text")
     before = symbol_perf()
     if strokes:
         spec, end = ink_spec(box, strokes, gaps, durations)
@@ -2501,7 +2504,9 @@ def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, contr
             texts.append((change.get("t"), change.get("text")))
     planned = report.get("plannedEnd", -1)
     first = texts[0][0] - planned if texts and planned > 0 else None
-    field = texts[-1][1] if texts else ""
+    field = texts[-1][1] if texts else start_text
+    if field.startswith(start_text):
+        field = field[len(start_text):]
     log("INFO symbol %s/%s: keyboard %s, field %s ms after the planned last lift (gesture done %s ms after it), "
         "%d field change(s), pause now %s ms from %s gaps, check %s ms" % (
             d.name, name, ",".join("%s%d" % e for e in entries) or "nothing", first,
@@ -2515,6 +2520,10 @@ def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, contr
         # no early and no second input: one change, after the last lift
         d.expect_equal("%s: changes of the field %s" % (name, [t for _, t in texts]), len(texts), 1)
         d.expect_equal("%s: the symbol came after the last lift (%s ms)" % (name, first), first is not None and first >= -5, True)
+    if way is not None:
+        d.expect_equal("%s: written as %s" % (name, entries), entries[-1][0] if entries else None, way)
+        if way == "i":  # at once: far less than the shortest pause there is (300 ms), measured by the keyboard
+            d.expect_equal("%s: at once (%s ms after the lift)" % (name, entries[-1][1]), entries[-1][1] < 250, True)
     return entries, first
 
 
@@ -2578,6 +2587,7 @@ def symbol_draw_latency(d):
     tapped dots, ÷, ≤, ∞, =, a lone "–". The timings go to the log (INFO symbol …), the frames of the drawing too."""
     d.start("symbol_draw_latency")
     _symbol_drawing_on(d)
+    _fresh_field(d)
     box = InkBox(d)
     _frames_reset()
     draw_symbol(d, "arrow dash then head", box, [INK_DASH, INK_HEAD], "→")
@@ -2599,6 +2609,7 @@ def symbol_draw_variants(d):
     right after a stroke (the symbol first, at once)."""
     d.start("symbol_draw_variants")
     _symbol_drawing_on(d)
+    _fresh_field(d)
     box = InkBox(d)
     _frames_reset()
     draw_symbol(d, "arrow fast strokes", box, [INK_DASH, INK_HEAD], "→", durations=[70, 80])
@@ -2607,8 +2618,9 @@ def symbol_draw_variants(d):
     draw_symbol(d, "less or equal large", InkBox(d, 1.45), [INK_LESS, INK_BAR_LOW], "≤")
     pause = symbol_perf().get("pauseNow", 600)
     draw_symbol(d, "arrow gap 70 percent of the pause", box, [INK_DASH, INK_HEAD], "→", gaps=int(pause * 0.7))
-    # far over the pause: the dash is written alone, the head on its own is no arrow (control: the dash is left out)
-    draw_symbol(d, "dash, long pause, head", box, [INK_DASH, INK_HEAD], None, gaps=pause + 900, control_drop=0,
+    # far over the pause (and over two pauses: no late stroke that would lengthen the pause): the dash is written alone, the
+    # head on its own is no arrow (control: the dash is left out)
+    draw_symbol(d, "dash, long pause, head", box, [INK_DASH, INK_HEAD], None, gaps=2 * pause + 400, control_drop=0,
                 check=lambda text: text.startswith("–") and "→" not in text)
     draw_symbol(d, "slash alone", box, [INK_SLASH], "/")
     # a letter key far right of the drawing, 120 ms after the stroke: the dash is written at once, then the letter
