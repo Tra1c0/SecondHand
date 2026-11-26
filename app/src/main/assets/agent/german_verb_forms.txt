@@ -1,0 +1,447 @@
+# UniMorph German contributors, based on English Wiktionary contributors; sein and tun: standard paradigm
+# Source: https://github.com/unimorph/deu/blob/d226d2112d3490d8f04ece10d4538123d4297a39/deu
+# Adaptation: the finite forms that differ from the regular pattern of GermanVerbs.kt (tools/build_german_lexicon.py)
+# CC BY-SA 3.0: https://creativecommons.org/licenses/by-sa/3.0/
+abkönnen	C1=könne	C2=könnest	C3=könne	C4=können	C5=könnet	C6=können	P4=können	P6=können	k=könnte	p1=kann	p2=kannst	p3=kann	p5=könnt	t=konnte
+ankönnen	C1=könne	C2=könnest	C3=könne	C4=können	C5=könnet	C6=können	P4=können	P6=können	k=könnte	p1=kann	p2=kannst	p3=kann	p5=könnt	t=konnte
+bedenken	k=bedächte	t=bedachte
+bedürfen	K1=bedürfte	K2=bedürftest	K3=bedürfte	K4=bedürften	K5=bedürftet	K6=bedürften	p1=bedarf	p2=bedarfst	p3=bedarf	t=bedurfte
+befallen	k=befiele	p2=befällst	p3=befällt	t=befiel
+befehlen	k=befähle	p2=befiehlst	p3=befiehlt	t=befahl
+befinden	k=befände	t=befand
+begeben	k=begäbe	p2=begibst	p3=begibt	t=begab
+begehen	k=beginge	t=beging
+begießen	k=begösse	t=begoss
+beginnen	k=begänne	t=begann
+begleichen	k=begliche	t=beglich
+begraben	k=begrübe	p2=begräbst	p3=begräbt	t=begrub
+begreifen	k=begriffe	t=begriff
+behalten	k=behielte	p2=behältst	p3=behält	t=behielt
+beheben	k=behöbe	t=behob
+behelfen	k=behülfe	p2=behilfst	p3=behilft	t=behalf
+beissen	k=bisse	t=biss
+beißen	k=bisse	t=biss
+bekennen	K1=bekennte	K2=bekenntest	K3=bekennte	K4=bekennten	K5=bekenntet	K6=bekennten	t=bekannte
+bekommen	k=bekäme	t=bekam
+beladen	k=belüde	p2=belädst	p3=belädt	t=belud
+belassen	k=beließe	p2=belässt	p3=belässt	t=beließ
+belaufen	k=beliefe	p2=beläufst	p3=beläuft	t=belief
+beleihen	k=beliehe	t=belieh
+belügen	k=belöge	t=belog
+benehmen	k=benähme	p2=benimmst	p3=benimmt	t=benahm
+benennen	K1=benennte	K2=benenntest	K3=benennte	K4=benennten	K5=benenntet	K6=benennten	t=benannte
+beraten	k=beriete	p2=berätst	p3=berät	t=beriet
+berechnen	k=berechnete	p2=berechnest	p3=berechnet	p5=berechnet	t=berechnete
+bergen	k=bärge	p2=birgst	p3=birgt	t=barg
+berufen	k=beriefe	t=berief
+bescheiden	k=beschiede	t=beschied
+beschiessen	k=beschösse	t=beschoss
+beschießen	k=schösse	t=beschoss
+beschlagen	k=beschlüge	p2=beschlägst	p3=beschlägt	t=beschlug
+beschließen	T2=beschlossest	k=beschlösse	t=beschloss
+beschneiden	k=beschnitte	t=beschnitt
+beschreiben	k=beschriebe	t=beschrieb
+beschreiten	k=beschritte	t=beschritt
+beschwören	K4=beschwüren	K6=beschwüren	k=beschwöre	t=beschwor
+besehen	k=besähe	p2=besiehst	p3=besieht	t=besah
+besinnen	k=besänne	t=besann
+besitzen	k=besäße	t=besaß
+besprechen	k=bespräche	p2=besprichst	p3=bespricht	t=besprach
+bestechen	k=bestäche	p2=bestichst	p3=besticht	t=bestach
+bestehen	k=bestünde	t=bestand
+bestehlen	k=bestähle	p2=bestiehlst	p3=bestiehlt	t=bestahl
+besteigen	k=bestiege	t=bestieg
+bestreichen	k=bestriche	t=bestrich
+bestreiten	k=bestritte	t=bestritt
+betragen	k=betrüge	p2=beträgst	p3=beträgt	t=betrug
+betreffen	k=beträfe	p2=betriffst	p3=betrifft	t=betraf
+betreiben	k=betriebe	t=betrieb
+betreten	k=beträte	p2=betrittst	p3=betritt	t=betrat
+betrinken	k=betränke	t=betrank
+betrügen	k=betröge	t=betrog
+beweisen	k=bewiese	t=bewies
+bewerben	k=bewürbe	p2=bewirbst	p3=bewirbt	t=bewarb
+bewerfen	k=bewürfe	p2=bewirfst	p3=bewirft	t=bewarf
+beyssen	k=bisse	t=biss
+beyßen	k=bisse	t=biss
+bezeichnen	k=bezeichnete	p2=bezeichnest	p3=bezeichnet	p5=bezeichnet	t=bezeichnete
+beziehen	k=bezöge	t=bezog
+bezwingen	k=bezwänge	t=bezwang
+biegen	k=böge	t=bog
+bieten	k=böte	t=bot
+binden	k=bände	t=band
+bitten	k=bäte	t=bat
+blasen	k=bliese	p2=bläst	p3=bläst	t=blies
+bleiben	k=bliebe	t=blieb
+braten	k=briete	p2=brätst	p3=brät	t=briet
+brechen	k=bräche	p2=brichst	p3=bricht	t=brach
+brennen	K1=brennte	K2=brenntest	K3=brennte	K4=brennten	K5=brenntet	K6=brennten	t=brannte
+bringen	k=brächte	t=brachte
+denken	k=dächte	t=dachte
+dringen	k=dränge	t=drang
+durchdringen	k=durchdränge	t=durchdrang
+durchlaufen	k=durchliefe	p2=durchläufst	p3=durchläuft	t=durchlief
+durchmüssen	C1=müsse	C2=müssest	C3=müsse	C4=müssen	C5=müsset	C6=müssen	P4=müssen	P6=müssen	k=müsste	p1=muss	p2=musst	p3=muss	p5=müsst	t=musste
+durchschreiten	k=durchschritte	t=durchschritt
+durchziehen	k=durchzöge	t=durchzog
+dürfen	K1=dürfte	K2=dürftest	K3=dürfte	K4=dürften	K5=dürftet	K6=dürften	p1=darf	p2=darfst	p3=darf	t=durfte
+einflechten	C1=flechte	C2=flechtest	C3=flechte	C4=flechten	C5=flechtet	C6=flechten	P4=flechten	P6=flechten	k=flöchte	p1=flechte	p2=flichtst	p3=flicht	p5=flechtet	t=flocht
+empfahen	k=empfinge	p2=empfähst	p3=empfäht	t=empfing
+empfangen	k=empfinge	p2=empfängst	p3=empfängt	t=empfing
+empfehlen	k=empfähle	p2=empfiehlst	p3=empfiehlt	t=empfahl
+empfinden	k=empfände	t=empfand
+entbinden	k=entbände	t=entband
+entblößen	p2=entblößst
+entbrennen	K1=entbrennte	K2=entbrenntest	K3=entbrennte	K4=entbrennten	K5=entbrenntet	K6=entbrennten	t=entbrannte
+entfallen	k=entfiele	p2=entfällst	p3=entfällt	t=entfiel
+entfliehen	k=entflöhe	t=entfloh
+entfließen	k=entflösse	t=entfloss
+entgehen	k=entginge	t=entging
+entgleiten	k=entglitte	t=entglitt
+enthalten	k=enthielte	p2=enthältst	p3=enthält	t=enthielt
+entheben	k=enthöbe	t=enthob
+entkommen	k=entkäme	t=entkam
+entladen	k=entlüde	p2=entlädst	p3=entlädt	t=entlud
+entlassen	k=entließe	p2=entlässt	p3=entlässt	t=entließ
+entleihen	k=entliehe	t=entlieh
+entmachten	k=entmachtte	p2=entmachtst	p3=entmachtt	p5=entmachtt	t=entmachtte
+entnehmen	k=entnähme	p2=entnimmst	p3=entnimmt	t=entnahm
+entreißen	k=entrisse	t=entriss
+entrinnen	k=entränne	t=entrann
+entscheiden	k=entschiede	t=entschied
+entschließen	T2=entschlossest	k=entschlösse	t=entschloss
+entschwinden	k=entschwände	t=entschwand
+entsprechen	k=entspräche	p2=entsprichst	p3=entspricht	t=entsprach
+entsprießen	k=entsprösse	t=entspross
+entspringen	k=entspränge	t=entsprang
+entstehen	k=entstünde	t=entstand
+entwachsen	k=entwüchse	p2=entwächst	p3=entwächst	t=entwuchs
+entweichen	k=entwiche	t=entwich
+entwerfen	k=entwürfe	p2=entwirfst	p3=entwirft	t=entwarf
+entziehen	k=entzöge	t=entzog
+erbrechen	k=erbräche	p2=erbrichst	p3=erbricht	t=erbrach
+erbringen	k=erbrächte	t=erbrachte
+erdenken	k=erdächte	t=erdachte
+erdulden	k=erduldte	p2=erduldst	p3=erduldt	p5=erduldt	t=erduldte
+erfahren	k=erführe	p2=erfährst	p3=erfährt	t=erfuhr
+erfinden	k=erfände	t=erfand
+erfolgen	p2=erfolgt
+erfrieren	k=erfröre	t=erfror
+ergeben	k=ergäbe	p2=ergibst	p3=ergibt	t=ergab
+ergehen	k=erginge	t=erging
+ergießen	k=ergösse	t=ergoss
+ergreifen	k=ergriffe	t=ergriff
+erhalten	k=erhielte	p2=erhältst	p3=erhält	t=erhielt
+erheben	k=erhöbe	t=erhob
+erkennen	K1=erkennte	K2=erkenntest	K3=erkennte	K4=erkennten	K5=erkenntet	K6=erkennten	t=erkannte
+erkiesen	k=erköre	t=erkor
+erklimmen	k=erklömme	t=erklomm
+erklingen	k=klänge	t=erklang
+erlassen	k=erließe	p2=erlässt	p3=erlässt	t=erließ
+erleiden	k=erlitte	t=erlitt
+erleschen	k=erlösche	p2=erlischst	p3=erlischt	t=erlosch
+erliegen	k=erläge	t=erlag
+ernennen	K1=ernennte	K2=ernenntest	K3=ernennte	K4=ernennten	K5=ernenntet	K6=ernennten	t=ernannte
+erraten	k=erriete	p2=errätst	p3=errät	t=erriet
+errechnen	k=errechnete	p2=errechnest	p3=errechnet	p5=errechnet	t=errechnete
+erringen	k=erränge	t=errang
+erscheinen	k=erschiene	t=erschien
+erschiessen	k=erschösse	t=erschoss
+erschießen	k=erschösse	t=erschoss
+erschlagen	k=erschlüge	p2=erschlägst	p3=erschlägt	t=erschlug
+erschließen	T2=erschlossest	k=erschlösse	t=erschloss
+ersehen	k=ersähe	p2=ersiehst	p3=ersieht	t=ersah
+ersinnen	k=ersänne	t=ersann
+erstechen	k=erstäche	p2=erstichst	p3=ersticht	t=erstach
+erstehen	k=erstände	t=erstand
+erstreiten	k=erstritte	t=erstritt
+ertragen	k=ertrüge	p2=erträgst	p3=erträgt	t=ertrug
+ertrinken	k=ertränke	t=ertrank
+erwachsen	k=erwüchse	p2=erwächst	p3=erwächst	t=erwuchs
+erweisen	k=erwiese	t=erwies
+erwerben	k=erwürbe	p2=erwirbst	p3=erwirbt	t=erwarb
+erwägen	k=erwöge	t=erwog
+erziehen	k=erzöge	t=erzog
+erzwingen	k=erzwänge	t=erzwang
+essen	k=äße	p2=isst	p3=isst	t=aß
+exen	p2=exst
+fahren	k=führe	p2=fährst	p3=fährt	t=fuhr
+fallen	k=fiele	p2=fällst	p3=fällt	t=fiel
+fangen	k=finge	p2=fängst	p3=fängt	t=fing
+fechten	k=föchte	p2=fichtst	p3=ficht	t=focht
+finden	k=fände	t=fand
+fliegen	k=flöge	t=flog
+fliehen	k=flöhe	t=floh
+fließen	k=flösse	t=floss
+fressen	k=fräße	p2=frisst	p3=frisst	t=fraß
+frieren	k=fröre	t=fror
+geben	k=gäbe	p2=gibst	p3=gibt	t=gab
+gebieten	k=geböte	t=gebot
+gebären	k=gebäre	p2=gebierst	p3=gebiert	t=gebar
+gedeihen	k=gediehe	t=gedieh
+gedenken	k=gedächte	t=gedachte
+gefallen	k=gefiele	p2=gefällst	p3=gefällt	t=gefiel
+gefrieren	k=gefröre	t=gefror
+gehen	k=ginge	t=ging
+gelingen	k=gelänge	t=gelang
+gelten	k=gälte	p2=giltst	p3=gilt	t=galt
+genesen	k=genäse	t=genas
+geniessen	k=genösse	t=genoss
+genießen	k=genösse	t=genoss
+geraten	k=geriete	p2=gerätst	p3=gerät	t=geriet
+gerinnen	k=geränne	t=gerann
+geschehen	k=geschähe	p2=geschiehst	p3=geschieht	t=geschah
+gestehen	k=gestände	t=gestand
+gewinnen	k=gewänne	t=gewann
+gießen	k=gösse	t=goss
+gleichen	k=gliche	t=glich
+gleiten	k=glitte	t=glitt
+graben	k=grübe	p2=gräbst	p3=gräbt	t=grub
+greifen	k=griffe	t=griff
+gären	k=göre	t=gor
+haben	k=hätte	p2=hast	p3=hat	t=hatte
+halten	k=hielte	p2=hältst	p3=hält	t=hielt
+heben	k=höbe	t=hob
+heißen	k=hieße	t=hieß
+helfen	k=hülfe	p2=hilfst	p3=hilft	t=half
+heyßen	k=hieße	t=hieß
+hinaufwollen	C1=wolle	C2=wollest	C3=wolle	C4=wollen	C5=wollet	C6=wollen	P4=wollen	P6=wollen	k=wollte	p1=will	p2=willst	p3=will	p5=wollt	t=wollte
+hineinwollen	C1=wolle	C2=wollest	C3=wolle	C4=wollen	C5=wollet	C6=wollen	P4=wollen	P6=wollen	k=wollte	p1=will	p2=willst	p3=will	p5=wollt	t=wollte
+hintergehen	k=hinterginge	t=hinterging
+hinterlassen	k=hinterließe	p2=hinterlässt	p3=hinterlässt	t=hinterließ
+hintertreiben	k=hintertriebe	t=hintertrieb
+kennen	K1=kennte	K2=kenntest	K3=kennte	K4=kennten	K5=kenntet	K6=kennten	t=kannte
+kennzeichnen	k=kennzeichnete	p2=kennzeichnest	p3=kennzeichnet	p5=kennzeichnet	t=kennzeichnete
+kiesen	k=köre	t=kor
+klingen	k=klänge	t=klang
+knien	k=kniete	p2=kniest	p3=kniet	p5=kniet	t=kniete
+kommen	k=käme	t=kam
+krauchen	k=kröche	t=kroch
+kriechen	k=kröche	t=kroch
+können	K1=könnte	K2=könntest	K3=könnte	K4=könnten	K5=könntet	K6=könnten	p1=kann	p2=kannst	p3=kann	t=konnte
+laden	k=lüde	p2=lädst	p3=lädt	t=lud
+lassen	k=ließe	p2=lässt	p3=lässt	t=ließ
+laufen	k=liefe	p2=läufst	p3=läuft	t=lief
+leiden	k=litte	t=litt
+leihen	k=liehe	t=lieh
+lesen	k=läse	p2=liest	p3=liest	t=las
+liegen	k=läge	t=lag
+losmüssen	C1=müsse	C2=müssest	C3=müsse	C4=müssen	C5=müsset	C6=müssen	P4=müssen	P6=müssen	k=müsste	p1=muss	p2=musst	p3=muss	p5=müsst	t=musste
+lügen	k=löge	t=log
+mehren	p2=mehrt
+meiden	k=miede	t=mied
+messen	k=mäße	p2=misst	p3=misst	t=maß
+meßen	k=mäße	p2=mißt	p3=mißt	t=maß
+misslingen	k=misslänge	t=misslang
+missverstehen	k=missverstände	t=missverstand
+mögen	k=möchte	p1=mag	p2=magst	p3=mag	t=mochte
+müssen	K1=müsste	K2=müsstest	K3=müsste	K4=müssten	K5=müsstet	K6=müssten	p1=muss	p2=musst	p3=muss	t=musste
+nehmen	k=nähme	p2=nimmst	p3=nimmt	t=nahm
+nennen	k=nannte	t=nannte
+obliegen	k=obläge	t=oblag
+pfeifen	k=pfiffe	t=pfiff
+preisen	k=priese	t=pries
+quellen	k=quölle	p2=quillst	p3=quillt	t=quoll
+raten	k=riete	p2=rätst	p3=rät	t=riet
+rechnen	k=rechnete	p2=rechnest	p3=rechnet	p5=rechnet	t=rechnete
+reiben	k=riebe	t=rieb
+reihen	k=riehe	t=rieh
+reiten	k=ritte	t=ritt
+reißen	k=risse	t=riss
+rennen	K1=rennte	K2=renntest	K3=rennte	K4=rennten	K5=renntet	K6=rennten	t=rannte
+riechen	k=röche	t=roch
+ringen	k=ränge	t=rang
+rinnen	k=ränne	t=rann
+rufen	k=riefe	t=rief
+scheiden	k=schiede	t=schied
+scheinen	k=schiene	t=schien
+schelten	k=schälte	p2=schiltst	p3=schilt	t=schalt
+schieben	k=schöbe	t=schob
+schiessen	k=schösse	t=schoss
+schießen	k=schösse	t=schoss
+schlafen	k=schliefe	p2=schläfst	p3=schläft	t=schlief
+schlagen	k=schlüge	p2=schlägst	p3=schlägt	t=schlug
+schleichen	k=schliche	t=schlich
+schleifen	k=schliffe	t=schliff
+schließen	T2=schlossest	k=schlösse	t=schloss
+schlingen	k=schlänge	t=schlang
+schmeißen	k=schmisse	t=schmiss
+schmelzen	k=schmölze	p2=schmilzt	p3=schmilzt	t=schmolz
+schneiden	k=schnitte	t=schnitt
+schreiben	k=schriebe	t=schrieb
+schreien	T4=schrieen	T6=schrieen	k=schrie	t=schrie
+schreiten	k=schritte	t=schritt
+schweigen	k=schwiege	t=schwieg
+schwellen	k=schwölle	p2=schwillst	p3=schwillt	t=schwoll
+schwimmen	k=schwämme	t=schwamm
+schwinden	k=schwände	t=schwand
+schwingen	k=schwänge	t=schwang
+schwören	K4=schwüren	K6=schwüren	k=schwöre	t=schwor
+sehen	k=sähe	p2=siehst	p3=sieht	t=sah
+sein	C1=sei	C2=seist	C3=sei	C4=seien	C5=seiet	C6=seien	K1=wäre	K2=wärst	K3=wäre	K4=wären	K5=wärt	K6=wären	P1=bin	P2=bist	P3=ist	P4=sind	P5=seid	P6=sind	T1=war	T2=warst	T3=war	T4=waren	T5=wart	T6=waren
+singen	k=sänge	t=sang
+sinken	k=sänke	t=sank
+sinnen	k=sänne	t=sann
+sitzen	k=säße	t=saß
+sollen	p1=soll	p3=soll
+speien	T4=spieen	T6=spieen	k=spie	t=spie
+spinnen	k=spänne	t=spann
+sprechen	k=spräche	p2=sprichst	p3=spricht	t=sprach
+sprießen	k=sprösse	t=spross
+springen	k=spränge	t=sprang
+stechen	k=stäche	p2=stichst	p3=sticht	t=stach
+stehen	k=stünde	t=stand
+stehlen	k=stähle	p2=stiehlst	p3=stiehlt	t=stahl
+steigen	k=stiege	t=stieg
+sterben	k=stürbe	p2=stirbst	p3=stirbt	t=starb
+stinken	k=stänke	t=stank
+stoßen	k=stieße	p2=stößt	p3=stößt	t=stieß
+streichen	k=striche	t=strich
+streiten	k=stritte	t=stritt
+tragen	k=trüge	p2=trägst	p3=trägt	t=trug
+treffen	k=träfe	p2=triffst	p3=trifft	t=traf
+treiben	k=triebe	t=trieb
+treten	k=träte	p2=trittst	p3=tritt	t=trat
+trinken	k=tränke	t=trank
+trügen	k=tröge	t=trog
+tun	C1=tue	C2=tuest	C3=tue	C4=tuen	C5=tuet	C6=tuen	K1=täte	K2=tätest	K3=täte	K4=täten	K5=tätet	K6=täten	P1=tue	P2=tust	P3=tut	P4=tun	P5=tut	P6=tun	T1=tat	T2=tatest	T3=tat	T4=taten	T5=tatet	T6=taten
+umfahren	k=umführe	p2=umfährst	p3=umfährt	t=umfuhr
+umfangen	k=umfinge	p2=umfängst	p3=umfängt	t=umfing
+umgeben	k=umgäbe	p2=umgibst	p3=umgibt	t=umgab
+umgehen	k=umginge	t=umging
+umhinkönnen	C1=könne	C2=könnest	C3=könne	C4=können	C5=könnet	C6=können	P4=können	P6=können	k=könnte	p1=kann	p2=kannst	p3=kann	p5=könnt	t=konnte
+umlaufen	k=umliefe	p2=umläufst	p3=umläuft	t=umlief
+umreißen	k=umrisse	t=umriss
+umschließen	T2=umschlossest	k=umschlösse	t=umschloss
+umschlingen	k=umschlänge	t=umschlang
+umschreiben	k=umschriebe	t=umschrieb
+umwerben	k=umwürbte	p2=umwirbst	p3=umwirbt	t=umwarbte
+unterbinden	k=unterbände	t=unterband
+unterbrechen	k=unterbräche	p2=unterbrichst	p3=unterbricht	t=unterbrach
+untergraben	k=untergrübe	p2=untergräbst	p3=untergräbt	t=untergrub
+unterhalten	k=unterhielte	p2=unterhältst	p3=unterhält	t=unterhielt
+unterlassen	k=unterließe	p2=unterlässt	p3=unterlässt	t=unterließ
+unterlaufen	k=unterliefe	p2=unterläufst	p3=unterläuft	t=unterlief
+unterliegen	k=unterläge	t=unterlag
+unternehmen	k=unternähme	p2=unternimmst	p3=unternimmt	t=unternahm
+unterscheiden	k=unterschiede	t=unterschied
+unterschlagen	k=unterschlüge	p2=unterschlägst	p3=unterschlägt	t=unterschlug
+unterschreiben	k=unterschriebe	t=unterschrieb
+unterschreiten	k=unterschritte	t=unterschritt
+unterstehen	k=unterstände	t=unterstand
+unterstreichen	k=unterstriche	t=unterstrich
+unterweisen	k=unterwiese	t=unterwies
+unterwerfen	k=unterwürfe	p2=unterwirfst	p3=unterwirft	t=unterwarf
+unterzeichnen	k=unterzeichnete	p2=unterzeichnest	p3=unterzeichnet	p5=unterzeichnet	t=unterzeichnete
+unterziehen	k=unterzöge	t=unterzog
+verbeißen	k=verbisse	t=verbiss
+verbergen	k=verbärge	p2=verbirgst	p3=verbirgt	t=verbarg
+verbiegen	k=verböge	t=verbog
+verbieten	k=verböte	t=verbot
+verbinden	k=verbände	t=verband
+verbleiben	k=verbliebe	t=verblieb
+verbrechen	k=verbräche	p2=verbrichst	p3=verbricht	t=verbrach
+verbrennen	K1=verbrennte	K2=verbrenntest	K3=verbrennte	K4=verbrennten	K5=verbrenntet	K6=verbrennten	t=verbrannte
+verbringen	k=verbrächte	t=verbrachte
+verdecken	k=verdeckete	p2=verdeckest	p3=verdecket	p5=verdecket	t=verdeckete
+verderben	k=verdürbe	p2=verdirbst	p3=verdirbt	t=verdarb
+verfahren	k=verführe	p2=verfährst	p3=verfährt	t=verfuhr
+verfallen	k=verfiele	p2=verfällst	p3=verfällt	t=verfiel
+verfangen	k=verfinge	p2=verfängst	p3=verfängt	t=verfing
+verfechten	k=verföchte	p2=verfichtst	p3=verficht	t=verfocht
+verflechten	k=verflöchte	t=verflocht
+verfliegen	k=verflöge	t=verflog
+vergeben	k=vergäbe	p2=vergibst	p3=vergibt	t=vergab
+vergehen	k=verginge	t=verging
+vergelten	k=vergälte	p2=vergiltst	p3=vergilt	t=vergalt
+vergessen	k=vergäße	p2=vergisst	p3=vergisst	t=vergaß
+vergießen	k=vergösse	t=vergoss
+vergleichen	k=vergliche	t=verglich
+vergraben	k=vergrübe	p2=vergräbst	p3=vergräbt	t=vergrub
+vergreifen	k=vergriffe	t=vergriff
+vergären	k=vergöre	t=vergor
+verhalten	k=verhielte	p2=verhältst	p3=verhält	t=verhielt
+verheißen	k=verhieße	t=verhieß
+verhelfen	k=verhülfe	p2=verhilfst	p3=verhilft	t=verhalf
+verkennen	K1=verkennte	K2=verkenntest	K3=verkennte	K4=verkennten	K5=verkenntet	K6=verkennten	t=verkannte
+verknüpfen	p2=verknüpft
+verkommen	k=verkäme	t=verkam
+verkriechen	k=verkröche	t=verkroch
+verladen	k=verlüde	p2=verlädst	p3=verlädt	t=verlud
+verlaufen	k=verliefe	p2=verläufst	p3=verläuft	t=verlief
+verleihen	k=verliehe	t=verlieh
+verlesen	k=verläse	p2=verliest	p3=verliest	t=verlas
+verlieren	k=verlöre	t=verlor
+verlosen	p2=verlosst
+vermaßen	k=vermäße	t=vermaß
+vermeiden	k=vermiede	t=vermied
+vermessen	k=vermäße	p2=vermisst	p3=vermisst	t=vermaß
+vermeßen	k=vermäße	p2=vermißt	p3=vermißt	t=vermaß
+vermögen	k=vermöchte	p1=vermag	p2=vermagst	p3=vermag	t=vermochte
+vernehmen	k=vernähme	p2=vernimmst	p3=vernimmt	t=vernahm
+verraten	k=verriete	p2=verrätst	p3=verrät	t=verriet
+verrechnen	k=verrechnete	p2=verrechnest	p3=verrechnet	p5=verrechnet	t=verrechnete
+verscheiden	k=verschiede	t=verschied
+verschieben	k=verschöbe	t=verschob
+verschießen	k=verschösse	t=verschoss
+verschleißen	k=verschlisse	t=verschliss
+verschließen	T2=verschlossest	k=verschlösse	t=verschloss
+verschlingen	k=verschlänge	t=verschlang
+verschmelzen	k=verschmölze	p2=verschmilzt	p3=verschmilzt	t=verschmolz
+verschneiden	k=verschnitte	t=verschnitt
+verschreiben	k=verschriebe	t=verschrieb
+verschweigen	k=verschwiege	t=verschwieg
+verschwimmen	k=verschwämme	t=verschwamm
+verschwinden	k=verschwände	t=verschwand
+verschwören	K4=verschwüren	K6=verschwüren	k=verschwöre	t=verschwor
+versehen	k=versähe	p2=versiehst	p3=versieht	t=versah
+versinken	k=versänke	t=versank
+versprechen	k=verspräche	p2=versprichst	p3=verspricht	t=versprach
+verstehen	k=verstünde	t=verstand
+versterben	k=verstürbe	p2=verstirbst	p3=verstirbt	t=verstarb
+verstoßen	k=verstieße	p2=verstößt	p3=verstößt	t=verstieß
+verstreichen	k=verstriche	t=verstrich
+vertragen	k=vertrüge	p2=verträgst	p3=verträgt	t=vertrug
+vertreiben	k=vertriebe	t=vertrieb
+vertreten	k=verträte	p2=vertrittst	p3=vertritt	t=vertrat
+vertrocknen	k=vertrocknte	p2=vertrocknt	p3=vertrocknt	p5=vertrocknt	t=vertrocknte
+vervollkommnen	k=vervollkommnete	p2=vervollkommnest	p3=vervollkommnet	p5=vervollkommnet	t=vervollkommnete
+verwachsen	k=verwüchse	p2=verwächst	p3=verwächst	t=verwuchs
+verweben	k=verwöbe	t=verwob
+verweisen	k=verwiese	t=verwies
+verwerfen	k=verwürfe	p2=verwirfst	p3=verwirft	t=verwarf
+verzeichnen	k=verzeichnete	p2=verzeichnest	p3=verzeichnet	p5=verzeichnet	t=verzeichnete
+verzeihen	k=verziehe	t=verzieh
+verziehen	k=verzöge	t=verzog
+vollbringen	k=vollbrächte	t=vollbrachte
+vollziehen	k=vollzöge	t=vollzog
+waschen	k=wüsche	p2=wäschst	p3=wäscht	t=wusch
+wegwollen	C1=wolle	C2=wollest	C3=wolle	C4=wollen	C5=wollet	C6=wollen	P4=wollen	P6=wollen	k=wollte	p1=will	p2=willst	p3=will	p5=wollt	t=wollte
+weichen	k=wiche	t=wich
+weisen	k=wiese	t=wies
+werben	k=würbe	p2=wirbst	p3=wirbt	t=warb
+werden	k=würde	p2=wirst	p3=wird	t=wurde
+werfen	k=würfe	p2=wirfst	p3=wirft	t=warf
+widerrufen	k=widerriefe	t=widerrief
+widersprechen	k=widerspräche	p2=widersprichst	p3=widerspricht	t=widersprach
+widerstehen	k=widerstände	t=widerstand
+winden	k=wände	t=wand
+wissen	k=wüsste	p1=weiß	p2=weißt	p3=weiß	t=wusste
+wohlwollen	C1=wolle	C2=wollest	C3=wolle	C4=wollen	C5=wollet	C6=wollen	P4=wollen	P6=wollen	k=wollte	p1=will	p2=willst	p3=will	p5=wollt	t=wollte
+wollen	p1=will	p2=willst	p3=will
+wägen	k=wöge	t=wog
+zeichnen	k=zeichnete	p2=zeichnest	p3=zeichnet	p5=zeichnet	t=zeichnete
+zeihen	k=ziehe	t=zieh
+zerbrechen	k=zerbräche	p2=zerbrichst	p3=zerbricht	t=zerbrach
+zerfallen	k=zerfiele	p2=zerfällst	p3=zerfällt	t=zerfiel
+zerfließen	k=zerflösse	t=zerfloss
+zerfressen	k=zerfräße	p2=zerfrisst	p3=zerfrisst	t=zerfraß
+zerreiben	k=zerriebe	t=zerrieb
+zerreißen	k=zerrisse	t=zerriss
+zerschlagen	k=zerschlüge	p2=zerschlägst	p3=zerschlägt	t=zerschlug
+zerschneiden	k=zerschnitte	t=zerschnitt
+zerstoßen	k=zerstieße	p2=zerstößt	p3=zerstößt	t=zerstieß
+zertreten	k=zerträte	p2=zertrittst	p3=zertritt	t=zertrat
+ziehen	k=zöge	t=zog
+zurückwollen	C1=wolle	C2=wollest	C3=wolle	C4=wollen	C5=wollet	C6=wollen	P4=wollen	P6=wollen	k=wollte	p1=will	p2=willst	p3=will	p5=wollt	t=wollte
+zwingen	k=zwänge	t=zwang
