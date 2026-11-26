@@ -128,8 +128,12 @@ die verborgenen IDs; nichts davon wird geloggt.
 
 **E11 Löschen.** „Zwischenablage leeren“ (Taste im Raster) setzt eine Marke: Ungeschützte Screenshots bis jetzt sind aus der
 Zwischenablage weg (Galerie unberührt), angeheftete und solche in angehefteten Ordnern bleiben. Schalter „Screenshots anbieten“ aus
-oder Verlauf aus: dasselbe, und die Ablage ist nicht zu sehen. Wischen löscht Clips wie bisher; Screenshot-Kacheln haben kein
-Wischen (ein versehentliches Wischen soll keinen Ordner leeren).
+oder Verlauf aus: dasselbe, und die Ablage ist nicht zu sehen. Wischen löscht Clips wie bisher. Seit 102b (Owner): Ein nicht
+angehefteter Screenshot lässt sich wie ein nicht angehefteter Clip nach links wegwischen, in der Liste und im Ordnerfenster; er ist dann
+aus der Zwischenablage weg (in `hidden`, auch nach einem Neustart), nie aus der Galerie. Angeheftete Screenshots wischen nicht (wie
+angeheftete Clips). Ordnerkacheln wischen nicht (ein versehentliches Wischen soll keinen Ordner leeren; seinen Inhalt wischt man im
+Ordnerfenster einzeln weg). Ein Ordner unter drei bleibt ein Ordner (E4), erst leer verschwindet er. Ein abgebrochenes Wischen (nicht
+über die Schwelle) ändert nichts; nach dem Anheben (Langdruck) wischt nichts mehr.
 
 **E12 Speicher und Neustart.** Datei `agent_screenshot_shelf.json` (`AtomicFile`) im Tastaturspeicher (DE, neben der
 Zwischenablage-Datenbank), Format in `docs/STORAGE.md`. Geschrieben im Hintergrund nach jeder Änderung (immer der neueste Stand,
@@ -211,7 +215,7 @@ selbst mit Abstand und nur den Abnahme-Zeilen vor Augen gemacht. Befunde und was
 - Barrierefreiheit: Ziehen geht nur mit dem Finger; Anheften und Öffnen gehen auch mit TalkBack.
 - Die Ablage ist nicht Teil der Sicherung (ZIP) – wie die Zwischenablage-Datenbank selbst.
 
-## 8. Offen für den Owner (nicht gebaut, Entscheidung des Leads: nicht in dieser Etappe)
+## 8. Entschieden vom Owner (2026-11-26)
 
-- Soll ein angeheftetes Bild eine eigene Kopie bekommen, damit es das Löschen in der Galerie überlebt?
-- Wischen zum Ausblenden einzelner Screenshots aus der Zwischenablage?
+- Eigene Kopie für angeheftete Screenshots: nein, bleibt wie gebaut (ein in der Galerie gelöschtes Bild verschwindet auch angeheftet).
+- Wischen zum Ausblenden einzelner Screenshots: ja, gebaut als 102b (E11).

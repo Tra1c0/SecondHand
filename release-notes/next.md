@@ -1,3 +1,10 @@
+# Neu: Screenshots wegwischen
+
+- **Wie bei Clips**: Einen Screenshot in der Zwischenablage nach links wischen nimmt ihn heraus, auch im geöffneten Ordner. Er bleibt in deiner Galerie und kommt auch nach einem Neustart nicht zurück.
+- **Geschützt**: Angeheftete Screenshots und ganze Ordner lassen sich nicht wegwischen.
+
+Mit automatischen Tests und im Emulator mit einem echten Wischen geprüft, noch nicht auf deinem Telefon.
+
 # Neu: gelernte Tippfehler blockieren neue Korrekturen nicht mehr
 
 - **„gibts“ wird wieder „gibt's“**: Wörter, die du vor einer neuen Korrekturregel oft unkorrigiert getippt hast, hatte die Tastatur gelernt, und gelernte Wörter korrigiert sie nie. Nach jedem Update nimmt sie jetzt genau diese Wörter aus deinen eigenen Wörtern, dem persönlichen Wörterbuch und dem Tipp-Verlauf: Kurzformen ohne Apostroph, Tippfehler häufiger Wörter mit einer Nachbartaste („icj“) und vertauschte Buchstaben.

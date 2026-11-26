@@ -22,16 +22,20 @@ class ClipboardHistoryRecyclerView @JvmOverloads constructor(
     private val clipAdapter: ClipboardAdapter? get() = (adapter as? ClipboardAdapter)
         ?: (adapter as? androidx.recyclerview.widget.ConcatAdapter)?.adapters?.firstNotNullOfOrNull { it as? ClipboardAdapter }
     val historyManager: ClipboardHistoryManager? get() = clipAdapter?.clipboardHistoryManager
+    /** Fork, stage 102b: the swipe of a screenshot tile (the shelf decides which may be swiped and what a swipe does). */
+    var shelfSwipes: helium314.keyboard.agent.shelf.ShelfSwipes? = null
     @Suppress("unused")
     private val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
         override fun onMove(recyclerView: RecyclerView, viewHolder: ViewHolder, target: ViewHolder) = false
         override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: ViewHolder): Int {
-            if (viewHolder.bindingAdapter !is ClipboardAdapter) return 0 // stage 102: screenshot tiles are not swiped away
+            // stage 102b: a screenshot tile is swiped as the shelf says (unpinned screenshots, no folders)
+            if (viewHolder.bindingAdapter !is ClipboardAdapter) return shelfSwipes?.swipeDirs(viewHolder) ?: 0
             if (historyManager?.canRemove(viewHolder.bindingAdapterPosition) == false)
                 return 0 // block swipe for pinned items
             return super.getSwipeDirs(recyclerView, viewHolder)
         }
         override fun onSwiped(viewHolder: ViewHolder, dir: Int) {
+            if (viewHolder.bindingAdapter !is ClipboardAdapter) { shelfSwipes?.swiped(viewHolder); return }
             val position = viewHolder.bindingAdapterPosition
             historyManager?.removeEntry(position)
             clipAdapter?.notifyItemRemoved(position)

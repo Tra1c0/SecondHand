@@ -273,7 +273,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   nie platziert, höchstens ein automatischer Ordner, `nextFolderId` größer als jede Ordner-ID; Version 1 ohne `hidden` wird weiter gelesen):
   `{"version":1,"clearedBefore":<ms>,"nextFolderId":<n>,"fresh":[ids],"loose":[ids],"pinned":[ids],
   "folders":[{"id":<n>,"name":<Text oder null>,"number":<n>,"pinned":<bool>,"auto":<bool>,"members":[ids]}],"migrated":<bool>,
-  "hidden":[ids]}`; `hidden` = Screenshots, die bei Sperre, im Inkognito-Modus oder in einem privaten Feld entstanden (nie gezeigt).
+  "hidden":[ids]}`; `hidden` = Screenshots, die bei Sperre, im Inkognito-Modus oder in einem privaten Feld entstanden, und seit 102b
+  weggewischte (nie gezeigt; die Bilder bleiben in der Galerie).
   `fresh` = neu und noch nicht gebündelt, `loose` = vom Owner in die Zwischenablage gezogen, `clearedBefore` = „Zwischenablage
   leeren“ (ganze Sekunden), `migrated` = Übernahme der alten Kopien erledigt.
 - Unlesbarer Inhalt: Die Datei wird zu `agent_screenshot_shelf.json.bad` (eine ältere `.bad` wird ersetzt), die Ablage beginnt leer.

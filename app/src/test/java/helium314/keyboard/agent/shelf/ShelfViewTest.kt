@@ -211,6 +211,35 @@ class ShelfViewTest {
         manager.onDestroy()
     }
 
+    @Test fun swipesHideUnpinnedScreenshotsOnlyAndSurviveARestart() {
+        // stage 102b, at the hook the clipboard's ItemTouchHelper calls (the real swipe: emulator scenario screenshot_shelf_swipe)
+        val view = open(2) // two cards: 2, 1
+        val rv = list(view)
+        val shelf = assertNotNull(rv.let { (it as helium314.keyboard.keyboard.clipboard.ClipboardHistoryRecyclerView).shelfSwipes })
+        fun holder(i: Int) = assertNotNull(rv.findViewHolderForAdapterPosition(i))
+        assertEquals(androidx.recyclerview.widget.ItemTouchHelper.LEFT, shelf.swipeDirs(holder(0)))
+        Shelf.apply(ScreenshotShelf.togglePinShot(Shelf.state, 1))
+        layout(view)
+        val pinned = (0 until 2).first { tiles(view)[it].contentDescription.endsWith(", angeheftet") }
+        assertEquals(0, shelf.swipeDirs(holder(pinned)), "a pinned screenshot is not swiped, as pinned clips")
+        val free = 1 - pinned
+        shelf.swiped(holder(free))
+        layout(view)
+        assertEquals(1, tiles(view).size)
+        assertEquals(setOf(2L), Shelf.state.hidden)
+        // a folder tile is not swiped
+        Shelf.finder = { shots(5) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        layout(view)
+        val folder = (0 until rv.adapter!!.itemCount).firstOrNull { rv.findViewHolderForAdapterPosition(it)?.itemView?.id == R.id.agent_shelf_folder }
+        if (folder != null) assertEquals(0, shelf.swipeDirs(holder(folder)))
+        // after a restart the swiped one stays away
+        Shelf.resetForTest()
+        Shelf.finder = { shots(2) }
+        Shelf.refresh(latinIME, Settings.getValues())
+        assertTrue(2L in Shelf.state.hidden && 2L !in Shelf.state.placed())
+    }
+
     @Test fun noScreenshotTilesInAPasswordFieldOrIncognito() {
         val password = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         load(password)

@@ -373,7 +373,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         }
         return helium314.keyboard.agent.shelf.ShelfUi(host, container, clipboardRecyclerView, shelfColors, pinIconId) {
             colors.setBackground(it, ColorType.MAIN_BACKGROUND)
-        }.also { shelfUi = it }
+        }.also { shelfUi = it; clipboardRecyclerView.shelfSwipes = it.swipes }
     }
 
     /** Stage 102: a tap on a screenshot, like a tap on an image clip ([onKeyDown], [onKeyUp]). */

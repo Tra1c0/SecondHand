@@ -3047,6 +3047,49 @@ def screenshot_shelf_while_off(d):
     d.expect_equal("the screenshot taken while the keyboard was off is there (%s)" % shelf_report(screen), count(screen), before + 1)
 
 
+def screenshot_shelf_swipe(d):
+    """Stage 102b: inside a folder, a screenshot swiped to the left (a real swipe, as for a clip) leaves the clipboard and stays
+    away after the keyboard's process was stopped; the gallery keeps it (the media store has as many screenshots as before).
+    Control run: the swipe goes only a short way, so nothing is swiped away."""
+    shelf_setup(d)
+    d.start("screenshot_shelf_swipe")
+    d.focus("text")
+    screen = open_clipboard(d)
+    time.sleep(1.0)
+    screen = dump()
+    folders = folders_of(screen)
+    if not folders or max(folders.values()) < 2:  # alone (--only): make a folder first
+        for i in range(3):
+            make_screenshot(d, SHOT_DIRS[i % 2])
+        hide_and_reopen(d)
+        open_clipboard(d)
+        screen = wait_report(d, lambda s: folders_of(s) and max(folders_of(s).values()) >= 3, "a folder of screenshots", limit=10)
+        folders = folders_of(screen)
+    name = max(folders, key=folders.get)
+    tile = next(n for k, desc, n in shelf_tiles(screen) if k == "folder" and (FOLDER_DESC.match(desc or "") or [0, ""])[1] == name)
+    tap(*tile.center)
+    screen = wait_report(d, lambda s: len(folder_cells(s)) == folders[name], "the folder window of %r" % name, limit=8)
+    before = [n.desc for n in folder_cells(screen)]
+    in_gallery = len(media_screenshot_ids() or [])
+    cell = folder_cells(screen)[0]
+    y = cell.center[1]
+    start_x = cell.right - 10
+    end_x = cell.right - (cell.right - cell.left) // 4 if d.control else 5  # control: a short way, not past the threshold
+    shell("input swipe %d %d %d %d 250" % (start_x, y, end_x, y), check=False)
+    time.sleep(1.5)
+    screen = dump()
+    after = [n.desc for n in folder_cells(screen)]
+    d.expect_equal("the swiped screenshot left the folder (%s)" % shelf_report(screen), after, before[1:])
+    d.expect_equal("the gallery keeps it", len(media_screenshot_ids() or []), in_gallery)
+    shell("input keyevent KEYCODE_BACK", check=False)
+    restart_keyboard()
+    d.start("screenshot_shelf_swipe")
+    d.focus("text")
+    open_clipboard(d)
+    screen = wait_report(d, lambda s: name in folders_of(s), "the folder %r after the restart" % name, limit=10)
+    d.expect_equal("still away after a restart", folders_of(screen)[name], folders[name] - 1)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
@@ -3059,7 +3102,9 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              # stage 100: drawn symbols with real touches, timing in the log; they switch Symbole malen on
              symbol_draw_latency, symbol_draw_variants,
              # stage 102: screenshots in the clipboard, with real touches; the second needs the first
-             screenshot_shelf_bundles, screenshot_shelf_drag, screenshot_shelf_while_off]
+             screenshot_shelf_bundles, screenshot_shelf_drag, screenshot_shelf_while_off,
+             # stage 102b: swipe a screenshot away
+             screenshot_shelf_swipe]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

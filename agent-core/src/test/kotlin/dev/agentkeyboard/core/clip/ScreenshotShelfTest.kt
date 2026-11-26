@@ -300,6 +300,30 @@ class ScreenshotShelfTest {
         assertSame(state, ScreenshotShelf.hide(state, setOf(2L)))
     }
 
+    @Test fun aSwipedScreenshotLeavesTheClipboardForGoodButNotAPinnedOne() {
+        // stage 102b: hidden like E10, a pinned one cannot be swiped, a new screenshot is not affected
+        val shots = (1L..4L).map { shot(it, 5 - it) }
+        var state = sync(ShelfState(), shots) // automatic folder 4 3 2 1
+        val auto = state.autoFolder!!.id
+        state = ScreenshotShelf.togglePinShot(state, 2)
+        assertSame(state, ScreenshotShelf.dismiss(state, 2)) // pinned: as pinned clips
+        assertSame(state, ScreenshotShelf.dismiss(state, 99)) // unknown
+        state = ScreenshotShelf.dismiss(state, 4)
+        assertEquals(setOf(4L), state.hidden)
+        assertEquals(listOf(3L, 2L, 1L), state.folder(auto)!!.members)
+        // below three the folder stays a folder (E4) until it is empty; a pinned member keeps it
+        state = ScreenshotShelf.dismiss(ScreenshotShelf.dismiss(state, 3), 1)
+        assertEquals(listOf(2L), state.folder(auto)!!.members)
+        // the next answers never bring a swiped one back; a new screenshot comes in as usual
+        state = sync(state, shots + shot(5, 0), retention = null)
+        assertEquals(listOf(5L, 2L), state.folder(auto)!!.members)
+        assertTrue(4L !in state.placed() && 3L !in state.placed() && 1L !in state.placed())
+        // the last unpinned one of an unpinned folder: the folder goes with it
+        val two = sync(ShelfState(), listOf(shot(7, 2), shot(8, 1)))
+        val (made, folder) = ScreenshotShelf.newFolder(two, listOf(7L))
+        assertNull(ScreenshotShelf.dismiss(made, 7).folder(folder!!))
+    }
+
     @Test fun manyScreenshotsStayFast() {
         val shots = (1L..5000L).map { ShelfShot(it, now - (5000 - it) * 1000) }
         val started = System.nanoTime()

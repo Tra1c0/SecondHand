@@ -34,6 +34,15 @@ class SquareFrame(context: Context) : FrameLayout(context) {
     }
 }
 
+/**
+ * Stage 102b: what the clipboard's swipe does with a tile of the shelf ([ShelfUi.swipes]): unpinned screenshots are swiped
+ * away to the left like unpinned clips (hidden from the clipboard, never deleted from the gallery); pinned ones and folders not.
+ */
+interface ShelfSwipes {
+    fun swipeDirs(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder): Int
+    fun swiped(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder)
+}
+
 /** The colours of the keyboard's design for the shelf (E6): no colour of its own. */
 class ShelfColors(val card: Int, val text: Int, val accent: Int, val pin: Int, val typeface: Typeface?)
 

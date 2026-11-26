@@ -199,7 +199,36 @@ class ShelfUi(
         setStroke(Math.round(2 * dp), palette.accent, 8 * dp, if (active) 0f else 5 * dp)
     }
 
+    /** Stage 102b: swipes of the list (set on the clipboard's RecyclerView) and of the folder grid. */
+    val swipes = object : ShelfSwipes {
+        private fun cardOf(holder: RecyclerView.ViewHolder): ShelfItem.Card? {
+            val adapter = holder.bindingAdapter as? ShelfAdapter ?: return null
+            return adapter.items.getOrNull(holder.bindingAdapterPosition) as? ShelfItem.Card
+        }
+
+        override fun swipeDirs(holder: RecyclerView.ViewHolder): Int {
+            val card = cardOf(holder) ?: return 0 // folders are not swiped: one stray swipe must not empty a collection
+            return if (card.pinned || drag.capturing) 0 else androidx.recyclerview.widget.ItemTouchHelper.LEFT
+        }
+
+        override fun swiped(holder: RecyclerView.ViewHolder) {
+            val adapter = holder.bindingAdapter as? ShelfAdapter
+            val position = holder.bindingAdapterPosition
+            val card = cardOf(holder)
+            val next = card?.let { ScreenshotShelf.dismiss(Shelf.state, it.shot.id) } ?: Shelf.state
+            // changed meanwhile (pinned, gone): the tile comes back to its place instead of staying swiped out
+            if (next === Shelf.state) { if (position >= 0) adapter?.notifyItemChanged(position); return }
+            Shelf.apply(next)
+        }
+    }
+
     init {
+        androidx.recyclerview.widget.ItemTouchHelper(object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(0,
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT) {
+            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = false
+            override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) = swipes.swipeDirs(viewHolder)
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = swipes.swiped(viewHolder)
+        }).attachToRecyclerView(grid)
         header.addView(back, LinearLayout.LayoutParams(m(34), m(34)).apply { marginStart = m(6) })
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = m(12) })
         header.addView(done, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, m(34)).apply { marginEnd = m(6) })

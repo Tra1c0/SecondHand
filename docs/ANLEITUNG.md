@@ -540,9 +540,13 @@ nach dem Entsperren.
 3. Umbenennen: Name antippen, mit den kleinen Tasten darunter schreiben (nichts davon geht in die App), „Fertig“. Zurück bricht ab.
    Einen umbenannten oder angehefteten Ordner „Screenshots“ behältst du so; neue Screenshots fangen danach wieder einzeln an und
    bilden ab drei einen neuen Ordner „Screenshots“.
-4. Lange drücken und loslassen (ohne zu ziehen): Eine kleine Zeile erscheint mit „Anheften“/„Lösen“ (bei Ordnern auch
+4. Wegwischen: Einen Screenshot nach links wischen (wie einen Clip) nimmt ihn aus der Zwischenablage, in der Liste und im geöffneten
+   Ordner. Er bleibt in der Galerie und kommt auch nach einem Neustart nicht zurück. Angeheftete Screenshots und Ordner lassen sich
+   nicht wegwischen; einen Ordner leerst du im Ordner, Bild für Bild. Ein Ordner mit weniger als drei Bildern bleibt ein Ordner, bis er
+   leer ist.
+5. Lange drücken und loslassen (ohne zu ziehen): Eine kleine Zeile erscheint mit „Anheften“/„Lösen“ (bei Ordnern auch
    „Umbenennen“). Die nächste Berührung schließt sie; ohne Tipp ändert sich nichts.
-5. Ziehen: Screenshot lange drücken, bis er sich hebt (kurze Vibration), dann ziehen.
+6. Ziehen: Screenshot lange drücken, bis er sich hebt (kurze Vibration), dann ziehen.
    - Im Ordner: Die anderen rücken zur Seite; loslassen speichert die neue Reihenfolge.
    - Aus dem Ordner heraus: Oben wird der Kopf zu „In die Ablage“ und „Neuer Ordner“. Über „In die Ablage“ kurz halten: Der Ordner
      geht zu, du ziehst in der Liste weiter. Loslassen auf einem anderen Ordner = hinein, auf einem einzelnen Screenshot = neuer Ordner
@@ -550,12 +554,12 @@ nach dem Entsperren.
      als einzelne Karte in die Zwischenablage (sie wird dann nicht mehr automatisch gebündelt).
    - Zurück an den Anfang ziehen, außerhalb loslassen, ein zweiter Finger oder das Schließen der Zwischenablage brechen ab: Es ändert
      sich nichts.
-6. Aufbewahrung: Es gilt die Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“, Standard 10 Minuten, ganz rechts unbegrenzt).
+7. Aufbewahrung: Es gilt die Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“, Standard 10 Minuten, ganz rechts unbegrenzt).
    Ältere Screenshots verschwinden beim nächsten Öffnen aus der Zwischenablage (nie aus der Galerie), nie während sie offen ist.
    Angeheftete Screenshots bleiben, auch in einem nicht angehefteten Ordner; ein angehefteter Ordner behält seinen ganzen Inhalt.
    „Zwischenablage leeren“ nimmt alle nicht geschützten Screenshots bis jetzt heraus. Schaltest du „Screenshots anbieten“ oder den
    Verlauf aus, bleibt nur Angeheftetes.
-7. Screenshots, die frühere Builds als Bild in den Verlauf kopiert hatten, werden einmal übernommen: Steht das Original noch in der
+8. Screenshots, die frühere Builds als Bild in den Verlauf kopiert hatten, werden einmal übernommen: Steht das Original noch in der
    Galerie, verschwindet die Kopie (das Original ist jetzt hier, angeheftete bleiben angeheftet); sonst bleibt die Kopie als Bild.
 
 Noch auf keinem Telefon ausprobiert; im Emulator mit echten Berührungen geprüft (`docs/VALIDATION.md` → Etappe 102).

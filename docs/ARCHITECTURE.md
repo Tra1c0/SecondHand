@@ -4102,7 +4102,7 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   nicht mehr Sichtbare vergessen; Neue vorn in den automatischen Ordner oder nach `fresh`; ab `BUNDLE_AT` = 3 der automatische Ordner;
   leere ungeheftete Ordner weg), `isVisible`, `items` (Reihenfolge der Kacheln), `folderShots`, `togglePinShot`, `togglePinFolder` und
   `rename` (beide machen den automatischen Ordner zum eigenen), `cleanName` (1–40 UTF-16, eine Zeile), `moveToFolder`, `moveToLoose`,
-  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `takenPrivately` und `hide` (E10, `hidden` im Zustand,
+  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `takenPrivately` und `hide` (E10, `hidden` im Zustand; 102b: `dismiss` = Wegwischen, nicht für angeheftete,
   `PRIVATE_WINDOW_MILLIS` = 60 s), `drop` (Ziel → Operation; Abbruch, eigener Platz und
   eigener Ordner geben dieselbe Instanz zurück), `clear`, `keepPinnedOnly`, `adoptPinned`, `planMigration` mit `OldCopy`.
   Tests `CT/clip/ScreenshotShelfTest.kt` (23).
@@ -4125,6 +4125,10 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   `KEY_TEXT`, Akzent `ACTION_KEY_BACKGROUND`, Pin `CLIPBOARD_PIN`), `ShelfAdapter` (Ordner mit 2×2-Vorschau und „Name · n“, Karten;
   `submit` mit `DiffUtil`; `lifted` blass, `hover` Akzentrahmen; `grows` lässt einen neuen Ordner wachsen; Tag = `f<id>`/`s<id>`;
   Klick nur für TalkBack), `ShelfAnimations.grow`. Ids in `agent_shelf_ids.xml`, Texte in `agent_shelf_strings.xml`.
+- Wischen (102b): `ShelfSwipes` (in `A/shelf/ShelfAdapter.kt`), umgesetzt als `ShelfUi.swipes`: nach links nur nicht angeheftete
+  Screenshots, keine Ordner, nicht nach dem Anheben; `swiped` → `ScreenshotShelf.dismiss`, sonst springt die Kachel zurück
+  (`notifyItemChanged`). `ClipboardHistoryRecyclerView.shelfSwipes` (von `ClipboardHistoryView.shelf` gesetzt) gibt das Wischen der
+  Kacheln der Liste dorthin; das Raster des Ordnerfensters hat einen eigenen `ItemTouchHelper` mit denselben Regeln.
 - `A/shelf/ShelfThumbnails.kt`: Vorschaubilder im Hintergrund (`loadThumbnail` ab Android 10), im Speicher bis die Zwischenablage
   schließt; ein inzwischen anders gebundenes Bild bekommt nichts.
 - `A/shelf/ShelfUi.kt`: Kacheln (`mainAdapter`), Ordnerfenster (`agent_shelf_window`: Kopf mit `agent_shelf_back` oben links, Titel
@@ -4152,7 +4156,8 @@ Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeiche
   Karte, Abbruch/zurück zum Start/zweiter Finger, Sortieren im Ordner mit Neustart, „In die Ablage“ mit Verweilen, Umbenennen mit eigenen
   Tasten, angehefteter Ordner gegen die Aufbewahrung, im Ordner weg und zurück an den Start mit neu gelegten Views), `AT/ScreenshotChipTest.aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf`.
   Emulator: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` in `devicetest.py` (Helfer `shelf_tiles`,
-  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`, `restart_keyboard`).
+  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`, `restart_keyboard`); 102b: `screenshot_shelf_swipe` (echtes
+  `input swipe` im Ordnerfenster, Neustart, Galerie unverändert) und `ShelfViewTest.swipesHideUnpinnedScreenshotsOnlyAndSurviveARestart`.
 
 ## Begleit-App (Etappe 80)
 

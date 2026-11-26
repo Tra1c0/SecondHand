@@ -278,6 +278,13 @@ object ScreenshotShelf {
             .mapTo(HashSet()) { it.id }
     }
 
+    /**
+     * Stage 102b: a screenshot swiped away leaves the clipboard for good (hidden, like E10), never the gallery. A pinned one
+     * cannot be swiped (as pinned clips); an unknown one changes nothing. A folder it empties goes (E5).
+     */
+    fun dismiss(state: ShelfState, shot: Long): ShelfState =
+        if (shot in state.pinnedShots || state.placeOf(shot) == null) state else hide(state, setOf(shot))
+
     /** Hides [ids] for good (E10). */
     fun hide(state: ShelfState, ids: Set<Long>): ShelfState {
         if (ids.isEmpty() || ids.all { it in state.hidden }) return state

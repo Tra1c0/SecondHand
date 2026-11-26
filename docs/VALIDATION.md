@@ -79,6 +79,19 @@ Symbols mit mehr Strichen ist, und die Zeichnung selbst ist kein solcher Teil), 
 - **Nicht geprüft:** Telefon des Owners (Xiaomi 15): Gefühl, eigene Lücken, ob Symbole geteilt werden (Diagnose → Karte „Symbole“:
   Wege, Median, Pause, Nachzügler). „>“ allein ergibt weiter „Nicht erkannt“ oder „)“ (Vorschlag „<“/„>“ als Symbole, nicht gebaut).
   % mit dem Punkt zuerst geht nicht (ein Tipp ohne Zeichnung ist ein Buchstabe).
+## Etappe 102b — Screenshots wegwischen (Owner, 2026-11-26)
+
+Owner zu den offenen Fragen von 102: keine eigene Kopie für angeheftete Screenshots; Wegwischen ja. Gebaut wie das Wischen der Clips
+(HeliBoard: nach links, angeheftete gesperrt): `ScreenshotShelf.dismiss` (in `hidden`, nie aus der Galerie), `ShelfSwipes`/`ShelfUi.swipes`,
+Haken `ClipboardHistoryRecyclerView.shelfSwipes`, eigener `ItemTouchHelper` im Ordnerfenster. Entscheidung: Ordnerkacheln wischen nicht
+(Konzept E11). Ein Ordner unter drei bleibt ein Ordner, bis er leer ist (E4).
+- Tests: `ScreenshotShelfTest.aSwipedScreenshotLeavesTheClipboardForGoodButNotAPinnedOne` (angeheftet, unbekannt, unter drei, leer, neue
+  Screenshots), `ShelfViewTest.swipesHideUnpinnedScreenshotsOnlyAndSurviveARestart` (am Haken des `ItemTouchHelper`: Richtungen, angeheftet,
+  Ordner, Neustart); lokal grün (Kern `clip.*`, Robolectric `agent.shelf.*` 21). Das echte Wischen prüft nur der Emulator:
+  `screenshot_shelf_swipe` (`input swipe` im Ordnerfenster, Galerie gleich groß, nach `restart_keyboard` weiter weg; Kontrolllauf:
+  kurzes Wischen unter der Schwelle).
+- Läufe: unten ergänzt.
+
 ## Etappe 102 — Screenshots in der Zwischenablage (Owner, 2026-11-26)
 
 Auftrag und Entscheidungen: `docs/SCREENSHOTS-KONZEPT.md` (E1–E13, Abnahme-Zeilen A1–A20, Kritik K1–K4; die Kritik vor dem Bau hat
