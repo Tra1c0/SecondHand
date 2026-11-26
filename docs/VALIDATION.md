@@ -1,5 +1,42 @@
 # Prüfnachweise
 
+## Etappen 104 und 105 — Nachkorrektur im Satz und Satzzeichen (Owner, Runde 5, 2026-11-26)
+
+Konzept: `docs/NACHKORREKTUR-KONZEPT.md` (mit Kritik vor dem Bau, Abschnitt 10, und den offenen Beispielen, Abschnitt 12). Kern
+`agent-core/.../sentence/` (R1–R6, P1–P3, `RetroCheck`), Lexikon aus UniMorph (Verben) und german-nouns/Wiktionary (Nomen),
+`tools/build_german_lexicon.py`. App `RetroCorrections` im Batch-Edit der Taste (`InputLogic.onCodeInput` vor `endBatchEdit`).
+
+**Abnahme-Zeilen (Konzept Abschnitt 8):**
+- 1–3, 5–7 (Beispiele): Kern `SentenceRepairTest` (alle sieben als Fälle), Robolectric `InputLogicTest` „stage 104 the owner's examples
+  typed key by key“, Emulator `retro_examples` (fünf Sätze). Ergebnis: „Mir geht es gut“, „Ich habe das nicht gewusst“, „Ihr seid schon da“,
+  „mit der Polizei“ voll; „Er hat mir ein Gefallen“, „Das macht kein Sinn.“, „zu Hause“ (mit „Zeit“) teilweise; offen „einen“, „keinen“,
+  „seit“ (Konzept Abschnitt 12).
+- 4 (Konjunktiv I): „Er habe mir“ → „hat“; „Man nehme“, „gebe es“, Nachrichtentext mit Verb des Sagens im Satz davor bleiben (Tests).
+- 8 (Rücknahme): Robolectric (Rücktaste, Rückgängig ohne Strg+Z an die App, von Hand zurückgeändert, nach Cursorbewegung und
+  Leertasten-Wisch keine Rücknahme mehr), Emulator `retro_undo` (RUNS).
+- 9 (Weitertippen): Robolectric „typing on is never touched“, „nothing is replaced when the editor shows another text“, „a shortening
+  correction with late editor reports doubles no letter“ (Wurzel des Emulator-Befunds „eein“/„nnicht“, P508).
+- 10 (Cursor mitten im Text): Robolectric. 11 (Passwort, kein Lernen, gesperrt, Schalter aus): Robolectric.
+- 12 (Slang, Namen, Englisch, Spanisch): Kern, Robolectric, Emulator `retro_keeps_correct`.
+- 13–17 (Satzzeichen): Kern `AutoPunctuationTest`, Robolectric „stage 105 …“, Emulator `retro_punctuation`, `retro_send_single_line`.
+- 18 (Latenz): unten.
+
+**Korpus (eigene Prüfung, nicht im Repository):** 15 589 Sätze UD German GSD Wort für Wort als Präfix: 62 Änderungen (fast alle echte
+Fehler im Korpus), Kommas ohne Kommas im Text 117 richtig, 12 nicht im Original (davon etwa die Hälfte doch richtig). Durchschnitt einer
+Prüfung auf dem Rechner etwa 20 µs.
+
+**Tests:** lokal agent-core 768/768 grün; lokal (Android-SDK im Container eingerichtet) volle App-Suite 2316 Tests, rot nur die
+Baseline (Hangul, Emoji, XLinkTest durch den Netzfilter). GitHub: RUNS_TESTS.
+
+**Messung** (Emulator, Szenario `typing_latency`, 18 Leerzeichen und 82 Buchstaben je Lauf, `work_us` = Dauer von `LatinIME.onEvent`):
+MEASURE
+
+**Prüfer:** Konzept (Opus, 3 Befunde, eingearbeitet), InputLogic-Diff (Opus, 2 mittel, 7 niedrig, alle umgesetzt außer N2/N3
+dokumentiert; Nachprüfung ohne neue hohe/mittlere Befunde, zwei niedrige behoben).
+
+**Nicht geprüft:** kein Telefon (Xiaomi 15), nicht in WhatsApp/Instagram (Strg+Z der App und deren Meldungen), nicht in der Einrichtung des
+Owners mit seinem Tipp-Verlauf und persönlichem Wörterbuch; die Laufzeit auf dem Telefon.
+
 ## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
 
 Owner: „Standardmäßig auf aus. Ich brauche das alles nicht in der Zwischenablage.“ Gebaut: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (Standard aus) in

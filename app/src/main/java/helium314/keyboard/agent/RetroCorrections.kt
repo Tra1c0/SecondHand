@@ -43,6 +43,15 @@ class RetroCorrections(private val logic: InputLogic) {
     /** Pairs the keyboard set in this field: field position of the changed word -> "old\u0000new". */
     private val appliedHere = HashMap<Int, String>()
     @Volatile private var preloading = false
+    /**
+     * Main dictionary frequencies already asked (language + word -> frequency), main thread only. Each word end checks the
+     * whole sentence again, so nearly every word was asked at the word end before; a lookup crosses into native code.
+     * Dropped when the dictionaries change (another facilitator object).
+     */
+    private val frequencies = object : LinkedHashMap<String, Int>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?) = size > MAX_CACHED_WORDS
+    }
+    private var frequenciesOf: Any? = null
 
     /** A new field (or the same one restarted): forget everything of the old one. */
     fun fieldStarted() {
@@ -108,7 +117,9 @@ class RetroCorrections(private val logic: InputLogic) {
         if (!options.repair && !options.punctuate) return
         val started = System.nanoTime()
         val edit = try {
-            RetroCheck.check(text, lexicon, Checked(context, settings, language, logic.mDictionaryFacilitator, rejectedHere), options)
+            val facilitator = logic.mDictionaryFacilitator
+            if (facilitator !== frequenciesOf) { frequencies.clear(); frequenciesOf = facilitator }
+            RetroCheck.check(text, lexicon, Checked(context, settings, language, facilitator, rejectedHere, frequencies), options)
         } catch (_: Throwable) { null }
         val nanos = System.nanoTime() - started
         checked.incrementAndGet()
@@ -163,9 +174,16 @@ class RetroCorrections(private val logic: InputLogic) {
     /** What the check asks of the keyboard, on the suggestion thread. */
     private class Checked(
         private val context: Context, private val settings: SettingsValues, private val language: String,
-        private val facilitator: Any?, private val rejected: Set<String>,
+        private val facilitator: Any?, private val rejected: Set<String>, private val cache: MutableMap<String, Int>,
     ) : SentenceContext {
-        override fun frequency(word: String): Int = (facilitator as? DictionaryFacilitatorImpl)?.mainFrequency(word, language) ?: -1
+        override fun frequency(word: String): Int {
+            val key = language + '\u0000' + word
+            cache[key]?.let { return it }
+            val value = (facilitator as? DictionaryFacilitatorImpl)?.mainFrequency(word, language) ?: -1
+            // an unknown word is not kept: the dictionary may still be loading
+            if (value >= 0) cache[key] = value
+            return value
+        }
         override fun isProtected(word: String): Boolean =
             Memory.isOwnWord(context, word) || InformalWordsStore.protects(context, word, language) ||
                 ForeignWords.isRemembered(context, settings, language, word)
@@ -176,6 +194,8 @@ class RetroCorrections(private val logic: InputLogic) {
     companion object {
         /** The text before the cursor that is checked (the last sentence lies in it). */
         const val MAX_TEXT = 300
+        /** Frequencies kept between the word ends of a sentence (a few sentences' words). */
+        const val MAX_CACHED_WORDS = 512
         private const val KEY_DELETE = helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode.DELETE
         private const val KEY_UNDO = helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode.UNDO
 
