@@ -1,5 +1,16 @@
 # Prüfnachweise
 
+## Etappe 107 (Präzisierung) und 107b — Rücknahmen als Gewichte, späte Korrektur zählt (Owner, 2026-11-26)
+
+Konzept Abschnitt 5. `RejectedCorrections` zählt je Paar bestätigt/abgelehnt statt einer festen Sperre (`CorrectionWeights`: zurückgehalten, solange
+bestätigt < 3 × abgelehnt; Halbwertszeit 30 Tage; Ablehnung < 0,25 vergessen; dieselbe Rücknahme binnen 60 s einmal). **Bewusst geändertes
+Verhalten:** „einmal zurückgenommen = nie wieder“ gilt nicht mehr; eine Rücknahme ohne mindestens drei Bestätigungen hält das Paar weiter sofort
+zurück, darum bleiben die vorhandenen Tests mit einer einzelnen Rücknahme (`CorrectionMemoryTest`, `SuggestTest`, `InputLogicTest` 20a/48/49/76)
+unverändert gültig; angepasst nur `AutocorrectReportTest` „stage 107 one Backspace …“ (jetzt auch: danach dreimal gewählt → wieder Korrektur). 107b:
+`FieldCorrectionWatcher` zählt „automatisch X → Y, später von Hand Y → Z“ als Ablehnung und „X → Z“ als Kandidaten. Neu: `InputLogicTest` „stage 107b a
+later change …“ (Korrektur, Leerzeichen, halbes Wort, zurückgelöscht, Wort geändert) und „stage 107 a correction left standing …“, `CT/CorrectionWeightsTest`.
+Lokal nichts gelaufen.
+
 ## Etappen 107 und 108 — seltene Wörter nach Gewichten, Kurzformen mit Apostroph (Owner, 2026-11-26)
 
 Konzept: `docs/AUTOKORREKTUR-101-KONZEPT.md` Abschnitte 5 (mit Tabelle der 68 Paare) und 6. 107: `RareWordWeights` (Konstanten 80/150/111/20/20),
@@ -10,7 +21,9 @@ seit Start (behalten / zurückgenommen)“. Bewusst geänderter Test: `Autocorre
 Verlauf, keine Folgewort-Werte“ (mit Verlauf wird „mur“ nach 107 korrigiert). Neue Tests: „stage 107 …“ (mur mit/ohne Verlauf, behaltener Tippfehler,
 Rücknahme ohne Schalter, aif → auf, alr bleibt, bsi bleibt bei gleich häufigem BSI, gebt ohne/mit Satz und Verlauf), „stage 108 …“ (gibts, wirds,
 drehts, gehts, wars, Gibts; nichts, rechts, amts, Peters, wars im englischen Satz, dings, Rücknahme), `CT/RareWordWeightsTest`,
-`CT/GermanShortFormsTest`. Lokal nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Ungeprüft: die Zuordnung Verlaufspunkte →
+`CT/GermanShortFormsTest`. Lokal nichts gebaut und kein Test gelaufen. GitHub-Lauf 45729738148 (b3a210ca): agent, build, lint grün; upstream
+alle neuen Tests grün, neu rot nur `SuggestTest` „stage 75 … no lookup for the others“ (die Regel 107 fragte für „i-r“/„id'“ das Wörterbuch,
+6 Abfragen) → behoben (nur Buchstaben vor jeder Abfrage); sonst der Basiszweig-Fehler von Etappe 96 und die fünf bekannten. Ungeprüft: die Zuordnung Verlaufspunkte →
 Nutzungen (Annahme aus HeliBoards Kommentar), kein Gerät.
 
 ## Etappe 101 — Autokorrektur nach den Fehlfällen des Owners (2026-11-25)

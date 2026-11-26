@@ -141,9 +141,13 @@ Mit **Satzbezogene Autokorrektur** (an) gilt außerdem, auch bei „Richtige Wö
   nie oder viel seltener (ohne Verlauf nur, wenn der Satz davor das häufige Wort klar nahelegt).
 - **Kurzformen bekommen den Apostroph**: „gibts“, „wirds“, „drehts“, „gehts“, „wars“ werden „gibt's“, „wird's“, „dreht's“,
   „geht's“, „war's“; Wörter wie „nichts“, „rechts“, „Amts“ bleiben, ebenso „wars“ in einem englischen Satz.
-- **Rücktaste stellt es ab**: Nimmst du so eine Korrektur direkt danach mit der Rücktaste zurück, wird genau dieses Paar
-  nie wieder automatisch angewendet (mit „Personalisierte Vorschläge“ an, auch wenn „Rückgängig gemachte Korrekturen
-  merken“ aus ist). Wie oft das seit dem Start passiert ist, zeigt die Diagnose-Karte „Korrektur & Sprache“ als Zahl.
+- **Zurücknehmen zählt, aber nicht für immer**: Jede Korrektur zählt je Paar mit, wie oft du sie stehen lässt und wie oft
+  du sie zurücknimmst (Rücktaste direkt danach, oder später im Feld geändert, auch nach Leerzeichen, Satzzeichen oder einem
+  angefangenen nächsten Wort). Eine Rücknahme wiegt drei Bestätigungen: Nach einer Rücknahme ohne viele Bestätigungen ist die
+  Korrektur nur noch Vorschlag; wählst du sie danach ein paar Mal selbst, kommt sie zurück; nach etwa zwei Monaten ist eine
+  Rücknahme vergessen. Für die seltenen Wörter und Kurzformen gilt das mit „Personalisierte Vorschläge“, für alle anderen
+  Korrekturen mit „Rückgängig gemachte Korrekturen merken“ (vorher galt dort: einmal zurückgenommen = nie wieder). Die
+  Zahlen zeigt die Diagnose-Karte „Korrektur & Sprache“.
 
 Oben wählst du die Autokorrektur in einem Tipp:
 

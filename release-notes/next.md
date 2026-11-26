@@ -7,7 +7,7 @@
 - **„i“ wird „I“**: im englischen Satz und auf dem englischen Layout, auch „i'm“ → „I'm“. Am Satzanfang auf Deutsch bleibt „i“ klein.
 - **Seltene Wörter zu häufigen Nachbarn**: Ein seltenes Wort wie „mur“ oder „aif“ wird zu „nur“ bzw. „auf“, wenn du laut deinem Tippen das häufige Wort oft benutzt und das seltene nie. „alr“ bleibt.
 - **Kurzformen mit Apostroph**: „gibts“, „wirds“, „drehts“, „gehts“, „wars“ werden „gibt's“, „wird's“, „dreht's“, „geht's“, „war's“. „nichts“ und „rechts“ bleiben.
-- **Rücktaste stellt es ab**: Nimmst du so eine Korrektur gleich mit der Rücktaste zurück, macht die Tastatur sie nie wieder.
+- **Zurücknehmen mit Gewicht**: Nimmst du eine Korrektur zurück (gleich mit der Rücktaste oder später im Feld), zählt das. Eine Rücknahme wiegt drei Mal Stehenlassen; dann bleibt es beim Vorschlag. Wählst du die Korrektur später wieder selbst, kommt sie zurück, und nach etwa zwei Monaten ist eine Rücknahme vergessen. Vorher hieß „Rückgängig gemachte Korrekturen merken“: einmal zurückgenommen, nie wieder.
 - **Noch nicht**: „gah“ wird weiter „gab“.
 
 Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.

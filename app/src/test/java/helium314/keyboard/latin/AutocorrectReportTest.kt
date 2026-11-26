@@ -377,7 +377,7 @@ class AutocorrectReportTest {
         assertEquals(null, type("mur", listOf("sehe")).correction())
     }
 
-    @Test fun `stage 107 one Backspace stops the pair for good, also without the switch for undone corrections`() {
+    @Test fun `stage 107 one Backspace without confirmations holds the pair back, also without the switch, and it is not final`() {
         rareOwner()
         reportKnowing = mapOf("mur" to listOf(Locale.GERMAN))
         reportHistory = mapOf("de" to mapOf("nur" to 160))
@@ -390,6 +390,9 @@ class AutocorrectReportTest {
         val again = type("mur", listOf("sehe"))
         assertEquals(null, again.correction())
         assertTrue(again.offers("nur"), "still offered")
+        // three times "nur" picked for "mur" afterwards: the weights speak for the correction again
+        repeat(3) { helium314.keyboard.agent.RejectedCorrections.confirm(latinIME, "mur", "nur", Settings.getValues()) }
+        assertEquals("nur", type("mur", listOf("sehe")).correction())
     }
 
     @Test fun `stage 107 aif becomes auf with the owner's history, alr and bsi stay`() {
@@ -448,7 +451,7 @@ class AutocorrectReportTest {
         assertEquals(null, type("Peters", listOf("und")).correction(), "a capital inside a sentence")
         assertEquals(null, type("wars", listOf("the", "cat")).correction(), "an English sentence")
         assertEquals(null, type("dings", listOf("und")).correction(), "no verb before the s")
-        // undone once: never again
+        // undone once without confirmations: held back (stage 107 weights)
         assertEquals("gibt's", type("gibts", listOf("und")).correction())
         helium314.keyboard.agent.RejectedCorrections.remember(latinIME, "gibts", "gibt's", Settings.getValues())
         assertEquals(null, type("gibts", listOf("und")).correction())

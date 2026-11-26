@@ -713,7 +713,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         engineCorrection: String?, nextWords: () -> SuggestionResults,
     ): Boolean {
         val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
-        if (typed.length < NeighborKeys.MIN_LETTERS || typed.length > NeighborKeys.MAX_LETTERS) return false
+        // only letters (asked before any lookup: a word it cannot change costs nothing)
+        if (typed.length < NeighborKeys.MIN_LETTERS || typed.length > NeighborKeys.MAX_LETTERS || !typed.all { it.isLetter() }) return false
+        if (typed.drop(1).any { it.isUpperCase() }) return false
         if (!ruleMayCorrect(typed, isCorrectionEnabled, wordComposer)) return false
         if (typed.first().isUpperCase() && !ngramContext.isBeginningOfSentenceContext) return false
         val first = suggestions.firstOrNull()

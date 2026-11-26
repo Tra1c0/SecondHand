@@ -7,9 +7,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Stages 107/108: the corrections the keyboard's own weighted rules offered as automatic correction lately (rare word ->
- * very common neighbour, "gibts" -> "gibt's"), so that undoing one is remembered for good ([RejectedCorrections.remember]
- * stores such a pair with "Personalisierte Vorschläge" on, also without the switch "Rückgängig gemachte Korrekturen
- * merken"), and two counters for the diagnosis card (numbers only, since the keyboard started). Kept in memory only, never
+ * very common neighbour, "gibts" -> "gibt's"), so that keeping or undoing one counts in the pair's weights
+ * ([RejectedCorrections] stores such a pair with "Personalisierte Vorschläge" on, also without the switch "Rückgängig
+ * gemachte Korrekturen merken"), and two counters for the diagnosis card (numbers only, since the keyboard started). Kept in memory only, never
  * logged; the pairs are the words of the current typing and are dropped beyond [MAX_RECENT].
  */
 object RuleCorrections {

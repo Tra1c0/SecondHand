@@ -1030,6 +1030,56 @@ class InputLogicTest {
             assertEquals(emptyList(), fieldEntries(), "hello -> hullo is no typo fix")
         }
 
+    // fork, stage 107b (owner: "Korrektur → Leerzeichen → nächstes Wort angefangen → zurück → Wort geändert" counts as taken back)
+    @Test fun `stage 107b a later change of an automatic correction to another word counts as taken back`() =
+        withRealWords("hello", "hells", "world") {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) // autocorrect needs the flag
+            chainInput("hullo")
+            getAutocorrectedWithSpaceAfter("hello", "hullo")
+            chainInput("wo") // the next word half typed
+            repeat(2) { functionalKeyPress(KeyCode.DELETE) } // deleted again
+            assertEquals("hello ", text)
+            replaceLetter(4, 's') // back into the corrected word: "hello" -> "hells"
+            setCursorPosition(text.length)
+            assertEquals("hells ", text)
+            assertEquals(1.0, RejectedCorrections.weights(latinIME, "hullo", "hello")!!.rejected, 1e-6)
+            assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello")) // kept once at most, taken back once: held back
+            // the third word is a hint for the typed one, like a late typo fix (a candidate until seen at another place)
+            assertEquals(listOf(Triple("hullo", "hells", false)), fieldEntries())
+        }
+
+    @Test fun `stage 107 a correction left standing is one confirmation and one rejection after several does not tip it`() =
+        withRealWords("hello", "world", "and") {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+            chainInput("hullo")
+            getAutocorrectedWithSpaceAfter("hello", "hullo")
+            chainInput("world and ")
+            assertEquals("hello world and ", text)
+            assertEquals(1.0, RejectedCorrections.weights(latinIME, "hullo", "hello")!!.confirmed, 1e-6)
+            assertFalse(RejectedCorrections.contains(latinIME, "hullo", "hello"))
+            // two more kept, then one Backspace right after the correction: three confirmations outweigh one rejection
+            repeat(2) { RejectedCorrections.confirm(latinIME, "hullo", "hello", settingsValues) }
+            chainInput("hullo")
+            getAutocorrectedWithSpaceAfter("hello", "hullo")
+            functionalKeyPress(KeyCode.DELETE)
+            assertEquals("hello world and hullo", text)
+            val w = RejectedCorrections.weights(latinIME, "hullo", "hello")!!
+            assertEquals(1.0, w.rejected, 1e-6)
+            assertFalse(RejectedCorrections.contains(latinIME, "hullo", "hello"), "${w.confirmed} kept, 1 taken back")
+            // the field watcher seeing the same undo again right after counts nothing more
+            RejectedCorrections.remember(latinIME, "hullo", "hello", settingsValues)
+            assertEquals(1.0, RejectedCorrections.weights(latinIME, "hullo", "hello")!!.rejected, 1e-6)
+            // a second rejection later tips it
+            val clock = RejectedCorrections.clock
+            RejectedCorrections.clock = { System.currentTimeMillis() + 2 * RejectedCorrections.SAME_REJECTION_MILLIS }
+            try {
+                RejectedCorrections.remember(latinIME, "hullo", "hello", settingsValues)
+                assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello"))
+            } finally { RejectedCorrections.clock = clock }
+        }
+
     @Test fun `stage 49 nothing is kept in password fields, incognito, while paused or with learning off`() {
         fun fixTypo() {
             chainInput("ein Hsus und ")

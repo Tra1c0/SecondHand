@@ -246,6 +246,8 @@ object Memory {
         ForeignWords.onWordCommitted(context, settings, editorInfo, word, typed, readOnce, cursor)
         // stages 107/108: counts a rule correction that went into the field (diagnosis card, numbers only)
         RuleCorrections.onCommitted(typed, word)
+        // stage 107: a correction committed (automatically or picked) is one confirmation of the pair "typed -> word"
+        if (typed != null && typed != word) RejectedCorrections.confirm(context, typed, word, settings)
         if (!mayLearn(context, settings, editorInfo)) {
             synchronized(lock) { resetField() }
             return

@@ -219,13 +219,37 @@ bestätigt (eine Regelkorrektur würde nach drei Mal ohne die Gewichtsregel weit
 5. Nie: eigenes Wort, Slang-Liste, behaltenes Fremdwort, ein gewöhnliches Wort einer anderen aktiven oder aktivierten Sprache (Regel B, „nut“),
    ein Satz, der zu einer anderen Sprache neigt, ein Großbuchstabe mitten im Satz, eine andere Korrektur der Engine.
 
-**Rücknahme und „dynamische Gewichte“ (Deutung des Leads, der Owner wird gefragt):** Eine Rücknahme mit der Rücktaste ist das stärkste Gewicht
-gegen das Paar: Es wird sofort und für immer nicht mehr automatisch angewendet (`RejectedCorrections`; für die Regelkorrekturen von 107/108 auch ohne
-den Schalter „Rückgängig gemachte Korrekturen merken“, aber nur mit „Personalisierte Vorschläge“, nicht pausiert, nicht inkognito, nicht gesperrt –
-`RuleCorrections` merkt sich dafür die zuletzt angebotenen Paare im Speicher). Das getippte Wort steigt danach im Verlauf, sobald er es so abschickt.
-Umgekehrt hebt jede stehen gelassene Korrektur den Kandidaten im Verlauf. Beide Richtungen landen so in einer Größe: Verlaufsabstand, und bei einer
-Rücknahme „nie“. Die Diagnose-Karte „Korrektur & Sprache“ zeigt neu die Zeile „Seltene Wörter und Kurzformen korrigiert seit Start (behalten /
-zurückgenommen)“, nur Zahlen.
+**Rücknahme und Bestätigung je Paar (Präzisierung des Owners, 2026-11-26):** „erst bei mehrfachem Zurücknehmen … auf Häufigkeit
+zurückführen … nicht endgültig“. `RejectedCorrections` hält jetzt je Paar (getippt → Korrektur) zwei Zähler statt einer Sperre: **bestätigt** (die
+Korrektur wurde abgeschickt, automatisch oder aus der Leiste gewählt; Fertigschreiben eines Worts und reine Großschreibung zählen nicht) und
+**abgelehnt** (Rücktaste direkt danach, Antippen der getippten Form, oder später im Feld geändert, siehe 107b). Formel (`CorrectionWeights`):
+**zurückgehalten, solange abgelehnt > 0 und bestätigt < 3 × abgelehnt** (eine Rücknahme wiegt drei Bestätigungen). Beide Zähler verblassen mit einer
+Halbwertszeit von **30 Tagen**; eine Ablehnung unter **0,25** ist vergessen. Dieselbe Rücknahme zweimal binnen **60 s** (Rücktaste und danach der
+Feldvergleich) zählt einmal.
+
+| Verlauf des Paars | bestätigt | abgelehnt | Ergebnis |
+| --- | --- | --- | --- |
+| 10-mal stehen gelassen, 1-mal zurückgenommen | 10 | 1 | angewendet (10 ≥ 3) |
+| 1-mal angewendet, sofort Rücktaste | 1 | 1 | zurückgehalten (1 < 3), nur Vorschlag |
+| 2-mal bestätigt, 2-mal zurückgenommen | 2 | 2 | zurückgehalten (2 < 6) |
+| danach 4-mal die Korrektur selbst aus der Leiste gewählt | 6 | 2 | wieder angewendet (6 ≥ 6) |
+| 1-mal zurückgenommen, 60 Tage nichts | 0 | 0,25 → vergessen | wieder angewendet |
+
+**Bewusst geändert:** Bis Etappe 106 merkte `RejectedCorrections` eine Rücknahme sofort und für immer (Schalter „Rückgängig gemachte Korrekturen
+merken“). Das gilt jetzt für alle Korrekturen nach dieser Formel; gespeicherte alte Paare zählen als eine Ablehnung. Gezählt wird weiter nur mit dem
+Schalter (opt-in), für die Regelkorrekturen von 107/108 auch mit „Personalisierte Vorschläge“ allein; nie pausiert, inkognito oder gesperrt. Die
+Schutzregeln von 91, 92 und 101 bleiben unverändert. Die Diagnose-Karte zeigt die Zahl der gerade zurückgehaltenen Paare (wie bisher „Zurückgenommene
+Korrekturen (Anzahl)“) und neu „Seltene Wörter und Kurzformen korrigiert seit Start (behalten / zurückgenommen)“, nur Zahlen.
+
+**107b – späte Korrektur zählt wie eine Rücknahme.** Belegt im Code: Der Feldvergleich von Etappe 49 (`FieldCorrectionWatcher.checkpoint`, aufgerufen
+bei jedem abgeschickten Wort und jeder Cursorbewegung, InputLogic-Hooks von 48/49) kennt die automatischen Korrekturen dieses Felds
+(`autoCorrected`) und erkannte schon „X → Y automatisch, später Y → X von Hand“ an jeder späteren Stelle (nach Leerzeichen, Satzzeichen, angefangenem
+nächsten Wort, Zurücklöschen, Cursor zurück). Es fehlte „Y → drittes Wort Z“. Neu: Ändert der Owner genau dieses Wort zu einem dritten Wort (kein
+Fertigschreiben, keine reine Großschreibung), zählt das als **abgelehnt** für „X → Y“, und „X → Z“ wird ein Kandidat der späten Tippfehler
+(`FieldCorrectionMemory`, gelernt beim zweiten Mal an anderer Stelle, wie in 49). `TypedWordFirst` und `TypoMemory` bleiben unverändert (TypoMemory
+lernt nur Auswahlen aus der Leiste). Es gilt alles, was 49 schützt: nur mit „Meine Tippfehler lernen“ oder „Rückgängig gemachte Korrekturen merken“,
+nie in Passwort-, Inkognito- oder Lern-aus-Feldern, nicht gesperrt, nicht bei langsamer App, ausgewählt-und-überschrieben oder eingefügt; liefert die
+App keinen Text, wird nichts gezählt. Kein Eingriff in `InputLogic`.
 
 **Die 68 Paare aus Abschnitt 1 (D)** (seltene deutsche Wörter ≤ 60 mit genau einem Nachbartasten-Wort ≥ 150; „typischer Verlauf“ = der Owner benutzt
 den Kandidaten oft, das getippte Wort nie oder viel seltener):
