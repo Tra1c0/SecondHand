@@ -2453,7 +2453,11 @@ def typing_latency(d):
         log("METRIC typing_latency %s n=%d touch_ms median=%d p95=%d max=%d | work_us median=%d p95=%d max=%d" % (
             kind, len(rows), _percentile(touch, 0.5), _percentile(touch, 0.95), max(touch or [-1]),
             _percentile(work, 0.5), _percentile(work, 0.95), max(work or [-1])))
+    # the single values (numbers only), so that several runs can be pooled for the percentiles
+    log("METRIC typing_latency raw space work_us %s" % ",".join(str(w) for _t, w in keys.get("space", [])))
+    log("METRIC typing_latency raw letter work_us %s" % ",".join(str(w) for _t, w in keys.get("letter", [])))
     if retro:
+        log("METRIC typing_latency raw retro work_us %s" % ",".join(str(w) for _o, w in retro))
         work = [w for _o, w in retro]
         outcomes = {}
         for outcome, _w in retro:
