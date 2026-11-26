@@ -9,7 +9,8 @@ zurück, darum bleiben die vorhandenen Tests mit einer einzelnen Rücknahme (`Co
 unverändert gültig; angepasst nur `AutocorrectReportTest` „stage 107 one Backspace …“ (jetzt auch: danach dreimal gewählt → wieder Korrektur). 107b:
 `FieldCorrectionWatcher` zählt „automatisch X → Y, später von Hand Y → Z“ als Ablehnung und „X → Z“ als Kandidaten. Neu: `InputLogicTest` „stage 107b a
 later change …“ (Korrektur, Leerzeichen, halbes Wort, zurückgelöscht, Wort geändert) und „stage 107 a correction left standing …“, `CT/CorrectionWeightsTest`.
-Lokal nichts gelaufen.
+Lokal nichts gelaufen. GitHub-Lauf 45733380477 (aa08f599): agent, build, lint grün; upstream 2294 Tests, rot nur die fünf bekannten und der
+Basiszweig-Fehler „deleting shows the word as it stands left …“ (Etappe 96); alle Tests von 101, 107, 107b und 108 grün. Kein Gerätetest.
 
 ## Etappen 107 und 108 — seltene Wörter nach Gewichten, Kurzformen mit Apostroph (Owner, 2026-11-26)
 
