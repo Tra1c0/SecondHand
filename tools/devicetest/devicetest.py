@@ -2442,7 +2442,12 @@ def shelf_setup(d):
         return
     shell("pm grant %s android.permission.READ_MEDIA_IMAGES" % KEYBOARD_PACKAGE, check=False)
     _open_settings_and_switch_on(d, ("Leiste & Befehle",), "Zwischenablage-Verlauf")
-    _open_settings_and_switch_on(d, ("Leiste & Befehle",), "Screenshots anbieten")
+    # the second switch is on the same page: the settings come back there (reopened, so the page is drawn when it is read)
+    shell("am start -W -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.5)
+    d.tap_text("Screenshots anbieten")
+    shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
     SHELF_STATE["ready"] = True
 
 
