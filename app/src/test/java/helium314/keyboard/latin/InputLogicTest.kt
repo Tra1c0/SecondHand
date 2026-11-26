@@ -847,7 +847,9 @@ class InputLogicTest {
     @Test fun `deleting shows the word as it stands left and the long press restores it`() = withSimilarWords("Lösung", locale = Locale.GERMAN) {
         // this rig drops the delayed strip update of a key (handleMessages ignores MSG_UPDATE_SUGGESTION_STRIP), so the test asks
         // for it as the handler would (third CI run: "words []"); the real path is covered by StripCalmLogTest and the device test
-        fun updateStrip() { inputLogic.performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING); handleMessages() }
+        // (fourth run: the synchronous update waits for the suggestion thread, which this rig only runs inside handleMessages, so it
+        // came back empty too; the resume of the word at the cursor goes through messages and works here, as in the stage 48 tests)
+        fun updateStrip() { latinIME.mHandler.postResumeSuggestions(false); handleMessages() }
         chainInput("löschen")
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE)
