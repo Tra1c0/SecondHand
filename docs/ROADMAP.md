@@ -28,6 +28,11 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   Umfang offen, vor dem Bau klären: fehlende Satzzeichen setzen (Punkt am Satzende, Komma vor „dass/weil/aber“, Fragezeichen nach Fragewort)
   oder falsch getroffene ersetzen. Regel wie bei 104: nur Eindeutiges, jede Änderung mit einem Tipp rücknehmbar. Dazu als Fehlfall 10 von 101:
   „i“ im englischen Satz wird „I“.
+- **109 Animationen (Designentscheidung, erst wenn Runde 4 funktioniert)**. Owner, 2026-11-26: „Als nächstes möchte ich eine
+  Designentscheidung in die Roadmap, direkt nachdem hier alles funktioniert … wirklich, wenn alles funktioniert. Ich würde gerne ein paar
+  Animationen anfügen, die das Ganze geschmeidiger machen, moderner, cleaner, ein bisschen verspielter. Dazu sage ich später mehr.“ Nicht
+  beginnen, bevor der Owner Runde 4 am Telefon bestätigt und die Einzelheiten genannt hat. Verwandt: W7 (Leertasten-Animation, Vorlage
+  `docs/LEERTASTE-ANIMATION.md`) und W8 (Menü neu entwerfen und animieren).
 - **103 Spracheingabe mit eigenem Modell (Zukunft)**: „Whisper-Modell oder eins aus der Google-Familie. Ziel: extrem schnell und zuverlässig.“
   Löst W6 ab (geparkt am 2026-11-20). Nicht jetzt.
 - **104 Semantische Nachkorrektur (Zukunft)**: „Automatische Nachkorrigierung im Falle sehr offensichtlicher semantischer Fehler nach
