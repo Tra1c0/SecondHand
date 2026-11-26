@@ -5,7 +5,10 @@
 - **Keine Abkürzungen und fremden Akzente**: „aif“ wird nicht mehr „AIF“, „alr“ nicht „ALR“, „lame“ nicht „Lamé“. Das gemeinte Wort steht in der Leiste.
 - **Häufige Tippfehler**: „icj“ wird „ich“, auch wenn du den Tippfehler schon öfter getippt hast (nicht, wenn er in deinem persönlichen Wörterbuch steht).
 - **„i“ wird „I“**: im englischen Satz und auf dem englischen Layout, auch „i'm“ → „I'm“. Am Satzanfang auf Deutsch bleibt „i“ klein.
-- **Noch nicht**: „mur“ bleibt (das Wörterbuch kennt es), „gah“ wird weiter „gab“.
+- **Seltene Wörter zu häufigen Nachbarn**: Ein seltenes Wort wie „mur“ oder „aif“ wird zu „nur“ bzw. „auf“, wenn du laut deinem Tippen das häufige Wort oft benutzt und das seltene nie. „alr“ bleibt.
+- **Kurzformen mit Apostroph**: „gibts“, „wirds“, „drehts“, „gehts“, „wars“ werden „gibt's“, „wird's“, „dreht's“, „geht's“, „war's“. „nichts“ und „rechts“ bleiben.
+- **Rücktaste stellt es ab**: Nimmst du so eine Korrektur gleich mit der Rücktaste zurück, macht die Tastatur sie nie wieder.
+- **Noch nicht**: „gah“ wird weiter „gab“.
 
 Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
 

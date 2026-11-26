@@ -122,7 +122,7 @@ Buchstabe durch eine Nachbartaste ersetzt wird (QWERTZ für Deutsch, sonst QWERT
 177, „noch“, „und“, „auf“; Englisch ≥ 150; sonst ≥ 140). Nicht bei eigenen Wörtern, Slang, behaltenen Fremdwörtern, gemerkten Ablehnungen, Verbformen
 (A), wenn der Satz zur anderen Sprache neigt, und nicht gegen eine andere Korrektur der Engine. Der Tipp-Verlauf zählt nicht als „bekannt“ (wie bei 75).
 
-**Nicht gebaut: „mur“ → „nur“ trotz BEHUTSAM.** Gegenprobe am echten Wörterbuch: 68 seltene deutsche Wörter (Häufigkeit ≤ 60) haben genau einen sehr
+**Nicht gebaut (seit Etappe 107 nach Gewichten, Abschnitt 5): „mur“ → „nur“ trotz BEHUTSAM.** Gegenprobe am echten Wörterbuch: 68 seltene deutsche Wörter (Häufigkeit ≤ 60) haben genau einen sehr
 häufigen Nachbartasten-Zwilling, darunter echte Wörter wie „gebt“→„geht“, „hafte“→„hatte“, „beben“→„neben“, „riesen“→„diesen“, „Bein“-klein
 „bein“→„beim“, „widder“→„wieder“. Eine Ausnahme von „Richtige Wörter nie ändern“ würde genau das verletzen, was BEHUTSAM verspricht. „mur“ bleibt,
 „nur“ steht in der Leiste. Entscheidung des Owners nötig, falls er das anders will.
@@ -180,7 +180,7 @@ mit festen Engine-Treffern (Wörterbuchtyp, Sprache, Häufigkeiten wie oben) und
    offen genannt (siehe C); die Alternative macht „alr“ zu „alt“ und bricht die Abkürzungsregel von 75.
 3. **„icj“ steht beim Owner schon im persönlichen Wörterbuch** (drei Mal getippt, automatisch hinzugefügt): Regel D greift dann nicht, der Owner sieht
    keine Besserung. **Entscheidung:** vorsichtig bleiben (Herkunft nicht unterscheidbar). Die Diagnose-Karte „Korrektur & Sprache“ entscheidet es:
-   Zeile **„Wörter im persönlichen Wörterbuch“** (Zahl > 0 bei „Automatisch zum persönlichen Wörterbuch hinzufügen: an“) und dann die Liste unter
+   Zeile **„Einträge im persönlichen Wörterbuch (Anzahl)“** (Zahl > 0 bei „Automatisch zum persönlichen Wörterbuch hinzufügen: an“) und dann die Liste unter
    Einstellungen → Persönliches Wörterbuch: Steht „icj“/„mocb“ dort, ist das die Ursache; Abhilfe dort löschen oder (Entscheidung des Owners) die
    automatische Aufnahme abschalten.
 
@@ -189,3 +189,160 @@ mit festen Engine-Treffern (Wörterbuchtyp, Sprache, Häufigkeiten wie oben) und
 - Robolectric und JVM-Tests wie in den Abnahme-Zeilen; laufen auf GitHub nach dem Push (lokal keine Android-Werkzeuge).
 - Nur am Telefon: echte Wörterbücher (die Tests setzen Treffer und Häufigkeiten fest), ob das Nachschlagen der anderen Sprachen rechtzeitig geladen ist
   (erste Wörter nach dem Start: altes Verhalten), Gefühl beim Tippen, und die Zeile „Wörter im persönlichen Wörterbuch“.
+
+## 5. Etappe 107: seltene Wörter nach Gewichten (Owner, 2026-11-26)
+
+**Entscheidung des Owners (diktiert, sinngemäß):** „Mur habe ich noch nie benutzt. Ich würde da gerne mit Gewichten arbeiten … dieses AIF auch –
+das würde ich dann einfach zu ‚auf‘ korrigieren lassen, dank Gewichten. Die Tastatur lernt ja meinen Schreibstil.“ Nachtrag: „Wenn ich ein Wort
+mit der Rücktaste zurücknehme, dann soll es bitte nie wieder korrigiert werden, sondern die Gewichte sollen sich dynamisch anpassen.“
+
+**Was lesbar ist (ohne Text zu loggen):** der Tipp-Verlauf (`UserHistoryDictionary.getFrequency`, neu `DictionaryFacilitatorImpl.historyFrequency`:
+steigt mit jeder Nutzung, laut HeliBoard etwa 111 nach zwei und 120 nach drei Nutzungen, fällt mit der Zeit; enthält auch behaltene Tippfehler und
+jede stehen gelassene Autokorrektur), die gemerkten Ablehnungen (`RejectedCorrections`), das Gedächtnis (`Memory.isOwnWord`). `TypoMemory` zählt
+bewusst gewählte Paare aus der Leiste und setzt sie nach drei Mal selbst; automatische Korrekturen dort mitzuzählen, gäbe eine Schleife, die sich selbst
+bestätigt (eine Regelkorrektur würde nach drei Mal ohne die Gewichtsregel weiterlaufen). Darum kein neuer Speicher und kein Missbrauch von
+`TypoMemory`: Die eine Größe ist der Verlauf plus die Ablehnung.
+
+**Regel (`RareWordWeights`, `Suggest.applyRareWord`; nur mit „satzbezogene Autokorrektur“; greift auch mit „Richtige Wörter nie ändern“):**
+1. Getippt: 3–5 Buchstaben, das Hauptwörterbuch der Tastatursprache kennt es in irgendeiner Schreibung, aber selten: Häufigkeit ≤ **80**
+   („mur“ 56, „ALR“ 69, „AIF“ 77, „BSI“ 78).
+2. Kandidat: genau **ein** Wort durch eine Nachbartaste mit Häufigkeit ≥ **150** (Deutsch; sonst 170), oder die Korrektur der Engine, wenn sie
+   dieses Wort ist. „alt“ (135) ist kein Kandidat: „alr“ wird nie „alt“.
+3. Gewicht aus dem Verlauf (wenn „Personalisierte Vorschläge“ an und der Kandidat schon benutzt ist, Verlauf ≥ **111** ≈ zwei Nutzungen):
+   korrigieren, wenn das getippte Wort nie abgeschickt wurde oder der Kandidat mindestens **20** Punkte vorn liegt. 20 Punkte im langsam
+   steigenden Verlauf heißen ein Vielfaches an Nutzungen; ein paar behaltene „mur“ (111) gegen oft benutztes „nur“ (160) schützen also nicht,
+   ein „BSI“, das er etwa so oft schreibt wie „bei“, schon. Annahme: Die genaue Zuordnung Punkte → Nutzungen ist nicht gemessen.
+4. Ohne brauchbaren Verlauf (Lernen aus, Inkognito, neues Gerät, Kandidat noch nicht benutzt): nur, wenn der Satz davor den Kandidaten
+   deutlich wahrscheinlicher macht (Folgewort-Wert der Engine mindestens **20** über dem des getippten Worts, dieselbe Schwelle wie die Engine
+   selbst), sonst nicht. Begründung: Ohne Verlauf gibt es kein Gewicht des Owners, und ein seltenes richtiges Wort („gebt“) soll nicht auf bloßen
+   Verdacht verschwinden.
+5. Nie: eigenes Wort, Slang-Liste, behaltenes Fremdwort, ein gewöhnliches Wort einer anderen aktiven oder aktivierten Sprache (Regel B, „nut“),
+   ein Satz, der zu einer anderen Sprache neigt, ein Großbuchstabe mitten im Satz, eine andere Korrektur der Engine.
+
+**Rücknahme und „dynamische Gewichte“ (Deutung des Leads, der Owner wird gefragt):** Eine Rücknahme mit der Rücktaste ist das stärkste Gewicht
+gegen das Paar: Es wird sofort und für immer nicht mehr automatisch angewendet (`RejectedCorrections`; für die Regelkorrekturen von 107/108 auch ohne
+den Schalter „Rückgängig gemachte Korrekturen merken“, aber nur mit „Personalisierte Vorschläge“, nicht pausiert, nicht inkognito, nicht gesperrt –
+`RuleCorrections` merkt sich dafür die zuletzt angebotenen Paare im Speicher). Das getippte Wort steigt danach im Verlauf, sobald er es so abschickt.
+Umgekehrt hebt jede stehen gelassene Korrektur den Kandidaten im Verlauf. Beide Richtungen landen so in einer Größe: Verlaufsabstand, und bei einer
+Rücknahme „nie“. Die Diagnose-Karte „Korrektur & Sprache“ zeigt neu die Zeile „Seltene Wörter und Kurzformen korrigiert seit Start (behalten /
+zurückgenommen)“, nur Zahlen.
+
+**Die 68 Paare aus Abschnitt 1 (D)** (seltene deutsche Wörter ≤ 60 mit genau einem Nachbartasten-Wort ≥ 150; „typischer Verlauf“ = der Owner benutzt
+den Kandidaten oft, das getippte Wort nie oder viel seltener):
+
+| getippt | Häufigkeit | Kandidat | Häufigkeit | ohne Verlauf | mit typischem Verlauf |
+| --- | --- | --- | --- | --- | --- |
+| def | 48 | der | 216 | bleibt, außer der Satz davor macht „der“ deutlich wahrscheinlicher | „der“, wenn du „der“ oft und „def“ nie oder viel seltener getippt hast |
+| gon | 57 | von | 204 | bleibt, außer der Satz davor macht „von“ deutlich wahrscheinlicher | „von“, wenn du „von“ oft und „gon“ nie oder viel seltener getippt hast |
+| fon | 53 | von | 204 | bleibt, außer der Satz davor macht „von“ deutlich wahrscheinlicher | „von“, wenn du „von“ oft und „fon“ nie oder viel seltener getippt hast |
+| fes | 28 | des | 200 | bleibt, außer der Satz davor macht „des“ deutlich wahrscheinlicher | „des“, wenn du „des“ oft und „fes“ nie oder viel seltener getippt hast |
+| dew | 34 | des | 200 | bleibt, außer der Satz davor macht „des“ deutlich wahrscheinlicher | „des“, wenn du „des“ oft und „dew“ nie oder viel seltener getippt hast; englisch 85: bleibt im englischen Satz |
+| dey | 43 | des | 200 | bleibt, außer der Satz davor macht „des“ deutlich wahrscheinlicher | „des“, wenn du „des“ oft und „dey“ nie oder viel seltener getippt hast |
+| kit | 45 | mit | 198 | bleibt, außer der Satz davor macht „mit“ deutlich wahrscheinlicher | „mit“, wenn du „mit“ oft und „kit“ nie oder viel seltener getippt hast; englisch 113: bleibt im englischen Satz und ohne Satzbeleg |
+| sem | 58 | dem | 196 | bleibt, außer der Satz davor macht „dem“ deutlich wahrscheinlicher | „dem“, wenn du „dem“ oft und „sem“ nie oder viel seltener getippt hast |
+| ras | 52 | das | 195 | bleibt, außer der Satz davor macht „das“ deutlich wahrscheinlicher | „das“, wenn du „das“ oft und „ras“ nie oder viel seltener getippt hast |
+| ale | 60 | als | 194 | bleibt, außer der Satz davor macht „als“ deutlich wahrscheinlicher | „als“, wenn du „als“ oft und „ale“ nie oder viel seltener getippt hast; englisch 94: bleibt im englischen Satz |
+| eich | 41 | sich | 193 | bleibt, außer der Satz davor macht „sich“ deutlich wahrscheinlicher | „sich“, wenn du „sich“ oft und „eich“ nie oder viel seltener getippt hast |
+| aar | 43 | war | 191 | bleibt, außer der Satz davor macht „war“ deutlich wahrscheinlicher | „war“, wenn du „war“ oft und „aar“ nie oder viel seltener getippt hast |
+| hach | 28 | nach | 187 | bleibt, außer der Satz davor macht „nach“ deutlich wahrscheinlicher | „nach“, wenn du „nach“ oft und „hach“ nie oder viel seltener getippt hast |
+| bos | 53 | bis | 187 | bleibt, außer der Satz davor macht „bis“ deutlich wahrscheinlicher | „bis“, wenn du „bis“ oft und „bos“ nie oder viel seltener getippt hast |
+| bek | 46 | bei | 186 | bleibt, außer der Satz davor macht „bei“ deutlich wahrscheinlicher | „bei“, wenn du „bei“ oft und „bek“ nie oder viel seltener getippt hast |
+| hum | 60 | zum | 185 | bleibt, außer der Satz davor macht „zum“ deutlich wahrscheinlicher | „zum“, wenn du „zum“ oft und „hum“ nie oder viel seltener getippt hast; englisch 81: bleibt im englischen Satz |
+| wire | 57 | wird | 184 | bleibt, außer der Satz davor macht „wird“ deutlich wahrscheinlicher | „wird“, wenn du „wird“ oft und „wire“ nie oder viel seltener getippt hast; englisch 122: bleibt im englischen Satz und ohne Satzbeleg |
+| wirf | 49 | wird | 184 | bleibt, außer der Satz davor macht „wird“ deutlich wahrscheinlicher | „wird“, wenn du „wird“ oft und „wirf“ nie oder viel seltener getippt hast |
+| sue | 47 | sie | 184 | bleibt, außer der Satz davor macht „sie“ deutlich wahrscheinlicher | „sie“, wenn du „sie“ oft und „sue“ nie oder viel seltener getippt hast; englisch 100: bleibt im englischen Satz und ohne Satzbeleg |
+| sund | 38 | sind | 184 | bleibt, außer der Satz davor macht „sind“ deutlich wahrscheinlicher | „sind“, wenn du „sind“ oft und „sund“ nie oder viel seltener getippt hast |
+| sid | 52 | sie | 184 | bleibt, außer der Satz davor macht „sie“ deutlich wahrscheinlicher | „sie“, wenn du „sie“ oft und „sid“ nie oder viel seltener getippt hast |
+| dutch | 45 | durch | 184 | bleibt, außer der Satz davor macht „durch“ deutlich wahrscheinlicher | „durch“, wenn du „durch“ oft und „dutch“ nie oder viel seltener getippt hast; englisch 62: bleibt im englischen Satz |
+| nut | 57 | nur | 177 | bleibt, außer der Satz davor macht „nur“ deutlich wahrscheinlicher | „nur“, wenn du „nur“ oft und „nut“ nie oder viel seltener getippt hast; englisch 100: bleibt im englischen Satz und ohne Satzbeleg |
+| mur | 56 | nur | 177 | bleibt, außer der Satz davor macht „nur“ deutlich wahrscheinlicher | „nur“, wenn du „nur“ oft und „mur“ nie oder viel seltener getippt hast |
+| bur | 47 | nur | 177 | bleibt, außer der Satz davor macht „nur“ deutlich wahrscheinlicher | „nur“, wenn du „nur“ oft und „bur“ nie oder viel seltener getippt hast; englisch 65: bleibt im englischen Satz |
+| bor | 49 | vor | 177 | bleibt, außer der Satz davor macht „vor“ deutlich wahrscheinlicher | „vor“, wenn du „vor“ oft und „bor“ nie oder viel seltener getippt hast |
+| hag | 51 | hat | 175 | bleibt, außer der Satz davor macht „hat“ deutlich wahrscheinlicher | „hat“, wenn du „hat“ oft und „hag“ nie oder viel seltener getippt hast; englisch 75: bleibt im englischen Satz |
+| waden | 14 | waren | 173 | bleibt, außer der Satz davor macht „waren“ deutlich wahrscheinlicher | „waren“, wenn du „waren“ oft und „waden“ nie oder viel seltener getippt hast |
+| hafte | 52 | hatte | 173 | bleibt, außer der Satz davor macht „hatte“ deutlich wahrscheinlicher | „hatte“, wenn du „hatte“ oft und „hafte“ nie oder viel seltener getippt hast |
+| seim | 36 | sein | 172 | bleibt, außer der Satz davor macht „sein“ deutlich wahrscheinlicher | „sein“, wenn du „sein“ oft und „seim“ nie oder viel seltener getippt hast |
+| fieser | 44 | dieser | 172 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| widder | 51 | wieder | 169 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| fiese | 51 | diese | 169 | bleibt, außer der Satz davor macht „diese“ deutlich wahrscheinlicher | „diese“, wenn du „diese“ oft und „fiese“ nie oder viel seltener getippt hast |
+| kehr | 52 | mehr | 168 | bleibt, außer der Satz davor macht „mehr“ deutlich wahrscheinlicher | „mehr“, wenn du „mehr“ oft und „kehr“ nie oder viel seltener getippt hast |
+| heure | 52 | heute | 168 | bleibt, außer der Satz davor macht „heute“ deutlich wahrscheinlicher | „heute“, wenn du „heute“ oft und „heure“ nie oder viel seltener getippt hast |
+| haven | 48 | haben | 167 | bleibt, außer der Satz davor macht „haben“ deutlich wahrscheinlicher | „haben“, wenn du „haben“ oft und „haven“ nie oder viel seltener getippt hast; englisch 99: bleibt im englischen Satz |
+| rann | 41 | dann | 166 | bleibt, außer der Satz davor macht „dann“ deutlich wahrscheinlicher | „dann“, wenn du „dann“ oft und „rann“ nie oder viel seltener getippt hast |
+| ohm | 40 | ihm | 166 | bleibt, außer der Satz davor macht „ihm“ deutlich wahrscheinlicher | „ihm“, wenn du „ihm“ oft und „ohm“ nie oder viel seltener getippt hast; englisch 72: bleibt im englischen Satz |
+| bein | 59 | beim | 166 | bleibt, außer der Satz davor macht „beim“ deutlich wahrscheinlicher | „beim“, wenn du „beim“ oft und „bein“ nie oder viel seltener getippt hast |
+| kaj | 51 | kam | 164 | bleibt, außer der Satz davor macht „kam“ deutlich wahrscheinlicher | „kam“, wenn du „kam“ oft und „kaj“ nie oder viel seltener getippt hast |
+| alls | 49 | alle | 163 | bleibt, außer der Satz davor macht „alle“ deutlich wahrscheinlicher | „alle“, wenn du „alle“ oft und „alls“ nie oder viel seltener getippt hast |
+| tab | 46 | gab | 162 | bleibt, außer der Satz davor macht „gab“ deutlich wahrscheinlicher | „gab“, wenn du „gab“ oft und „tab“ nie oder viel seltener getippt hast; englisch 91: bleibt im englischen Satz |
+| gag | 51 | gab | 162 | bleibt, außer der Satz davor macht „gab“ deutlich wahrscheinlicher | „gab“, wenn du „gab“ oft und „gag“ nie oder viel seltener getippt hast; englisch 101: bleibt im englischen Satz und ohne Satzbeleg |
+| fab | 45 | gab | 162 | bleibt, außer der Satz davor macht „gab“ deutlich wahrscheinlicher | „gab“, wenn du „gab“ oft und „fab“ nie oder viel seltener getippt hast |
+| viet | 57 | vier | 161 | bleibt, außer der Satz davor macht „vier“ deutlich wahrscheinlicher | „vier“, wenn du „vier“ oft und „viet“ nie oder viel seltener getippt hast |
+| seren | 14 | deren | 161 | bleibt, außer der Satz davor macht „deren“ deutlich wahrscheinlicher | „deren“, wenn du „deren“ oft und „seren“ nie oder viel seltener getippt hast |
+| fier | 28 | vier | 161 | bleibt, außer der Satz davor macht „vier“ deutlich wahrscheinlicher | „vier“, wenn du „vier“ oft und „fier“ nie oder viel seltener getippt hast |
+| zier | 23 | hier | 160 | bleibt, außer der Satz davor macht „hier“ deutlich wahrscheinlicher | „hier“, wenn du „hier“ oft und „zier“ nie oder viel seltener getippt hast |
+| weigere | 55 | weitere | 160 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| aas | 40 | was | 160 | bleibt, außer der Satz davor macht „was“ deutlich wahrscheinlicher | „was“, wenn du „was“ oft und „aas“ nie oder viel seltener getippt hast |
+| senn | 38 | wenn | 158 | bleibt, außer der Satz davor macht „wenn“ deutlich wahrscheinlicher | „wenn“, wenn du „wenn“ oft und „senn“ nie oder viel seltener getippt hast |
+| ina | 55 | ins | 158 | bleibt, außer der Satz davor macht „ins“ deutlich wahrscheinlicher | „ins“, wenn du „ins“ oft und „ina“ nie oder viel seltener getippt hast |
+| ting | 51 | ging | 157 | bleibt, außer der Satz davor macht „ging“ deutlich wahrscheinlicher | „ging“, wenn du „ging“ oft und „ting“ nie oder viel seltener getippt hast; englisch 65: bleibt im englischen Satz |
+| riesen | 48 | diesen | 157 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| fährte | 23 | führte | 157 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| fiesen | 59 | diesen | 157 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| bing | 43 | ging | 157 | bleibt, außer der Satz davor macht „ging“ deutlich wahrscheinlicher | „ging“, wenn du „ging“ oft und „bing“ nie oder viel seltener getippt hast; englisch 60: bleibt im englischen Satz |
+| beben | 54 | neben | 157 | bleibt, außer der Satz davor macht „neben“ deutlich wahrscheinlicher | „neben“, wenn du „neben“ oft und „beben“ nie oder viel seltener getippt hast |
+| stehr | 28 | steht | 156 | bleibt, außer der Satz davor macht „steht“ deutlich wahrscheinlicher | „steht“, wenn du „steht“ oft und „stehr“ nie oder viel seltener getippt hast |
+| sill | 36 | soll | 156 | bleibt, außer der Satz davor macht „soll“ deutlich wahrscheinlicher | „soll“, wenn du „soll“ oft und „sill“ nie oder viel seltener getippt hast; englisch 78: bleibt im englischen Satz |
+| doll | 52 | soll | 156 | bleibt, außer der Satz davor macht „soll“ deutlich wahrscheinlicher | „soll“, wenn du „soll“ oft und „doll“ nie oder viel seltener getippt hast; englisch 104: bleibt im englischen Satz und ohne Satzbeleg |
+| nin | 55 | nun | 155 | bleibt, außer der Satz davor macht „nun“ deutlich wahrscheinlicher | „nun“, wenn du „nun“ oft und „nin“ nie oder viel seltener getippt hast |
+| finder | 46 | findet | 153 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| nez | 40 | neu | 152 | bleibt, außer der Satz davor macht „neu“ deutlich wahrscheinlicher | „neu“, wenn du „neu“ oft und „nez“ nie oder viel seltener getippt hast |
+| heurigen | 45 | heutigen | 152 | bleibt (mehr als 5 Buchstaben) | bleibt (mehr als 5 Buchstaben) |
+| stans | 36 | stand | 151 | bleibt, außer der Satz davor macht „stand“ deutlich wahrscheinlicher | „stand“, wenn du „stand“ oft und „stans“ nie oder viel seltener getippt hast |
+| langs | 31 | lange | 151 | bleibt, außer der Satz davor macht „lange“ deutlich wahrscheinlicher | „lange“, wenn du „lange“ oft und „langs“ nie oder viel seltener getippt hast |
+| gebt | 59 | geht | 150 | bleibt, außer der Satz davor macht „geht“ deutlich wahrscheinlicher | „geht“, wenn du „geht“ oft und „gebt“ nie oder viel seltener getippt hast |
+
+Zusätzlich im Bereich der Regel: die Abkürzungsfälle „aif“ (AIF 77) → „auf“ (mit Verlauf), „bsi“ (BSI 78) → „bei“ nur, wenn er „bei“ weit öfter
+schreibt als „BSI“, „alr“ (ALR 69) nie (kein Kandidat ≥ 150). Insgesamt erfüllen am echten Wörterbuch 165 Wörter aus 3–5 Buchstaben die
+Bedingungen 1 und 2.
+
+**Kritiker:** (1) Ein seltenes Wort, das er bewusst zum ersten Mal schreibt („gebt“), wird mit Verlauf korrigiert. Entscheidung: gewollt (Owner),
+eine Rücktaste stellt es für immer ab. (2) Die Verlaufswerte zerfallen mit der Zeit; nach langer Pause greift Schritt 4. Hingenommen. (3) Ohne
+„Personalisierte Vorschläge“ merkt sich die Tastatur keine Rücknahme, außer der Schalter „Rückgängig gemachte Korrekturen merken“ ist an. Hingenommen
+(Lernen bleibt opt-in).
+
+| Ausgangslage | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- |
+| Behutsam, Verlauf „nur“ oft, „mur“ nie | „ich sehe mur“ | „nur“ | „mur“ etwa so oft wie „nur“: bleibt | Robolectric „stage 107 mur …“ |
+| dasselbe, danach Rücktaste | „mur“ noch einmal | bleibt, „nur“ in der Leiste | – | Robolectric „stage 107 one Backspace …“ |
+| Verlauf „auf“ oft | „aif“ | „auf“ | „alr“ bleibt, „bsi“ bleibt bei gleich häufigem „BSI“ | Robolectric „stage 107 aif …“ |
+| kein Verlauf | „ihr gebt“ | bleibt | Satz macht „geht“ deutlich wahrscheinlicher: „geht“ | Robolectric „stage 107 gebt …“ |
+| Unit | – | Formel | – | `CT/RareWordWeightsTest` |
+
+## 6. Etappe 108: Kurzformen mit Apostroph automatisch (Owner, 2026-11-26)
+
+Owner: „gibt's, wird's, dreht's … werden nicht automatisch korrigiert, nur vorgeschlagen.“ Ursache: Das deutsche Hauptwörterbuch kennt keine Kurzform
+mit „'s“ und auch die Form ohne Apostroph nicht (Abschnitt 5.1 des Konzepts von Etappe 90); die Engine bietet „gibt's“ höchstens aus dem Verlauf an,
+und Etappe 92 lässt ein Ziel nur aus dem Verlauf nicht automatisch setzen. Statt der Liste aus Etappe 90 eine produktive Regel (`GermanShortForms`,
+`Suggest.applyShortForm`, nur mit „satzbezogene Autokorrektur“, auch mit „Richtige Wörter nie ändern“, Vorrang vor der Engine):
+
+- getippt endet auf „s“, nur Buchstaben, klein (groß nur am Satzanfang), deutsches Layout;
+- der Teil davor ist eine finite Verbform, die das deutsche Hauptwörterbuch kennt: eine der häufigen unregelmäßigen Formen (ist, war, wär, hat, hab,
+  wird, gibt, gab, tut, kann, soll, will, darf, mag, muss, ging, kam, sieht, nimmt, läuft, steht …) oder eine regelmäßige Form auf „t“ eines Verbs der
+  Liste (dreht, geht, klappt, passt);
+- das getippte Wort selbst kennt kein aktives Hauptwörterbuch, keine Kontakte, keine Apps (nichts, rechts, stets, bereits, abseits, Amts, Guts,
+  Rats, Geschäfts bleiben); Tipp-Verlauf und persönliches Wörterbuch zählen nicht (dort landen solche Formen automatisch);
+- nicht in einem Satz, der zu einer anderen Sprache neigt („wars“ im englischen Satz bleibt; im deutschen oder neutralen Satz → „war's“), nicht bei
+  einem eigenen Wort, einem behaltenen Fremdwort, einem zurückgenommenen Paar; @, Punkt und Ziffern schließen schon die Buchstabenprüfung aus;
+- die Slang-Liste hält die Regel nicht auf („gehts“, „gibts“, „habs“ stehen dort, der Wunsch des Owners geht vor, wie in Etappe 90 geplant);
+- Apostroph: der gerade `'`, den die Tastatur tippt und die Wörterbücher benutzen.
+
+Rücknahme wie in 107: einmal Rücktaste, nie wieder. Gegenfall, den die Regel in Kauf nimmt: Eine Form, die das Wörterbuch nicht kennt, aber ein
+Plural oder Genitiv eines Verbstamms sein könnte (am Satzanfang „Hauts“ → „Haut's“).
+
+| Ausgangslage | Aktion | Erwartung | Gegenfall | Nachweis |
+| --- | --- | --- | --- | --- |
+| deutsches Layout, Behutsam | „und gibts“, „wirds“, „drehts“, „gehts“ | „gibt's“, „wird's“, „dreht's“, „geht's“ | „nichts“, „rechts“, „Amts“ bleiben | Robolectric „stage 108 …“ |
+| dasselbe | „und wars“ | „war's“ | „the cat wars“ bleibt | Robolectric |
+| Satzanfang | „Gibts“ | „Gibt's“ | „und Peters“ bleibt | Robolectric |
+| nach einer Rücknahme | „gibts“ | bleibt | – | Robolectric |
+| Unit | – | Ableitung | „dings“, „kaufts“ ohne Wörterbuch | `CT/GermanShortFormsTest` |

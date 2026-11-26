@@ -1,5 +1,18 @@
 # Prüfnachweise
 
+## Etappen 107 und 108 — seltene Wörter nach Gewichten, Kurzformen mit Apostroph (Owner, 2026-11-26)
+
+Konzept: `docs/AUTOKORREKTUR-101-KONZEPT.md` Abschnitte 5 (mit Tabelle der 68 Paare) und 6. 107: `RareWordWeights` (Konstanten 80/150/111/20/20),
+`Suggest.applyRareWord`; Gewicht = Tipp-Verlauf (`DictionaryFacilitatorImpl.historyFrequency`), ohne Verlauf Folgewort-Werte des Kontexts, Ablehnung
+über `RejectedCorrections` (für Regelpaare auch ohne Schalter, mit „Personalisierte Vorschläge“; `RuleCorrections`). Kein vierter Speicher; `TypoMemory`
+bewusst nicht genutzt (Selbstbestätigung). 108: `GermanShortForms`, `Suggest.applyShortForm`. Diagnose-Zeile „Seltene Wörter und Kurzformen korrigiert
+seit Start (behalten / zurückgenommen)“. Bewusst geänderter Test: `AutocorrectReportTest` „stage 101 mur stays …“ setzt jetzt ausdrücklich „kein
+Verlauf, keine Folgewort-Werte“ (mit Verlauf wird „mur“ nach 107 korrigiert). Neue Tests: „stage 107 …“ (mur mit/ohne Verlauf, behaltener Tippfehler,
+Rücknahme ohne Schalter, aif → auf, alr bleibt, bsi bleibt bei gleich häufigem BSI, gebt ohne/mit Satz und Verlauf), „stage 108 …“ (gibts, wirds,
+drehts, gehts, wars, Gibts; nichts, rechts, amts, Peters, wars im englischen Satz, dings, Rücknahme), `CT/RareWordWeightsTest`,
+`CT/GermanShortFormsTest`. Lokal nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Ungeprüft: die Zuordnung Verlaufspunkte →
+Nutzungen (Annahme aus HeliBoards Kommentar), kein Gerät.
+
 ## Etappe 101 — Autokorrektur nach den Fehlfällen des Owners (2026-11-25)
 
 Konzept mit belegten Ursachen, Regeln, Abnahme-Zeilen und Kritiker: `docs/AUTOKORREKTUR-101-KONZEPT.md` (Wörterbuch-Befunde gelesen aus
@@ -16,7 +29,8 @@ dem schon auf dem Basiszweig neuen Fehler „deleting shows the word …“ (Eta
 auf dem englischen Stub-Layout eine Autokorrektur-Anzeige). Danach gilt die „i“-Regel auf dem englischen Layout nur mit „Richtige Wörter nie
 ändern“ (sonst setzt das Wörterbuch „I“ selbst). Zweiter Lauf (45722304564): agent, build, lint grün; upstream
 **Infrastrukturabbruch** (73 Testklassen `classMethod`, Robolectric konnte sein Android-Paket nicht laden, `IOException` beim Herunterladen,
-nur 1047 Tests liefen); ob `TypingEquivalenceTest` jetzt grün ist, ist damit **nicht geprüft** (neu anstoßen). Neue Tests:
+nur 1047 Tests liefen). Vom Lead neu gestartet (Versuch 2): upstream 2286 Tests, 6 rot, davon fünf bekannte und der schon auf dem Basiszweig
+neue „deleting shows the word as it stands left …“ (Etappe 96, `expected:<lösch> but was:<null>`); `TypingEquivalenceTest` grün, kein Fehler aus 101. Neue Tests:
 `AutocorrectReportTest` „stage 101 …“ (je Fehlfall, Einstellungen des Owners, feste Treffer mit Wörterbuchtyp und Sprache, Kontrollfälle),
 `CT/GermanVerbFormsTest`, `CT/NeighborKeysTest`, `CT/OtherLanguageWordTest`, `CT/EnglishITest`, `CT/SentenceLanguageTest` (Häufigkeiten),
 `AT/CorrectionGuardsTest` (Ziele). Lokal ohne Android-Toolchain, nichts gebaut und kein Test gelaufen; GitHub-Läufe im Build-Log. Offen: Fall 9

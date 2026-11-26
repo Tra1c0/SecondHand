@@ -60,6 +60,10 @@ class AutocorrectReportTest {
         reportResults = SuggestionResults(18, false, false)
         reportKnowing = emptyMap()
         reportFrequency = emptyMap()
+        reportHistory = emptyMap()
+        reportPredictions = null
+        helium314.keyboard.agent.RejectedCorrections.clear(latinIME)
+        helium314.keyboard.agent.RuleCorrections.resetForTest()
         OtherLanguageDictionaries.source = otherLanguages(emptyMap())
     }
 
@@ -82,6 +86,7 @@ class AutocorrectReportTest {
             putBoolean(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true)
             putBoolean(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, true)
             putBoolean(AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true)
+            putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true)
         }
     }
 
@@ -126,7 +131,7 @@ class AutocorrectReportTest {
         suggest.setAutoCorrectionThreshold(Settings.getValues().mAutoCorrectionThreshold)
     }
 
-    private fun type(typed: String, previous: List<String> = emptyList()): SuggestedWords {
+    private fun type(typed: String, previous: List<String> = emptyList(), sentenceStart: Boolean = false): SuggestedWords {
         val composer = WordComposer()
         StringUtils.toCodePointArray(typed).forEach {
             composer.applyProcessedEvent(composer.processEvent(
@@ -137,7 +142,7 @@ class AutocorrectReportTest {
             GRID_HEIGHT = 1; GRID_WIDTH = 1
             mId = KeyboardLayoutSet.getFakeKeyboardId(KeyboardElement.ALPHABET)
         }
-        val ngram = if (previous.isEmpty()) NgramContext.EMPTY_PREV_WORDS_INFO
+        val ngram = if (previous.isEmpty()) (if (sentenceStart) NgramContext.BEGINNING_OF_SENTENCE else NgramContext.EMPTY_PREV_WORDS_INFO)
             else NgramContext(*previous.reversed().map { NgramContext.WordInfo(it) }.toTypedArray())
         suggest.clearNextWordSuggestionsCache()
         return suggest.getSuggestedWords(composer, ngram, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
@@ -336,11 +341,117 @@ class AutocorrectReportTest {
 
     @Test fun `stage 101 mur stays on Behutsam, mocb gets no new rule`() {
         germanOwner()
+        // stage 107: without a typing history and without a sentence that predicts "nur" (see the stage 107 tests)
+        reportPredictions = SuggestionResults(18, false, false)
         reportKnowing = mapOf("mur" to listOf(Locale.GERMAN))
         results(main("mur", 300000, Locale.GERMAN), main("nur", 1500000, Locale.GERMAN))
         assertEquals(null, type("mur", listOf("sehe")).correction(), "a dictionary word with 'Richtige Wörter nie ändern'")
         results(history("mocb", 600000, Locale.GERMAN))
         assertEquals(null, type("mocb", listOf("brauchst")).correction())
+    }
+
+    // ---- stage 107: rare dictionary words and the owner's weights ----------------------------------------------------------
+    private val ownerRare = mapOf("mur" to 56, "nur" to 177, "AIF" to 77, "auf" to 194, "ALR" to 69, "alt" to 135, "BSI" to 78,
+        "bei" to 186, "gebt" to 59, "geht" to 150, "sehe" to 120, "ihr" to 160)
+
+    private fun rareOwner() {
+        germanOwner()
+        reportFrequency = mapOf("de" to ownerGerman.getValue("de") + ownerRare)
+        reportPredictions = SuggestionResults(18, false, false) // no next-word evidence unless a test gives it
+    }
+
+    @Test fun `stage 107 mur becomes nur when the owner uses nur and never mur`() {
+        rareOwner()
+        reportKnowing = mapOf("mur" to listOf(Locale.GERMAN))
+        results(main("mur", 300000, Locale.GERMAN), main("nur", 1500000, Locale.GERMAN))
+        // without a history: stays (no sentence evidence either)
+        assertEquals(null, type("mur", listOf("sehe")).correction())
+        // the owner's history: "nur" used often, "mur" never
+        reportHistory = mapOf("de" to mapOf("nur" to 160))
+        assertEquals("nur", type("mur", listOf("sehe")).correction())
+        // a few kept "mur" do not protect it while "nur" is far ahead (the trap of kept typos)
+        reportHistory = mapOf("de" to mapOf("nur" to 160, "mur" to 111))
+        assertEquals("nur", type("mur", listOf("sehe")).correction())
+        // the owner writes "mur" about as often as "nur": stays
+        reportHistory = mapOf("de" to mapOf("nur" to 160, "mur" to 150))
+        assertEquals(null, type("mur", listOf("sehe")).correction())
+    }
+
+    @Test fun `stage 107 one Backspace stops the pair for good, also without the switch for undone corrections`() {
+        rareOwner()
+        reportKnowing = mapOf("mur" to listOf(Locale.GERMAN))
+        reportHistory = mapOf("de" to mapOf("nur" to 160))
+        results(main("mur", 300000, Locale.GERMAN), main("nur", 1500000, Locale.GERMAN))
+        assertEquals("nur", type("mur", listOf("sehe")).correction())
+        assertFalse(Settings.getValues().mRememberRejectedCorrections, "the owner's switch is not needed")
+        // what InputLogic does when Backspace reverts the correction
+        helium314.keyboard.agent.RejectedCorrections.remember(latinIME, "mur", "nur", Settings.getValues())
+        assertEquals(1, helium314.keyboard.agent.RuleCorrections.undone.get())
+        val again = type("mur", listOf("sehe"))
+        assertEquals(null, again.correction())
+        assertTrue(again.offers("nur"), "still offered")
+    }
+
+    @Test fun `stage 107 aif becomes auf with the owner's history, alr and bsi stay`() {
+        rareOwner()
+        reportHistory = mapOf("de" to mapOf("auf" to 170, "alt" to 160, "bei" to 170, "BSI" to 160))
+        results(main("AIF", 1500000, Locale.GERMAN), main("auf", 600000, Locale.GERMAN))
+        assertEquals("auf", type("aif", listOf("versehentlich")).correction())
+        // "alt" (135) is no very common word: "alr" never becomes "alt"
+        results(main("ALR", 1500000, Locale.GERMAN), main("alt", 300000, Locale.GERMAN))
+        assertEquals(null, type("alr", listOf("cool")).correction())
+        // the owner writes "BSI" about as often as "bei": stays
+        results(main("BSI", 1500000, Locale.GERMAN))
+        assertEquals(null, type("bsi", listOf("beim")).correction())
+    }
+
+    @Test fun `stage 107 gebt - stays without history and context, follows the sentence or the history`() {
+        rareOwner()
+        reportKnowing = mapOf("gebt" to listOf(Locale.GERMAN))
+        results(main("gebt", 300000, Locale.GERMAN), main("geht", 600000, Locale.GERMAN))
+        assertEquals(null, type("gebt", listOf("ihr")).correction(), "no history, no sentence evidence")
+        // without a history the sentence decides: the engine predicts "geht" here, not "gebt"
+        reportPredictions = SuggestionResults(18, false, false).apply { add(main("geht", 300, Locale.GERMAN)) }
+        assertEquals("geht", type("gebt", listOf("es")).correction())
+        reportPredictions = SuggestionResults(18, false, false).apply { add(main("geht", 300, Locale.GERMAN)); add(main("gebt", 290, Locale.GERMAN)) }
+        assertEquals(null, type("gebt", listOf("ihr")).correction(), "both likely in this sentence")
+        // with the owner's history: he writes "gebt" himself, so it stays
+        reportPredictions = SuggestionResults(18, false, false)
+        reportHistory = mapOf("de" to mapOf("geht" to 150, "gebt" to 140))
+        assertEquals(null, type("gebt", listOf("ihr")).correction())
+        reportHistory = mapOf("de" to mapOf("geht" to 150))
+        assertEquals("geht", type("gebt", listOf("ihr")).correction(), "never typed before, 'geht' used a lot")
+    }
+
+    // ---- stage 108: German short forms get the apostrophe --------------------------------------------------------------
+    private fun shortForms() {
+        germanOwner()
+        reportFrequency = mapOf("de" to ownerGerman.getValue("de") + mapOf("gibt" to 150, "wird" to 170, "dreht" to 90, "geht" to 150,
+            "war" to 190, "hat" to 175, "und" to 213, "nichts" to 180))
+        reportKnowing = mapOf("nichts" to listOf(Locale.GERMAN), "rechts" to listOf(Locale.GERMAN), "Amts" to listOf(Locale.GERMAN))
+        results()
+    }
+
+    @Test fun `stage 108 gibts wirds drehts wars get the apostrophe`() {
+        shortForms()
+        assertEquals("gibt's", type("gibts", listOf("und")).correction())
+        assertEquals("wird's", type("wirds", listOf("und")).correction())
+        assertEquals("dreht's", type("drehts", listOf("und")).correction())
+        assertEquals("geht's", type("gehts", listOf("wie")).correction(), "also a word of the slang list")
+        assertEquals("war's", type("wars", listOf("und")).correction(), "a neutral or German sentence")
+        assertEquals("Gibt's", type("Gibts", sentenceStart = true).correction(), "a capital at the beginning of a sentence")
+    }
+
+    @Test fun `stage 108 counter cases stay`() {
+        shortForms()
+        for (word in listOf("nichts", "rechts", "amts")) assertEquals(null, type(word, listOf("und")).correction(), word)
+        assertEquals(null, type("Peters", listOf("und")).correction(), "a capital inside a sentence")
+        assertEquals(null, type("wars", listOf("the", "cat")).correction(), "an English sentence")
+        assertEquals(null, type("dings", listOf("und")).correction(), "no verb before the s")
+        // undone once: never again
+        assertEquals("gibt's", type("gibts", listOf("und")).correction())
+        helium314.keyboard.agent.RejectedCorrections.remember(latinIME, "gibts", "gibt's", Settings.getValues())
+        assertEquals(null, type("gibts", listOf("und")).correction())
     }
 
     // 10: the English "i" on the German layout
@@ -364,6 +475,10 @@ private var reportResults = SuggestionResults(18, false, false)
 private var reportKnowing = emptyMap<String, List<Locale>>()
 /** Stage 101: language -> word -> main-dictionary frequency, for the active (keyboard) language. */
 private var reportFrequency = emptyMap<String, Map<String, Int>>()
+/** Stage 107: language -> word -> typing-history frequency; a language listed here has a typing history. */
+private var reportHistory = emptyMap<String, Map<String, Int>>()
+/** Stage 107: the engine's next-word results (empty typed word); null: the same as [reportResults], as before. */
+private var reportPredictions: SuggestionResults? = null
 
 @Implements(DictionaryFacilitatorImpl::class)
 class ShadowReportFacilitator {
@@ -375,7 +490,9 @@ class ShadowReportFacilitator {
         reportFrequency[language]?.get(word) ?: Dictionary.NOT_A_PROBABILITY
     @Implementation fun getSuggestionResults(composedData: ComposedData, ngramContext: NgramContext, keyboard: Keyboard,
                                              settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: Int
-    ): SuggestionResults = reportResults
+    ): SuggestionResults = if (composedData.mTypedWord.isEmpty()) reportPredictions ?: reportResults else reportResults
+    @Implementation fun historyFrequency(word: String, language: String): Int = reportHistory[language]?.get(word) ?: Dictionary.NOT_A_PROBABILITY
+    @Implementation fun hasHistory(language: String): Boolean = reportHistory.containsKey(language)
 }
 
 private class ReportDict(type: String, locale: Locale) : Dictionary(type, locale) {

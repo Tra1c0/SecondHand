@@ -75,11 +75,15 @@ object NeighborKeys {
      * the first letter, so other words cost no lookup.
      */
     @JvmStatic
-    fun candidate(typed: String, language: String, frequencyOf: (String) -> Int): String? {
+    fun candidate(typed: String, language: String, frequencyOf: (String) -> Int): String? =
+        candidate(typed, language, minFrequency(language), frequencyOf)
+
+    /** Like [candidate], with the threshold [minimum] (stage 107 asks for a higher one). */
+    @JvmStatic
+    fun candidate(typed: String, language: String, minimum: Int, frequencyOf: (String) -> Int): String? {
         if (typed.length < MIN_LETTERS || typed.length > MAX_LETTERS || !typed.all { it.isLetter() }) return null
         if (typed.drop(1).any { it.isUpperCase() }) return null
         val lower = typed.lowercase(Locale.ROOT)
-        val minimum = minFrequency(language)
         return replacements(lower, language).filter { it != lower && frequencyOf(it) >= minimum }.singleOrNull()
     }
 }

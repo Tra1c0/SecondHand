@@ -134,6 +134,17 @@ Korrektur die Rücktaste tippen (sofern „Rücktaste macht Autokorrektur rückg
 Wort ist wieder da. Abschalten: Schalter „Buchstabendreher“ aus, er ist anfangs an. Im Emulator mit den
 echten Wörterbüchern noch nicht bestätigt, auf einem Telefon nicht ausprobiert.
 
+Mit **Satzbezogene Autokorrektur** (an) gilt außerdem, auch bei „Richtige Wörter nie ändern“:
+- **Seltene Wörter werden zu sehr häufigen Nachbarn korrigiert**: Ein Wort aus 3 bis 5 Buchstaben, das das
+  Wörterbuch kennt, das aber selten ist („mur“, „aif“ als „AIF“), wird zu dem einen sehr häufigen Wort, das eine
+  Nachbartaste daneben liegt („nur“, „auf“), wenn du dieses Wort laut deinem Tipp-Verlauf oft benutzt und das getippte
+  nie oder viel seltener (ohne Verlauf nur, wenn der Satz davor das häufige Wort klar nahelegt).
+- **Kurzformen bekommen den Apostroph**: „gibts“, „wirds“, „drehts“, „gehts“, „wars“ werden „gibt's“, „wird's“, „dreht's“,
+  „geht's“, „war's“; Wörter wie „nichts“, „rechts“, „Amts“ bleiben, ebenso „wars“ in einem englischen Satz.
+- **Rücktaste stellt es ab**: Nimmst du so eine Korrektur direkt danach mit der Rücktaste zurück, wird genau dieses Paar
+  nie wieder automatisch angewendet (mit „Personalisierte Vorschläge“ an, auch wenn „Rückgängig gemachte Korrekturen
+  merken“ aus ist). Wie oft das seit dem Start passiert ist, zeigt die Diagnose-Karte „Korrektur & Sprache“ als Zahl.
+
 Oben wählst du die Autokorrektur in einem Tipp:
 
 - **AUS**: nur Vorschläge, nie automatisch (schaltet „Autokorrektur“ aus).

@@ -18,9 +18,10 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
 - **100 Symbole ohne Verzögerung**: „Symbole/Zeichen braucht dringend Schnelligkeit. Aktuell ca. eine halbe Sekunde. Ziel mehr oder weniger
   instant.“ Erst messen (Karte „Tippen“, welcher Weg: Symbolseite öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben), dann beheben; 84 hat
   nur das Einfügen bei Wortende-Zeichen behandelt.
-- **101 Rest**: Die zehn Fehlfälle vom 2026-11-25 sind gebaut (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“
-  (kein Wörterbuch und keine Liste kennt „gah“), „mocb“, „löschr“; „mur“ → „nur“ trotz Behutsam (Entscheidung des Owners); „aif“ → „auf“ automatisch;
-  ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Wörter im persönlichen Wörterbuch“).
+- **101 Rest**: Die zehn Fehlfälle vom 2026-11-25 sind gebaut, dazu 107 (seltene Wörter nach Gewichten) und 108 (Kurzformen mit Apostroph)
+  (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“ (kein Wörterbuch und keine Liste kennt „gah“), „mocb“,
+  „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Einträge im persönlichen Wörterbuch (Anzahl)“); Frage an den
+  Owner, ob die Deutung „Rücknahme = nie wieder, Gewichte über den Tipp-Verlauf“ seine Absicht trifft (Konzept Abschnitt 5).
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
 - **103 Spracheingabe mit eigenem Modell (Zukunft)**: „Whisper-Modell oder eins aus der Google-Familie. Ziel: extrem schnell und zuverlässig.“

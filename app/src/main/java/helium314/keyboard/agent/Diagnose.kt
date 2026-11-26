@@ -784,6 +784,9 @@ object Diagnose {
         rows += Row(s(R.string.agent_diagnose_corr_typo_pairs), number(counts?.typoPairs))
         rows += Row(s(R.string.agent_diagnose_corr_field_pairs), number(counts?.fieldPairs))
         rows += Row(s(R.string.agent_diagnose_corr_rejected), number(counts?.rejectedPairs))
+        // stages 107/108: corrections of the weighted rules since the keyboard started, kept and taken back (numbers only)
+        rows += Row(s(R.string.agent_diagnose_corr_rule_corrections),
+            context.getString(R.string.agent_diagnose_corr_rule_corrections_value, RuleCorrections.kept.get(), RuleCorrections.undone.get()))
         rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
         return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }

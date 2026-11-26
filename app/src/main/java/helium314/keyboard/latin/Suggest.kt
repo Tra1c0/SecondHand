@@ -14,9 +14,11 @@ import helium314.keyboard.agent.GermanVerbLemmas
 import helium314.keyboard.agent.OtherLanguageDictionaries
 import dev.agentkeyboard.core.EnglishI
 import dev.agentkeyboard.core.GermanVerbAgreement
+import dev.agentkeyboard.core.GermanShortForms
 import dev.agentkeyboard.core.GermanVerbForms
 import dev.agentkeyboard.core.NeighborKeys
 import dev.agentkeyboard.core.OtherLanguageWord
+import dev.agentkeyboard.core.RareWordWeights
 import dev.agentkeyboard.core.SentenceLanguage
 import dev.agentkeyboard.core.SwappedLetters
 import android.text.TextUtils
@@ -146,12 +148,17 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val engineCorrection = if (guardedAutoCorrection) suggestionsContainer.firstOrNull()?.mWord else null
         // fork, stage 101: the English "i" in an English sentence, and a very common word typed with one neighbouring key
         // ("icj" -> "ich") that only the typing history knows
+        // fork, stages 107/108: "gibts" -> "gibt's", and a rare dictionary word -> its very common neighbour by the owner's weights
+        val nextWords by lazy { getNextWordSuggestions(ngramContext, keyboard, inputStyleIfNotPrediction, settingsValuesForSuggestion) }
         val hasAutoCorrection = learnedCorrection
             || applyEnglishI(typedWordString, ngramContext, suggestionsContainer, isCorrectionEnabled, wordComposer)
+            || applyShortForm(typedWordString, capsMode, ngramContext, suggestionResults, suggestionsContainer, isCorrectionEnabled, wordComposer)
             || applySwappedLetters(typedWordString, capsMode, ngramContext, suggestionResults,
                 suggestionsContainer, isCorrectionEnabled, wordComposer, engineCorrection) { after }
             || applyNeighborKey(typedWordString, capsMode, ngramContext, suggestionResults,
                 suggestionsContainer, isCorrectionEnabled, wordComposer, engineCorrection) { after }
+            || applyRareWord(typedWordString, capsMode, ngramContext, suggestionResults,
+                suggestionsContainer, isCorrectionEnabled, wordComposer, engineCorrection) { nextWords }
             || guardedAutoCorrection
         // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
         addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
@@ -625,6 +632,127 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         return true
     }
 
+    /** Fork, stages 107/108: the common exclusions of the rule corrections (typing state, commands, a loaded dictionary). */
+    private fun ruleMayCorrect(typed: String, isCorrectionEnabled: Boolean, wordComposer: WordComposer): Boolean {
+        val settings = Settings.getValues()
+        return settings.mContextualAutocorrection && isCorrectionEnabled && typed.isNotEmpty() && wordComposer.isComposingWord
+            && !wordComposer.isResumed && !wordComposer.hasDigits() && !wordComposer.isCursorFrontOrMiddleOfComposingWord
+            && !(wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase)
+            && !helium314.keyboard.agent.KeyboardCommands.isCommandWord(typed)
+            && !helium314.keyboard.agent.KeyboardCommands.suppressesCorrection()
+            && mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()
+    }
+
+    /** Fork, stages 107/108: whether the sentence so far leans to another active or enabled language than the keyboard's. */
+    private fun sentenceLeansToOtherLanguage(ngramContext: NgramContext, keyboard: String): Boolean {
+        val others = (activeLanguages() - keyboard) + OtherLanguageDictionaries.languages(Settings.getCurrentContext(), activeLanguages())
+        return others.distinct().any { other -> sentenceLean(ngramContext, keyboard, other).let { (k, o) -> o > k } }
+    }
+
+    /** Fork, stages 107/108: puts [wanted] first (the engine's entry when it has one, else a new one from [source]) and remembers the pair. */
+    private fun putRuleCorrectionFirst(typed: String, wanted: String, suggestions: ArrayList<SuggestedWordInfo>, source: Dictionary) {
+        val index = suggestions.indexOfFirst { it.mWord == wanted }
+        val info = if (index >= 0) suggestions.removeAt(index)
+            else SuggestedWordInfo(wanted, "", SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_CORRECTION,
+                source, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+        suggestions.add(0, info)
+        helium314.keyboard.agent.RuleCorrections.offered(typed, wanted)
+    }
+
+    /**
+     * Fork, stage 108 (owner: "gibt's, wird's, dreht's … werden nur vorgeschlagen"): a German verb form typed with "s" for "es"
+     * and without the apostrophe becomes "gibt's" ([GermanShortForms]). Only on the German keyboard, when no active main
+     * dictionary, contacts or apps know the typed word in any case (nichts, rechts, Amts, Guts stay; the typing history and the
+     * personal dictionary do not count: they keep such forms automatically), a capital only at the beginning of a sentence, not
+     * in a sentence that leans to another language ("wars" in an English sentence), not for an own word, a kept word of another
+     * language or an undone pair. The slang list does not stop it (the owner's wish, as planned in stage 90). Also with
+     * "Richtige Wörter nie ändern": the typed word is no word.
+     */
+    private fun applyShortForm(
+        typed: String, capsMode: CapsMode, ngramContext: NgramContext, results: SuggestionResults,
+        suggestions: ArrayList<SuggestedWordInfo>, isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+    ): Boolean {
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
+        if (facilitator.mainLocale.language != "de" || typed.length <= GermanShortForms.MIN_LETTERS || !typed.endsWith("s")) return false
+        if (!ruleMayCorrect(typed, isCorrectionEnabled, wordComposer)) return false
+        val lower = typed.lowercase(Locale.GERMAN)
+        if (typed.drop(1) != lower.drop(1)) return false
+        if (typed.first().isUpperCase() && !ngramContext.isBeginningOfSentenceContext) return false
+        val context = Settings.getCurrentContext() ?: return false
+        val meant = GermanShortForms.target(lower, { facilitator.mainFrequency(it, "de") >= 0 }) { GermanVerbLemmas.contains(context, it) }
+            ?: return false
+        val locale = facilitator.mainLocale
+        val known = listOf(lower, lower.replaceFirstChar { it.uppercase(locale) }, lower.uppercase(locale))
+            .any { facilitator.mainLocalesKnowing(it).isNotEmpty() } ||
+            results.any {
+                it.mWord.equals(typed, ignoreCase = true) && (it.mSourceDict.mDictType == Dictionary.TYPE_MAIN
+                    || it.mSourceDict.mDictType == Dictionary.TYPE_CONTACTS || it.mSourceDict.mDictType == Dictionary.TYPE_APPS)
+            }
+        if (known) return false
+        val settings = Settings.getValues()
+        if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
+        if (ForeignWords.isRemembered(context, settings, ForeignWords.languageOf(settings), typed)) return false
+        if (sentenceLeansToOtherLanguage(ngramContext, "de")) return false
+        if (RejectedCorrections.contains(context, typed, meant)) return false
+        putRuleCorrectionFirst(typed, capitalize(meant, capsMode, locale), suggestions, SHORT_FORM_DICTIONARY)
+        return true
+    }
+
+    /**
+     * Fork, stage 107 (owner: "mur" -> "nur", "aif" -> "auf" by weights): a typed word of 3 to 5 letters that the main dictionary
+     * of the keyboard language knows only rarely (any case form, also only as "AIF") becomes its one very common neighbouring-key
+     * word ([NeighborKeys], or the engine's correction when it is that word) when the owner's weights say so ([RareWordWeights]:
+     * typing history of both words, or without a usable history the next-word scores of this sentence [nextWords]). Also with
+     * "Richtige Wörter nie ändern" (that is its purpose). Not for own words, slang, kept words of another language, a common
+     * word of another active or enabled language, a sentence leaning to another language, a capital inside a sentence, and never
+     * again after Backspace undid it ([RejectedCorrections], also without its switch). With "satzbezogene Autokorrektur" on.
+     */
+    private fun applyRareWord(
+        typed: String, capsMode: CapsMode, ngramContext: NgramContext, results: SuggestionResults,
+        suggestions: ArrayList<SuggestedWordInfo>, isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+        engineCorrection: String?, nextWords: () -> SuggestionResults,
+    ): Boolean {
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
+        if (typed.length < NeighborKeys.MIN_LETTERS || typed.length > NeighborKeys.MAX_LETTERS) return false
+        if (!ruleMayCorrect(typed, isCorrectionEnabled, wordComposer)) return false
+        if (typed.first().isUpperCase() && !ngramContext.isBeginningOfSentenceContext) return false
+        val first = suggestions.firstOrNull()
+        if (first != null && (first.isKindOf(SuggestedWordInfo.KIND_SHORTCUT) || first.isKindOf(SuggestedWordInfo.KIND_WHITELIST))) return false
+        val locale = facilitator.mainLocale
+        val language = locale.language
+        val lower = typed.lowercase(locale)
+        val forms = listOf(typed, lower, lower.replaceFirstChar { it.uppercase(locale) }, lower.uppercase(locale)).distinct()
+        val typedFrequency = forms.maxOf { facilitator.mainFrequency(it, language) }
+        if (typedFrequency < 0 || typedFrequency > RareWordWeights.RARE_MAX) return false
+        val minimum = RareWordWeights.minCandidate(language)
+        val meant = NeighborKeys.candidate(typed, language, minimum) { facilitator.mainFrequency(it, language) }
+            ?: engineCorrection?.lowercase(locale)?.takeIf { it in NeighborKeys.replacements(lower, language) } ?: return false
+        if (engineCorrection != null && !engineCorrection.equals(meant, ignoreCase = true)) return false
+        val context = Settings.getCurrentContext()
+        val settings = Settings.getValues()
+        if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
+        val learnLanguage = ForeignWords.languageOf(settings)
+        if (helium314.keyboard.agent.InformalWordsStore.protects(context, typed, learnLanguage, language)) return false
+        if (ForeignWords.isRemembered(context, settings, learnLanguage, typed)) return false
+        // a common word of another active or enabled language (English "nut") stays, as in stage 101 (B)
+        val others = ((activeLanguages() - language) + OtherLanguageDictionaries.languages(context, activeLanguages())).distinct()
+        for (other in others) {
+            val (forKeyboard, forOther) = sentenceLean(ngramContext, language, other)
+            if (forOther > forKeyboard) return false
+            if (OtherLanguageWord.protects(frequencyIn(typed, other), false, forKeyboard, forOther)) return false
+        }
+        val rejected = context != null && RejectedCorrections.contains(context, typed, meant)
+        val historyTyped = forms.maxOf { facilitator.historyFrequency(it, language) }
+        val historyCandidate = facilitator.historyFrequency(meant, language)
+        val predicted = nextWords()
+        val contextCandidate = predicted.firstOrNull { it.mWord == meant }?.mScore
+        val contextTyped = predicted.filter { it.mWord.equals(typed, ignoreCase = true) }.maxOfOrNull { it.mScore }
+        if (!RareWordWeights.corrects(typedFrequency, facilitator.mainFrequency(meant, language), language, rejected,
+                facilitator.hasHistory(language), historyTyped, historyCandidate, contextCandidate, contextTyped)) return false
+        putRuleCorrectionFirst(typed, capitalize(meant, capsMode, locale), suggestions, RARE_WORD_DICTIONARY)
+        return true
+    }
+
     /** Fork, stage 92: [first] comes from the typing history or the personal dictionary only, and no main dictionary or informal list knows it. */
     private fun passiveOnlyTarget(first: SuggestedWordInfo, results: Collection<SuggestedWordInfo>): Boolean {
         val type = first.mSourceDict.mDictType
@@ -896,6 +1024,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         /** Fork, stage 101: sources of a neighbouring-key correction and of the English "I" that the engine did not offer itself. */
         private val NEIGHBOR_KEY_DICTIONARY = Dictionary.PhonyDictionary("agent_neighbor_key")
         private val ENGLISH_I_DICTIONARY = Dictionary.PhonyDictionary("agent_english_i")
+        /** Fork, stages 107/108: sources of a rare-word and of a short-form correction that the engine did not offer itself. */
+        private val RARE_WORD_DICTIONARY = Dictionary.PhonyDictionary("agent_rare_word")
+        private val SHORT_FORM_DICTIONARY = Dictionary.PhonyDictionary("agent_short_form")
 
         // Close to -2**31
         private const val SUPPRESS_SUGGEST_THRESHOLD = -2000000000

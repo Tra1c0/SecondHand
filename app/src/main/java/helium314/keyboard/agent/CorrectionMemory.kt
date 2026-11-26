@@ -112,7 +112,11 @@ object RejectedCorrections {
         if (!typed.equals(correction, ignoreCase = true)) Memory.onCorrectionUndone(context, typed, settings, at)
         // stage 51: a word of another language kept against the correction is remembered (its own rules)
         ForeignWords.onCorrectionUndone(context, typed, correction, settings, at)
-        if (!mayRemember(settings)) return
+        // stages 107/108: a correction of the keyboard's weighted rules that the owner undid is never applied again (the strongest
+        // weight against it), with "Personalisierte Vorschläge" also without the switch for all corrections
+        val byRule = RuleCorrections.wasOffered(typed, correction)
+        if (byRule) RuleCorrections.undone.incrementAndGet()
+        if (!mayRemember(settings) && !(byRule && RuleCorrections.mayLearn(settings))) return
         if (typed.isBlank() || correction.isBlank() || typed.equals(correction, ignoreCase = true)) return
         val key = key(typed, correction)
         synchronized(lock) {
