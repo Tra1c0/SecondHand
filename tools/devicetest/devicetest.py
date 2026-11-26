@@ -2621,6 +2621,17 @@ def lift_drag(points, hold=0.7, dwell_at=None, dwell=0.9):
     time.sleep(1.2)
 
 
+def restart_keyboard():
+    """Stops the keyboard's process (as Android does to an app in the background). A stopped input method is replaced by the
+    system's default one: it is chosen again, so the next field starts the keyboard afresh and it reads its files."""
+    shell("am force-stop %s" % KEYBOARD_PACKAGE, check=False)
+    time.sleep(1.5)
+    ime = KEYBOARD_PACKAGE + "/helium314.keyboard.latin.LatinIME"
+    shell("ime enable " + ime, check=False)
+    shell("ime set " + ime, check=False)
+    time.sleep(1.0)
+
+
 def screenshot_shelf_bundles(d):
     """Stage 102 (A1, A2, A4, A5): two screenshots, one of them in DCIM/Screenshots like a Xiaomi phone, are two cards in the
     clipboard; the third bundles all three into the folder "Screenshots"; a tap opens it with the back button top left,
@@ -2714,8 +2725,7 @@ def screenshot_shelf_drag(d):
     d.expect_equal("a new folder with just that screenshot (%s)" % shelf_report(screen), folders_of(screen),
                    {"Screenshots": 2, "Ordner 1": 1})
     # 4. the keyboard process is stopped and started again: the shelf is read from its file
-    shell("am force-stop %s" % KEYBOARD_PACKAGE, check=False)
-    time.sleep(2.0)
+    restart_keyboard()
     d.start("screenshot_shelf_drag")
     d.focus("text")
     screen = open_clipboard(d)
@@ -2737,8 +2747,7 @@ def screenshot_shelf_while_off(d):
         return sum(1 if k == "card" else int((FOLDER_DESC.match(desc or "") or [0, 0, 0])[2]) for k, desc, _ in shelf_tiles(s))
     before = count(screen)
     shell("input keyevent KEYCODE_BACK", check=False)
-    shell("am force-stop %s" % KEYBOARD_PACKAGE, check=False)
-    time.sleep(1.5)
+    restart_keyboard()
     if not d.control:
         make_screenshot(d, SHOT_DIRS[1])
     d.start("screenshot_shelf_while_off")
