@@ -197,12 +197,12 @@ class InkCompletionTest {
         val r = Random(3)
         InkCompletion(InkSymbols.templates).let { fresh ->
             val started = System.nanoTime()
-            fresh.extendable("")
+            InkSymbols.all.forEach { fresh.extendable(it.text) }
             val millis = (System.nanoTime() - started) / 1e6
-            println("stage 100: parts and symbols that can go on in $millis ms (JVM, once per set of templates)")
+            println("stage 100: parts and every symbol that can go on in $millis ms (JVM; each symbol is worked out when first asked)")
             assertTrue(millis < 5_000, "$millis ms")
         }
-        completion.extendable("")
+        InkSymbols.all.forEach { completion.extendable(it.text) }
         val times = ArrayList<Double>()
         for (text in InkFingerModel.symbols) repeat(10) {
             val cloud = InkCloud.of(InkFingerModel.draw(text, r))!!

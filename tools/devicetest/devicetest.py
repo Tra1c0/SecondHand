@@ -2521,18 +2521,18 @@ def draw_symbol(d, name, box, strokes, expected, gaps=200, durations=None, contr
         # no early and no second input: one change, after the last lift
         d.expect_equal("%s: changes of the field %s" % (name, [t for _, t in texts]), len(texts), 1)
         d.expect_equal("%s: the symbol came after the last lift (%s ms)" % (name, first), first is not None and first >= -5, True)
+        # the keyboard's own view (code review, finding 5: the planned end is only the planned last lift): it wrote exactly
+        # one drawing, so nothing went in before the last stroke and nothing twice
+        d.expect_equal("%s: drawings the keyboard wrote %s" % (name, entries), len(entries), 1)
     if way is not None:
         d.expect_equal("%s: written as %s" % (name, entries), entries[-1][0] if entries else None, way)
         if way == "i" and entries:
-            # at once, measured by the keyboard from the lift to the end of writing: (1) before the pause that was waiting
-            # would have ended (the old path, a timer of pauseNow, had to wait at least that long and then write), and
-            # (2) within the frame budget of this emulator: the check (at most INK_CHECK_BUDGET) plus three frames at the
-            # 90th percentile measured in the same run (the write and the strip need two to three passes of the main
-            # thread, which renders in software here)
+            # at once, measured by the keyboard from the lift to the end of writing: before the pause that was waiting would
+            # have ended (the old path, a timer of pauseNow, had to wait at least that long and then still write); the frame
+            # budget is checked over all instant cases together (_instant_budget)
             ms, pause = entries[-1][1], after.get("pauseNow", 0)
-            budget = INK_CHECK_BUDGET + 3 * getattr(d, "frame_p90", 150)
             d.expect_equal("%s: at once, %d ms after the lift, before the pause of %d ms would have ended" % (name, ms, pause), ms < pause, True)
-            d.expect_equal("%s: at once, %d ms after the lift, within the frame budget %d ms" % (name, ms, budget), ms < budget, True)
+            d.instant = getattr(d, "instant", []) + [(name, ms)]
     return entries, first
 
 
@@ -2577,13 +2577,21 @@ def _frames_reset():
     shell("dumpsys gfxinfo %s reset" % KEYBOARD_PACKAGE, check=False, timeout=40)
 
 
-def _frames_p90(d):
-    """The 90th percentile of the keyboard's frame times since the reset (dumpsys gfxinfo), for the budget of an instant
-    symbol; 150 ms when gfxinfo gives none."""
+def _instant_budget(d):
+    """The instant symbols drawn since the frame reset, each within the frame budget of this emulator measured over the same
+    drawings: the check (at most INK_CHECK_BUDGET) plus three frames at the 90th percentile (dumpsys gfxinfo since the
+    reset). Writing the symbol and rebuilding the strip take two to three passes of the main thread, which renders in
+    software here (about 150 ms a frame); on a phone a frame is about 8 to 16 ms."""
     text = shell("dumpsys gfxinfo %s" % KEYBOARD_PACKAGE, check=False, timeout=40)
     match = re.search(r"90th percentile: (\d+)ms", text)
-    d.frame_p90 = int(match.group(1)) if match else 150
-    log("INFO symbol frames %s/before the cases: 90th percentile %d ms" % (d.name, d.frame_p90))
+    p90 = int(match.group(1)) if match else 150
+    budget = INK_CHECK_BUDGET + 3 * p90
+    cases = getattr(d, "instant", [])
+    log("INFO symbol frames %s/instant cases: 90th percentile %d ms, budget %d ms, %s" % (d.name, p90, budget, cases))
+    for name, ms in cases:
+        d.expect_equal("%s: at once, %d ms after the lift, within the frame budget %d ms (3 x %d + %d)" % (
+            name, ms, budget, p90, INK_CHECK_BUDGET), ms < budget, True)
+    d.instant = []
 
 
 def _frames_report(d, what):
@@ -2608,9 +2616,7 @@ def symbol_draw_latency(d):
     _fresh_field(d)
     box = InkBox(d)
     time.sleep(2.0)  # the parts of the check are worked out once after the first drawing (the dash of the switch-on)
-    _frames_reset()
-    draw_symbol(d, "frames: a dash", box, [INK_DASH], "–")  # the frames of one drawing set the budget of "at once"
-    _frames_p90(d)
+    d.instant = []
     _frames_reset()
     try:
         _latency_cases(d, box)
@@ -2627,6 +2633,7 @@ def _latency_cases(d, box):
     draw_symbol(d, "less or equal", box, [INK_LESS, INK_BAR_LOW], "≤", way="i")
     draw_symbol(d, "infinity", box, [INK_INFINITY], "∞", way="i")
     draw_symbol(d, "question mark", box, [INK_HOOK, ink_dot(50, 97)], "?", way="i")
+    _instant_budget(d)
     draw_symbol(d, "arrow dash then head", box, [INK_DASH, INK_HEAD], "→", way="p")
     draw_symbol(d, "arrow head then dash backwards", box, [INK_HEAD, INK_DASH_BACK], "→", way="p")
     draw_symbol(d, "percent slash then dots", box, [INK_SLASH, ink_dot(20, 20), ink_dot(80, 80)], "%", way="p")

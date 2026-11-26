@@ -62,9 +62,10 @@ object SymbolInk {
         fun recognizes(strokes: List<InkStroke>): Boolean = true
         /**
          * Stage 100: whether [stroke], the first stroke of a new drawing, makes a symbol together with [before], the drawing
-         * written just before (concept review, finding 1: only then a new drawing close to it is a late stroke of it).
+         * written just before (concept review, finding 1: only then a new drawing close to it is a late stroke of it). The
+         * sink answers later on the main thread, or never.
          */
-        fun joins(before: List<InkStroke>, stroke: InkStroke): Boolean = false
+        fun joins(before: List<InkStroke>, stroke: InkStroke, answer: (Boolean) -> Unit) {}
         /**
          * Stage 100: a stroke (or a possible dot) ended; the waiting drawing is [strokes]. The sink checks off the main
          * thread whether it is finished (nothing can follow, InkCompletion) and then calls [onFinished] with [serial]:
@@ -259,10 +260,13 @@ object SymbolInk {
         if (gap < 0 || gap > pace.pauseMillis * LATE_PAUSES) return
         val keyWidth = runCatching { KeyboardSwitcher.getInstance().keyboard?.mMostCommonKeyWidth }.getOrNull() ?: 0
         if (!InkTap.nearDrawing(last.strokes, coordinates[0], coordinates[1], keyWidth.toFloat())) return
-        // only when both make another symbol together ("–" and a head: "→"); "!" after "!" is a new symbol
-        if (sink?.joins(last.strokes, InkStroke(coordinates)) != true) return
-        SymbolPerf.late(last.way)
-        if (last.way == SymbolPerf.Way.PAUSE) pace.onGap(gap)
+        // only when both make another symbol together ("–" and a head: "→"); "!" after "!" is a new symbol. Asked off the
+        // main thread (code review, finding 2); the answer only counts, it never changes text
+        sink?.joins(last.strokes, InkStroke(coordinates)) { joined ->
+            if (!joined) return@joins
+            SymbolPerf.late(last.way)
+            if (last.way == SymbolPerf.Way.PAUSE) pace.onGap(gap)
+        }
     }
 
     /** HeliBoard gave up the gesture (moved far above the keyboard, cancelled touch): no symbol. */
@@ -370,6 +374,14 @@ object SymbolInk {
 
     // --- end of a symbol ---
 
+    /**
+     * Stage 100 (code review, finding 1), KeyboardActionListenerImpl: a key or text was typed (not only pressed: the press
+     * of the key a new drawing starts on comes first, too). A drawing after it is no late stroke of the symbol before.
+     */
+    @JvmStatic fun onTypedInput() {
+        written = null
+    }
+
     /** Another key or input comes first: recognize a waiting symbol now, before that input. */
     @JvmStatic fun flush() {
         if (isWaiting && inkPointer < 0) finish(SymbolPerf.Way.KEY)
@@ -462,11 +474,12 @@ object SymbolInk {
         val typed = afterTyping
         afterTyping = null
         if (group.isEmpty) return
-        val drawn = group.drawn
-        resolve(typed) { strokes, _ -> sink?.onDrawing(strokes) }
+        val drawn = resolve(typed) { strokes, _ -> sink?.onDrawing(strokes) }
         SymbolPerf.written(way, if (ended >= 0) SystemClock.uptimeMillis() - ended else -1)
-        // stage 100: a new drawing right after this one may show that the pause was too short (noteLateStroke)
-        written = if (ended >= 0 && (way == SymbolPerf.Way.PAUSE || way == SymbolPerf.Way.INSTANT)) Written(drawn, ended, way) else null
+        // stage 100: a new drawing right after this one may show that the pause was too short (noteLateStroke); only for a
+        // symbol written without letters after it (code review, finding 6)
+        written = if (drawn != null && ended >= 0 && (way == SymbolPerf.Way.PAUSE || way == SymbolPerf.Way.INSTANT))
+            Written(drawn, ended, way) else null
     }
 
     /**
@@ -477,7 +490,7 @@ object SymbolInk {
      * then a single stroke that is a sliding tap ([InkTap.isSlidTap]) or not recognized
      * ([Sink.recognizes]), nothing is written: that tap's key is typed, then the possible dots.
      */
-    private fun resolve(typed: AfterTyping? = null, write: (strokes: List<InkStroke>, drawn: Int) -> Unit) {
+    private fun resolve(typed: AfterTyping? = null, write: (strokes: List<InkStroke>, drawn: Int) -> Unit): List<InkStroke>? {
         val strokes = group.take()
         val taps = possible.toList()
         possible.clear()
@@ -489,12 +502,13 @@ object SymbolInk {
             sink?.onWaiting(emptyList(), emptyList()) // a preview shown so far goes
             tapper?.type(typed.pointerId, typed.x, typed.y)
             for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
-            return
+            return null
         }
         // stage 100 (concept review, finding 1): the gaps between tapped dots no longer count for the pace; they are much
         // shorter than those before a stroke and made the pause too short for the next arrow
-        if (kept) return write(strokes, strokes.size)
+        if (kept) { write(strokes, strokes.size); return strokes }
         write(drawing, strokes.size)
         for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
+        return null // letters followed the symbol: a drawing after them is no late stroke of it
     }
 }

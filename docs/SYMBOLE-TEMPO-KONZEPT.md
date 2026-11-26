@@ -54,8 +54,9 @@ begann, eine Taste kam oder die Zeichnung weg ist (Zähler je Zustand). Es gibt 
 nicht im Feld.
 
 Kalibriert mit dem Finger-Modell (`CT/InkFingerModel.kt`, 150 Zeichnungen je Symbol, zufällige Reihenfolge und Richtung, alle echten
-Anfänge jeder Zeichnung, 8619 Anfänge): bei 2,0/2,0 wird **kein** Anfang zu früh geschrieben; 2500 von 7950 fertigen Zeichnungen
-(31 %) kommen sofort. Sofort kommen (Anteil im Modell): ÷ 100 %, # 100 %, ± 98 %, ≥ 98 %, } 98 %, ≤ 96 %, ? 96 %, ¿ 96 %, ∞ 95 %,
+Anfänge jeder Zeichnung, 8619 Anfänge in der Erkundung): bei 2,0/2,0 wird **kein** Anfang zu früh geschrieben; 2500 von 7950
+fertigen Zeichnungen (31 %) kommen sofort. Der gebaute Test (`InkCompletionTest`, anderer Zufall, die Zeichnung selbst muss weiter als
+2,0 von jedem Teil liegen) zählt 8593 Anfänge, 0 zu früh, 28 % sofort; diese Zahlen gelten. Sofort kommen (Anteil im Modell): ÷ 100 %, # 100 %, ± 98 %, ≥ 98 %, } 98 %, ≤ 96 %, ? 96 %, ¿ 96 %, ∞ 95 %,
 { 93 %, √ 90 %, × 89 %, ♥ 83 %, & 79 %, ★ 76 %, ‰ 56 %; ÷, ‰, ?, ¿ auch mit getippten Punkten. Es warten weiter, weil sie Teil eines
 anderen Symbols sein können: → ← ↑ ↓ ↗ ↘ ↔ ⇒ = ≠ ≈ ~ + – | / \ ° ✓ € $ § @ % ! ¡ ( ) [ ] π. Die Grenzen haben Abstand: bei 1,5/1,8
 kämen 5 Anfänge zu früh.

@@ -44,19 +44,15 @@ class InkCompletion(templates: List<InkTemplate>, private val tuning: InkRecogni
 
     /**
      * Texts that can go on: some template of the text is within [EXTEND_DISTANCE] of a part of a template with more
-     * strokes ("–" of "=", "→" of "↔", "%" of "‰", ")" of the head of "⇒"). Computed once per set of templates.
+     * strokes ("–" of "=", "→" of "↔", "%" of "‰", ")" of the head of "⇒"). Worked out per text when it is first asked
+     * (code review, finding 3: not for every text at once on the shared worker) and kept for this set of templates.
      */
-    private val extendableTexts: Set<String> by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        val out = HashSet<String>()
-        for (template in templates) {
-            if (template.text in out) continue
-            if (nearestPart(template.cloud, EXTEND_DISTANCE, firstWithin = true) != null) out += template.text
-        }
-        out
-    }
+    private val extendableTexts = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
     /** True when a drawing recognized as [text] may still go on (stage 100: then it waits for a further stroke). */
-    fun extendable(text: String): Boolean = text in extendableTexts
+    fun extendable(text: String): Boolean = extendableTexts.getOrPut(text) {
+        templates.any { it.text == text && nearestPart(it.cloud, EXTEND_DISTANCE, firstWithin = true) != null }
+    }
 
     /**
      * Stage 100: the drawing [cloud], recognized as [result], is finished and can be written at once: its best match is a

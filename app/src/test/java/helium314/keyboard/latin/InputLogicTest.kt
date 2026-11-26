@@ -7336,6 +7336,7 @@ class InputLogicTest {
             assertEquals("a –", text)
             assertEquals(0, symbolInk.pauseGaps)
             drawStrokes(arrowStrokes[1]) // 1.6 s after the dash: within two pauses, near it, and both make "→"
+            idleMain() // the check runs on the worker (here inline) and answers on the main thread
             assertEquals(late + 1, helium314.keyboard.agent.SymbolPerf.lateCounts().first)
             assertEquals(1, symbolInk.pauseGaps)
             afterThePause()
@@ -7343,6 +7344,46 @@ class InputLogicTest {
         } finally {
             symbolInk.resetPace()
         }
+    }
+
+    @Test fun symbolDrawALetterTypedBetweenEndsTheWatchForALateStroke() {
+        // stage 100, code review finding 1: dash written, a letter typed, then a stroke near the dash: no late stroke, the
+        // pause keeps its gaps (the gap would hold typing time)
+        enableSymbolDrawing()
+        symbolInk.resetPace()
+        try {
+            setText("a ")
+            val late = helium314.keyboard.agent.SymbolPerf.lateCounts().first
+            drawStrokes(arrowStrokes[0])
+            afterThePause()
+            latinIME.mKeyboardActionListener.onCodeInput('x'.code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            handleMessages()
+            drawStrokes(arrowStrokes[1])
+            idleMain()
+            assertEquals(late, helium314.keyboard.agent.SymbolPerf.lateCounts().first)
+            assertEquals(0, symbolInk.pauseGaps)
+            symbolInk.cancel()
+        } finally {
+            symbolInk.resetPace()
+        }
+    }
+
+    @Test fun symbolDrawAFinishedSymbolRightAfterTypingIsWrittenAtOnceNotTypedAsAKey() = withTapper {
+        // stage 100, code review finding 7: a first stroke right after typing (stage 43) that is a finished symbol
+        enableSymbolDrawing()
+        setText("a ")
+        val listener = latinIME.mKeyboardActionListener
+        // "∞" in one stroke, 2.8 key widths wide: no sliding tap, and nothing can follow it
+        val infinity = FloatArray(2 * 37) { k -> val t = 2 * Math.PI * (k / 2) / 36
+            (if (k % 2 == 0) 150 + 138 * Math.sin(t) else 150 + 66 * Math.sin(2 * t)).toFloat() }
+        listener.onStartBatchInput()
+        symbolInk.onStartAfterTyping(0, 150, 150, 100)
+        val pointers = helium314.keyboard.latin.common.InputPointers(64)
+        for (i in 0 until infinity.size / 2) pointers.addPointer(infinity[2 * i].toInt(), infinity[2 * i + 1].toInt(), 0, 10 * i)
+        listener.onEndBatchInput(pointers)
+        idleMain(); handleMessages() // no time passes
+        assertEquals("a ∞", text)
+        assertFalse(symbolInk.isWaiting)
     }
 
     @Test fun symbolDrawAnAnswerForAnOlderDrawingWritesNothing() {

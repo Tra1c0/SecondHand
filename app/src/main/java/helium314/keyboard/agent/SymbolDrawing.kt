@@ -113,12 +113,17 @@ object SymbolDrawing {
             override fun recognizes(strokes: List<InkStroke>) =
                 ref.get()?.let { ime -> InkCloud.of(strokes)?.let { recognizer(ime).recognize(it).best != null } ?: false } ?: true
             // stage 100: a late stroke counts only when the written drawing and it make another accepted symbol together
-            override fun joins(before: List<InkStroke>, stroke: InkStroke): Boolean = ref.get()?.let { ime ->
+            // on the worker (code review, finding 2), the answer posted back to the main thread
+            override fun joins(before: List<InkStroke>, stroke: InkStroke, answer: (Boolean) -> Unit) {
+                val ime = ref.get() ?: return
                 val matcher = recognizer(ime)
-                val alone = matcher.recognize(before).best?.text
-                val together = matcher.recognize(before + stroke).best
-                together != null && together.complete && together.distance <= InkRecognizer.ACCEPT_DISTANCE && together.text != alone
-            } ?: false
+                previewExecutor.execute {
+                    val alone = matcher.recognize(before).best?.text
+                    val together = matcher.recognize(before + stroke).best
+                    val joined = together != null && together.complete && together.distance <= InkRecognizer.ACCEPT_DISTANCE && together.text != alone
+                    mainHandler.postAtTime({ answer(joined) }, SystemClock.uptimeMillis())
+                }
+            }
             override fun onStrokeEnded(strokes: List<InkStroke>, possibleDots: List<Int>, serial: Int) {
                 ref.get()?.let { checkFinished(it, strokes, possibleDots, serial) }
             }
@@ -374,9 +379,12 @@ object SymbolDrawing {
             PersonalInkSymbols.templates(PersonalInkSymbols.parse(source.second)) + InkSymbols.templates
         return InkRecognizer(all).also {
             dots = InkDots(all, it); templates = all; recognizer = it; recognizerSource = source
-            // stage 100: the parts and the symbols that can go on are worked out once, on a background thread
+            // stage 100: the parts and which symbols can go on are worked out once on a thread of their own with low
+            // priority (code review, finding 3: not on the worker the preview and the check share); a check that comes
+            // first works out what it needs itself (per symbol, kept)
             val rule = InkCompletion(all).also { rule -> completion = rule }
-            workerExecutor.execute { runCatching { rule.extendable("") } }
+            Thread({ runCatching { all.map { t -> t.text }.distinct().forEach { text -> rule.extendable(text) } } }, "symbol-parts")
+                .apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
         }
     }
 
