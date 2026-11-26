@@ -178,6 +178,7 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     Defaults.PREF_ENABLE_CLIPBOARD_HISTORY, true, null, ::bool) { _, _ ->
                     // as the old switch: entries that are not pinned go when the history is switched
                     ClipboardDao.getInstance(context)?.clearNonPinned()
+                    helium314.keyboard.agent.shelf.Shelf.keepPinnedOnly(context) // stage 102: the screenshots of the clipboard as well
                     written++
                 }
                 val minutes = observe().let { prefs.getInt(Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME) }
@@ -197,7 +198,7 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     prefs.edit { putBoolean(AgentPreferences.SCREENSHOT_CHIP, on) }
                     if (!on) {
                         ScreenshotChip.cleanUp(context, System.currentTimeMillis(), all = true)
-                        ScreenshotChip.removeFromHistory(context)
+                        helium314.keyboard.agent.shelf.Shelf.keepPinnedOnly(context) // stage 102: pinned screenshots stay
                     }
                     if (on && !permissions.screenshots) permissions.ask(ScreenshotChip.permission())
                     written++

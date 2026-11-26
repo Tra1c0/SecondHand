@@ -111,6 +111,8 @@ private object AppUpgrade {
             helium314.keyboard.agent.DebugModeReset.runOnce(prefs) // stage 62: leave debug mode once
             upgradeToolbarPrefs(prefs)
             LayoutUtilsCustom.onLayoutFileChanged()
+            // stage 110: learned words that a rule class of this build corrects leave the learned stores once
+            helium314.keyboard.agent.RuleClassCleanup.markDue(prefs)
             prefs.edit { putInt(Settings.PREF_VERSION_CODE, BuildConfig.VERSION_CODE) }
             return
         }

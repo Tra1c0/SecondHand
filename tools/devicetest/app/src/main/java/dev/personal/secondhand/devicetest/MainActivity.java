@@ -96,6 +96,7 @@ public class MainActivity extends Activity {
             public void afterTextChanged(Editable s) {
                 // brackets make leading and trailing spaces visible
                 mirror.setText(name + "=[" + s + "]");
+                InkProbe.onFieldChanged(name, s); // stage 100: when the field changed, for the drawn-symbol timing
             }
         };
         field.addTextChangedListener(watcher);

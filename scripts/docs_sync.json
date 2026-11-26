@@ -82,7 +82,7 @@
       "app/src/test/java/helium314/keyboard/latin/suggestions/*.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/ToolbarScreen.kt",
       "app/src/main/res/drawable/ic_palette.xml",
-      "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryView,FlatClipboard}.kt",
+      "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryRecyclerView,ClipboardHistoryView,FlatClipboard}.kt",
       "app/src/main/java/helium314/keyboard/latin/{ClipboardHistoryEntry,ClipboardHistoryManager,ClipboardThumbnails}.kt",
       "app/src/main/java/helium314/keyboard/latin/AppUpgrade.kt",
       "app/src/main/java/helium314/keyboard/latin/Suggest.kt",

@@ -132,7 +132,24 @@ object Diagnose {
                 context.getString(if (mainDictionary) R.string.agent_diagnose_present else R.string.agent_diagnose_missing)),
             Row(context.getString(R.string.agent_diagnose_talkback), onOff(context, touchExploration)),
             Row(context.getString(R.string.agent_diagnose_gestures), handling),
-        ))
+        ) + symbolSpeed(context))
+    }
+
+    /** Stage 100: how drawn symbols were written since the keyboard started (numbers only, [SymbolPerf]). */
+    private fun symbolSpeed(context: Context): List<Row> {
+        val ways = SymbolPerf.Way.values().map { SymbolPerf.count(it) }
+        fun ms(value: Long) = if (value < 0) "–" else context.getString(R.string.agent_diagnose_symbol_ms, value)
+        val (latePause, lateInstant) = SymbolPerf.lateCounts()
+        return listOf(
+            Row(context.getString(R.string.agent_diagnose_symbol_ways), ways.joinToString(" / ")),
+            Row(context.getString(R.string.agent_diagnose_symbol_latency),
+                context.getString(R.string.agent_diagnose_symbol_latency_value,
+                    ms(SymbolPerf.medianMillis(SymbolPerf.Way.INSTANT)), ms(SymbolPerf.medianMillis(SymbolPerf.Way.PAUSE)))),
+            Row(context.getString(R.string.agent_diagnose_symbol_pause),
+                context.getString(R.string.agent_diagnose_symbol_pause_value, SymbolInk.pauseMillis, SymbolInk.pauseGaps)),
+            Row(context.getString(R.string.agent_diagnose_symbol_check), ms(SymbolPerf.medianDecideMillis())),
+            Row(context.getString(R.string.agent_diagnose_symbol_late), "$latePause / $lateInstant"),
+        )
     }
 
     private fun currentLocale(context: Context): Locale? =
@@ -793,6 +810,11 @@ object Diagnose {
         rows += Row(s(R.string.agent_diagnose_corr_retro), context.getString(R.string.agent_diagnose_corr_retro_value,
             RetroCorrections.applied.get(), RetroCorrections.undone.get(), RetroCorrections.stale.get()))
         rows += Row(s(R.string.agent_diagnose_corr_personal_words), number(counts?.personalWords))
+        // stage 110: words the cleanup after the last update took out of the learned stores, per keyboard language (number only)
+        val cleaned = listOf("de", "en", "es").mapNotNull { language ->
+            RuleClassCleanup.lastRemoved(context, language).takeIf { it >= 0 }?.let { "$language $it" } }
+        rows += Row(s(R.string.agent_diagnose_corr_rule_cleanup),
+            if (cleaned.isEmpty()) s(R.string.agent_diagnose_corr_rule_cleanup_none) else cleaned.joinToString(", "))
         return Section(Part.CORRECTION, s(R.string.agent_diagnose_corr_title), rows)
     }
 

@@ -12,19 +12,27 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wandert nach `docs/FEATURES.md`.
 
-- **100 Symbole ohne Verzögerung**: „Symbole/Zeichen braucht dringend Schnelligkeit. Aktuell ca. eine halbe Sekunde. Ziel mehr oder weniger
-  instant.“ Erst messen (Karte „Tippen“, welcher Weg: Symbolseite öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben), dann beheben; 84 hat
-  nur das Einfügen bei Wortende-Zeichen behandelt.
+- **100 Symbole ohne Verzögerung**: für **gemalte** Symbole gebaut (Runde 5, Auftrag „Minimiere realistisch die Latenz ab
+  Zeichnungsabschluss …“; `docs/FEATURES.md` → Symbole malen, Konzept `docs/SYMBOLE-TEMPO-KONZEPT.md`). Offen: die alte Lesart „Symbolseite
+  öffnen, Zeichen einfügen oder Rückkehr zu den Buchstaben“ (Karte „Tippen“; 84 hat nur das Einfügen bei Wortende-Zeichen behandelt), falls
+  der Owner sie meinte; Vorschlag „<“ und „>“ als eigene gemalte Symbole (ein allein gemalter Kopf ergibt heute „Nicht erkannt“ oder „)“);
+  Prüfung am Telefon des Owners (Diagnose → Karte „Symbole“).
 - **101 Rest**: Die zehn Fehlfälle vom 2026-11-25 sind gebaut, dazu 107 (seltene Wörter nach Gewichten) und 108 (Kurzformen mit Apostroph)
   (`docs/FEATURES.md`, Konzept `docs/AUTOKORREKTUR-101-KONZEPT.md`). Offen: „gah“ → „gab“ (kein Wörterbuch und keine Liste kennt „gah“), „mocb“,
   „löschr“; ob „icj“ beim Owner im persönlichen Wörterbuch steht (Diagnose-Zeile „Einträge im persönlichen Wörterbuch (Anzahl)“); Frage an den
   Owner, ob die Deutung „Rücknahme = nie wieder, Gewichte über den Tipp-Verlauf“ seine Absicht trifft (Konzept Abschnitt 5).
+  110 (gelernte Wörter der Regelklassen werden nach jedem Update entfernt; Owner 2026-11-26: „gibts“ blieb, weil es als eigenes Wort gelernt war) ist gebaut
+  (`docs/FEATURES.md`).
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
+- **102 Screenshots in der Zwischenablage**: gebaut (`docs/FEATURES.md`, Konzept `docs/SCREENSHOTS-KONZEPT.md`). Offen für den
+  Owner (Konzept Abschnitt 8): eigene Kopie für angeheftete Screenshots (überlebt das Löschen in der Galerie)? Wischen zum Ausblenden einzelner
+  Screenshots?
 - **104/105 Rest** (gebaut: `docs/FEATURES.md`, Konzept `docs/NACHKORREKTUR-KONZEPT.md`). Offen: die Kollokationen „ein → einen Gefallen“,
   „Zeit → seit gestern“, „kein → keinen Sinn“ (Vorschlag: Wortpaar-Häufigkeiten aus dem Tipp-Verlauf mit einer Lese-Schnittstelle in
   `ExpandableBinaryDictionary` und einer auf dem Telefon geeichten Schwelle, oder ein mitgelieferter Bigramm-Bestand; Entscheidung des Owners);
   Adjektivendungen, Relativsatz- und Infinitivkommas, Fragezeichen im Spanischen; Messung auf dem Telefon.
+- **111 Gewichte je Korrekturklasse (nach 104/105)**. Owner, 2026-11-26: „Macht es Sinn, Wortklassen direkt in die Gewichtung mit einzuführen und in diesen individuellen Klassen auch nochmal separat zu gewichten?“ → „Nimm's in die Roadmap.“ Plan: zweistufig. Je Korrekturklasse (Kurzform, Nachbartaste, vertauschte Buchstaben, seltenes Wort, die Klassen von 104/105 wie Kongruenz, Homophon, Komma, Punkt) ein eigenes Gewicht aus Behalten/Zurücknehmen als Startwert für Paare ohne eigene Daten; die vorhandenen Paargewichte (`CorrectionWeights`) haben Vorrang, sobald es sie gibt. Grenzen: eine Klasse wird nur vorsichtiger, nie aus (aus nur per Schalter); langsameres Vergessen als bei Paaren; Anzeige und Zurücksetzen in der Diagnose. Wortarten (Nomen/Verb) höchstens als Unterteilung, da das Wörterbuch keine Wortarten kennt. Konzept vor dem Bau. Aufwand M.
 - **109 Animationen (Designentscheidung, erst wenn Runde 4 funktioniert)**. Owner, 2026-11-26: „Als nächstes möchte ich eine
   Designentscheidung in die Roadmap, direkt nachdem hier alles funktioniert … wirklich, wenn alles funktioniert. Ich würde gerne ein paar
   Animationen anfügen, die das Ganze geschmeidiger machen, moderner, cleaner, ein bisschen verspielter. Dazu sage ich später mehr.“ Nicht

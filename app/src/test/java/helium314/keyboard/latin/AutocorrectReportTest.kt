@@ -457,6 +457,72 @@ class AutocorrectReportTest {
         assertEquals(null, type("gibts", listOf("und")).correction())
     }
 
+    // stage 110 (owner 2026-11-26: "gibts wird nicht korrigiert … dreht's funktioniert"): typed before stage 108, "gibts" became an
+    // own word and the own word blocks the rule for good; the cleanup after an update frees exactly the words a rule class corrects
+    private fun ownWords(text: String) {
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
+            .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, Context.MODE_PRIVATE)
+            .edit { putString(helium314.keyboard.agent.Memory.OWN_WORDS, text) }
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
+    }
+
+    @Test fun `stage 110 the cleanup after an update frees learned short forms and typos and nothing else`() {
+        shortForms()
+        ownWords("v1\no;gibts\no;icj\no;digga\no;Lewin\no;nichts\no;wirds\nu;2;0;hats")
+        // learned: the own word blocks the rule (the owner's report)
+        assertEquals(null, type("gibts", listOf("und")).correction())
+        assertEquals(null, type("icj", listOf("und")).correction())
+        // the owner took "wirds" -> "wird's" back once (the rule had offered it, then Backspace): that stays the owner's word
+        helium314.keyboard.agent.RuleCorrections.offered("wirds", "wird's")
+        helium314.keyboard.agent.RejectedCorrections.remember(latinIME, "wirds", "wird's", Settings.getValues())
+        val history = ArrayList<String>()
+        val removed = helium314.keyboard.agent.RuleClassCleanup.run(latinIME, "de", { suggest.ruleClassTarget(it, "de") }, { history += it })
+        assertEquals(3, removed)
+        assertEquals(setOf("gibts", "icj", "hats"), history.toSet(), "the same words leave the typing history")
+        // a short form, a neighbouring-key typo of a very common word and a counted use are gone; a name, slang, a real word,
+        // and an undone pair stay
+        assertEquals(setOf("digga", "Lewin", "nichts", "wirds"), helium314.keyboard.agent.Memory.ownWords(latinIME).toSet())
+        assertTrue(helium314.keyboard.agent.Memory.candidates(latinIME).none { it.first == "hats" })
+        assertEquals("gibt's", type("gibts", listOf("und")).correction())
+        assertEquals("ich", type("icj", listOf("und")).correction())
+        assertEquals(null, type("wirds", listOf("und")).correction())
+        assertEquals(3, helium314.keyboard.agent.RuleClassCleanup.lastRemoved(latinIME, "de"))
+        helium314.keyboard.agent.Memory.resetForTest()
+    }
+
+    @Test fun `stage 110 the cleanup runs once per update and keyboard language, and never without an update`() {
+        shortForms()
+        ownWords("v1\no;gibts")
+        val cleanup = helium314.keyboard.agent.RuleClassCleanup
+        cleanup.resetForTest()
+        val original = cleanup.executor
+        cleanup.executor = java.util.concurrent.Executor { it.run() }
+        try {
+            val target = { word: String -> suggest.ruleClassTarget(word, "de") }
+            // a fresh install (nothing marked due): nothing happens
+            cleanup.maybeRun(latinIME, "de", { true }, target) {}
+            assertEquals(listOf("gibts"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+            // an update marks it due; dictionaries not ready yet: tried again later
+            cleanup.resetForTest()
+            cleanup.markDue(latinIME.prefs())
+            cleanup.maybeRun(latinIME, "de", { false }, target) {}
+            assertEquals(listOf("gibts"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+            cleanup.maybeRun(latinIME, "de", { true }, target) {}
+            assertEquals(emptyList(), helium314.keyboard.agent.Memory.ownWords(latinIME))
+            // learned again after the cleanup (the owner keeps it): not taken again before the next update, also after a restart
+            ownWords("v1\no;gibts")
+            cleanup.maybeRun(latinIME, "de", { true }, target) {}
+            cleanup.resetForTest()
+            cleanup.maybeRun(latinIME, "de", { true }, target) {}
+            assertEquals(listOf("gibts"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+        } finally {
+            cleanup.executor = original
+            cleanup.resetForTest()
+            helium314.keyboard.agent.Memory.resetForTest()
+        }
+    }
+
     // 10: the English "i" on the German layout
     @Test fun `stage 101 finding 10 - i in an English sentence becomes I`() {
         germanOwner()

@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import dev.agentkeyboard.core.ApplyOutcome
 import dev.agentkeyboard.core.InkCloud
+import dev.agentkeyboard.core.InkCompletion
 import dev.agentkeyboard.core.InkDots
 import dev.agentkeyboard.core.InkRecognizer
 import dev.agentkeyboard.core.InkStroke
@@ -72,6 +73,8 @@ object SymbolDrawing {
     private var shown: Shown? = null
     private var recognizer: InkRecognizer? = null
     private var dots: InkDots? = null
+    /** Stage 100: is a drawing finished? Built with [recognizer] from the same templates. */
+    private var completion: InkCompletion? = null
     private var templates: List<InkTemplate> = emptyList()
     private var recognizerSource: Pair<String?, String?>? = null
 
@@ -109,6 +112,21 @@ object SymbolDrawing {
             // stage 43 review M1: the same recognizer as write; its memo answers write without matching again
             override fun recognizes(strokes: List<InkStroke>) =
                 ref.get()?.let { ime -> InkCloud.of(strokes)?.let { recognizer(ime).recognize(it).best != null } ?: false } ?: true
+            // stage 100: a late stroke counts only when the written drawing and it make another accepted symbol together
+            // on the worker (code review, finding 2), the answer posted back to the main thread
+            override fun joins(before: List<InkStroke>, stroke: InkStroke, answer: (Boolean) -> Unit) {
+                val ime = ref.get() ?: return
+                val matcher = recognizer(ime)
+                previewExecutor.execute {
+                    val alone = matcher.recognize(before).best?.text
+                    val together = matcher.recognize(before + stroke).best
+                    val joined = together != null && together.complete && together.distance <= InkRecognizer.ACCEPT_DISTANCE && together.text != alone
+                    mainHandler.postAtTime({ answer(joined) }, SystemClock.uptimeMillis())
+                }
+            }
+            override fun onStrokeEnded(strokes: List<InkStroke>, possibleDots: List<Int>, serial: Int) {
+                ref.get()?.let { checkFinished(it, strokes, possibleDots, serial) }
+            }
         }.also { SymbolInk.sink = it }
     }
 
@@ -131,6 +149,7 @@ object SymbolDrawing {
      * drawing changes that earlier word; the symbol then still follows it after the pause.
      */
     @JvmStatic fun beforeSuggestionPick(replacesTypedWord: Boolean) {
+        SymbolInk.onTypedInput() // stage 100 (re-review N3): a picked word ends the watch for a late stroke
         if (!replacesTypedWord) beforeOtherInput()
     }
 
@@ -191,6 +210,32 @@ object SymbolDrawing {
                 setShown(Waiting(guess, (if (guess == null) emptyList() else result.alternatives.map { it.text }).take(2), drawing.size))
                 keyboard.setNeutralSuggestionStrip()
             }, SystemClock.uptimeMillis())
+        }
+    }
+
+    /**
+     * Stage 100: after every stroke, off the main thread: is the waiting drawing finished, i.e. accepted as a complete
+     * symbol that nothing can follow ([InkCompletion.finished])? Then SymbolInk writes it at once ([SymbolInk.onFinished],
+     * ignored when the drawing changed meanwhile); otherwise nothing happens and the pause applies. A drawing whose possible
+     * dots would be letters is never finished (a further dot may still come). The match lands in the recognizer's memo, so
+     * writing it does not match again.
+     */
+    private fun checkFinished(ime: LatinIME, strokes: List<InkStroke>, possibleDots: List<Int>, serial: Int) {
+        if (ime.agentEditorController.isBlockingInput) return
+        val matcher = recognizer(ime) // read on the main thread (preferences), matched on the worker
+        val rule = completion ?: return
+        val dotRule = dots
+        val drawing = strokes.toList()
+        val taps = possibleDots.toSet()
+        previewExecutor.execute {
+            // concept review, finding 3: a check for an older drawing (a stroke began meanwhile) is skipped, not queued
+            if (serial != SymbolInk.currentSerial) return@execute
+            val started = SystemClock.uptimeMillis()
+            val finished = (taps.isEmpty() || dotRule?.keeps(drawing, taps) != false) &&
+                InkCloud.of(drawing)?.let { cloud -> rule.finished(cloud, matcher.recognize(cloud)) } == true
+            SymbolPerf.decided(SystemClock.uptimeMillis() - started)
+            // postAtTime, not post: tests replace posted messages of all handlers (P51)
+            if (finished) mainHandler.postAtTime({ SymbolInk.onFinished(serial) }, SystemClock.uptimeMillis())
         }
     }
 
@@ -260,6 +305,7 @@ object SymbolDrawing {
 
     private fun replace(ime: LatinIME, state: Inserted, alternative: String) {
         if (shown !== state) return
+        SymbolInk.onTypedInput() // stage 100 (re-review N3): another symbol was picked; a stroke after it is no late one
         val outcome = ime.replaceCommandText(state.text, alternative, state.cursor)
         if (outcome == ApplyOutcome.SUBMITTED) {
             // the drawing was meant as [alternative]: learn it on top of the templates as they were
@@ -333,7 +379,18 @@ object SymbolDrawing {
         if (cached != null && source == recognizerSource) return cached
         val all = OwnInkSymbols.parse(source.first).flatMap { it.templates() } +
             PersonalInkSymbols.templates(PersonalInkSymbols.parse(source.second)) + InkSymbols.templates
-        return InkRecognizer(all).also { dots = InkDots(all, it); templates = all; recognizer = it; recognizerSource = source }
+        return InkRecognizer(all).also {
+            dots = InkDots(all, it); templates = all; recognizer = it; recognizerSource = source
+            // stage 100: the parts and which symbols can go on are worked out once on a thread of their own with low
+            // priority (code review, finding 3: not on the worker the preview and the check share); a check that comes
+            // first works out what it needs itself (per symbol, kept)
+            val rule = InkCompletion(all).also { rule -> completion = rule }
+            Thread({
+                // background priority, not the lowest: the worker may wait for the parts this thread is building (re-review N2)
+                runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND) }
+                runCatching { all.map { t -> t.text }.distinct().forEach { text -> rule.extendable(text) } }
+            }, "symbol-parts").apply { isDaemon = true }.start()
+        }
     }
 
     /** The keyboard's recognizer as it is now, if built; for tests (stage 31 fix, one match per tap). */

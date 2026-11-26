@@ -7,6 +7,32 @@
 
 Nur mit automatischen Tests und im Emulator geprüft, noch nicht auf deinem Telefon.
 
+# Neu: gelernte Tippfehler blockieren neue Korrekturen nicht mehr
+
+- **„gibts“ wird wieder „gibt's“**: Wörter, die du vor einer neuen Korrekturregel oft unkorrigiert getippt hast, hatte die Tastatur gelernt, und gelernte Wörter korrigiert sie nie. Nach jedem Update nimmt sie jetzt genau diese Wörter aus deinen eigenen Wörtern, dem persönlichen Wörterbuch und dem Tipp-Verlauf: Kurzformen ohne Apostroph, Tippfehler häufiger Wörter mit einer Nachbartaste („icj“) und vertauschte Buchstaben.
+- **Alles andere bleibt**: Namen, Slang, echte Wörter und alles, was du nach einer Korrektur schon einmal zurückgeholt hast.
+- **Nachsehen**: Diagnose → „Korrektur & Sprache“ → „Gelernte Wörter nach dem letzten Update entfernt“.
+
+Nur mit automatischen Tests geprüft, noch nicht auf deinem Telefon.
+# Neu: Gemalte Symbole ohne Wartezeit
+
+- **Sofort, wenn fertig**: Kann zu einem gemalten Symbol nichts mehr dazukommen (≤, ≥, ±, ÷ nach dem zweiten Punkt, ∞, #, ?, meist auch ×, √, ♥, ★, &), steht es gleich nach dem Loslassen im Feld.
+- **Kürzere Pause**: Symbole, die noch weitergehen können (aus „–“ kann →, = oder ÷ werden, aus → ein ↔, aus % ein ‰), warten nur noch so lange, wie du zwischen zwei Strichen brauchst, mindestens 0,3 statt 0,6 Sekunden. Kommt ein Strich knapp zu spät, wird die Pause von selbst länger.
+- **Reihenfolge egal**: → aus „–“ und „>“ oder erst „>“ und dann „–“; % aus „/“ und zwei Punkten. Was noch wartet, steht nie vorab im Feld.
+- **Diagnose**: Die Karte „Symbole“ zeigt, wie viele Symbole sofort oder nach der Pause kamen und wie schnell.
+
+Im Emulator mit echten Berührungen gemessen, noch nicht auf deinem Telefon.
+# Neu: Screenshots in der Zwischenablage
+
+- **Alle Screenshots**: Mit Zwischenablage-Verlauf und „Screenshots anbieten“ zeigt die Zwischenablage oben alle Screenshots deiner Galerie, auch die, die du gemacht hast, während die Tastatur nicht lief. Keine Kopien, keine Doppelten; was du in der Galerie löschst, verschwindet auch hier.
+- **Ab drei im Ordner**: Zwei Screenshots stehen einzeln da, ab dem dritten liegen sie im Ordner „Screenshots“. Tippen öffnet ihn sofort; oben links führt der Pfeil zurück, der Name lässt sich antippen und umbenennen, die Nadel heftet den Ordner an.
+- **Ziehen wie auf dem Startbildschirm**: Lange drücken, bis sich der Screenshot hebt, dann ziehen: im Ordner sortieren, über „In die Ablage“ halten und in der Liste loslassen, auf einen anderen Ordner oder Screenshot ziehen oder auf „Neuer Ordner“. Zurück an den Anfang oder Abbrechen ändert nichts.
+- **Anheften**: Lange drücken und loslassen zeigt „Anheften“. Angeheftete Screenshots und angeheftete Ordner bleiben; alles andere folgt der Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“).
+- **Privat bleibt privat**: Nicht im Passwortfeld, im Inkognito-Modus und bei gesperrtem Gerät. Ein Screenshot, den du dort machst, erscheint auch später nicht.
+- **Früher kopierte Screenshots** im Verlauf werden einmal übernommen, ohne dass etwas verloren geht.
+
+Mit automatischen Tests und im Emulator mit echten Berührungen geprüft, noch nicht auf deinem Telefon.
+
 # Neu: Langdruck auf das linke Wort
 
 - **Langdruck auf das linke Wort** klappt die Wortliste nicht mehr aus; er holt nur noch das ursprüngliche Wort zurück. Die Wortliste gibt es weiter per Langdruck auf die anderen Vorschläge oder Hochwischen auf der Leiste.

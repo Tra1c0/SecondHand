@@ -11,7 +11,6 @@ import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -43,10 +42,10 @@ import java.io.File
  * receiving app may not be allowed to read the media store.
  *
  * Stage 23g: a new screenshot is reported to [onChange] on the main thread right away (debounced),
- * so the strip can show the chip without a new tap into the field, and, only with the clipboard
- * history switched on, it is added to the keyboard's own clipboard history ([addToHistory]). The
- * system clipboard is never touched. The media store query, the copy for the history and the
- * clean-up of old copies run on [background]; the main thread only reads the cached result.
+ * so the strip can show the chip without a new tap into the field. Since stage 102 the clipboard
+ * shows the screenshots from the media store itself ([helium314.keyboard.agent.shelf.Shelf]); no
+ * copy goes into the history any more. The system clipboard is never touched. The media store query
+ * and the clean-up of old copies run on [background]; the main thread only reads the cached result.
  */
 object ScreenshotChip {
     private const val TAG = "ScreenshotChip"
@@ -60,29 +59,20 @@ object ScreenshotChip {
     private const val MIN_QUERY_INTERVAL = 5_000L
     /** The media store reports a screenshot several times while it is written. */
     const val DEBOUNCE_MILLIS = 500L
-    /** A screenshot goes into the history only if a media change reported it this soon after it was taken. */
-    const val HISTORY_MAX_AGE = 60_000L
-    /** Former single id of the last screenshot decided for the history; still read, see [HISTORY_DECIDED]. */
-    private const val HISTORY_LAST = "agent_screenshot_history_id"
-    /** Ids of the screenshots decided for the clipboard history (added, refused or excluded): each one once. */
-    private const val HISTORY_DECIDED = "agent_screenshot_history_ids"
-    /** The newest ids are kept: more than can be taken within [RECENT_MILLIS] in practice. */
-    private const val HISTORY_DECIDED_KEEP = 32
     /** At most this many screenshots from one query, newest first. */
     private const val MAX_SHOTS = 10
-    /** "entry id:timestamp" of the history entries made from screenshots, removed when the switch goes off. */
+    /** Before stage 102: "entry id:timestamp" of the history copies made from screenshots, read once by the shelf's migration. */
     private const val HISTORY_ENTRIES = "agent_screenshot_history_entries"
-    /** Former tracking by file name, which could not tell a later copy of the same picture by the user. */
-    private const val LEGACY_HISTORY_FILES = "agent_screenshot_history_files"
-    /** Next to the clip files: the copy for the history is made here before it gets its entry. */
+    /** Before stage 102: the decisions about the history copies, removed with the migration. */
+    private val OLD_HISTORY_KEYS = listOf("agent_screenshot_history_id", "agent_screenshot_history_ids", "agent_screenshot_history_files")
+    /** Before stage 102 the copy for the history was made here; leftovers are removed by [cleanUp]. */
     private const val PENDING_DIRECTORY = "agent_screenshot_pending"
 
     class Shot(val id: Long, val uri: Uri, val mimeType: String, val addedMillis: Long)
 
     /**
-     * The screenshots of the last [RECENT_MILLIS], newest first: several changes within the debounce
-     * time are one query, and each screenshot in it is decided for the history. Replaced in tests,
-     * which have no media store. Runs on [background].
+     * The screenshots of the last [RECENT_MILLIS], newest first (several changes within the debounce
+     * time are one query). Replaced in tests, which have no media store. Runs on [background].
      */
     @JvmStatic var finder: (ContentResolver, Long) -> List<Shot> = ::recentScreenshots
 
@@ -93,7 +83,7 @@ object ScreenshotChip {
 
     private val worker = java.util.concurrent.Executors.newSingleThreadExecutor()
     /**
-     * Runs the media store query, the copy for the history and the clean-up, never on the main
+     * Runs the media store query and the clean-up, never on the main
      * thread in the keyboard. Not ExecutorUtils.KEYBOARD: FileUtils waits on that one with a latch.
      * [resetForTest] makes it run in place; tests that check the threads set their own.
      */
@@ -110,21 +100,6 @@ object ScreenshotChip {
     private var observerFailed = false
     private var lastQuery = 0L
     @Volatile private var appContext: Context? = null
-    /** The screenshots seen so far (of the last query); the history decision is made when one is first seen. */
-    private val seenIds = HashSet<Long>()
-    /** The screenshots that may go into the history, oldest first, see [deliver]. */
-    private val historyCandidates = ArrayList<Shot>()
-    /** The screenshots whose copy for the history is being made. */
-    private val historyPending = HashSet<Long>()
-    private val historyFailures = HashMap<Long, Int>()
-    /** Last media change while the history was not allowed (locked, incognito, unknown field): older screenshots never go in. */
-    @Volatile private var privacyBlockMillis = 0L
-    /**
-     * Start of the current observer, floored to the second like MediaStore's DATE_ADDED: a
-     * screenshot from before it was never checked against the lock or the field (the keyboard
-     * was not watching), so it never goes into the history (review build 12).
-     */
-    private var watchingSinceMillis = Long.MAX_VALUE
     /** Unknown at the start; false after a clean-up left no copy, so [current] need not look again. */
     @Volatile private var copiesMayExist = true
     private var expiringShot: Shot? = null
@@ -163,9 +138,12 @@ object ScreenshotChip {
     /** The observer saw a change: query again, and tell [onChange] once the changes have settled. */
     fun mediaChanged() {
         stale = true
-        // decided now, not when the query is done: a screenshot taken while locked or in an
-        // incognito field never goes into the history, also when the query fails until later
-        appContext?.let { if (!privacyAllowsHistory(it, Settings.getValues())) privacyBlockMillis = clock() }
+        // stage 102: measuring point (the observer runs on a binder thread)
+        onMain {
+            UiPerf.mark(UiPerf.SHOT_VISIBLE, keepEarliest = true)
+            // stage 102, E10: decided now, not when the query is done (a screenshot taken while locked or private stays hidden)
+            appContext?.let { helium314.keyboard.agent.shelf.Shelf.mediaChanged(it, Settings.getValues()) }
+        }
         postIn(settle, DEBOUNCE_MILLIS)
     }
 
@@ -204,15 +182,6 @@ object ScreenshotChip {
         val inputType = editorInfo?.inputType ?: return true
         return InputTypeUtils.isAnyPasswordInputType(inputType) || InputTypeUtils.isNumberInputType(inputType)
     }
-
-    /**
-     * Whether a screenshot seen now may go into the history: the device is unlocked and the last
-     * field is known and not incognito (no-learning and password fields count as incognito). The
-     * keyboard need not be shown: then the last field decides, and without one nothing goes in.
-     */
-    fun privacyAllowsHistory(context: Context, settings: SettingsValues?): Boolean =
-        settings != null && !settings.mIncognitoModeEnabled && settings.mInputAttributes.mInputType != InputType.TYPE_NULL
-            && !helium314.keyboard.compat.isDeviceLocked(context)
 
     /** The screenshot to offer now, or null. Never queries on the calling thread, see [newest]. */
     fun current(context: Context, editorInfo: EditorInfo?, now: Long = clock()): Shot? {
@@ -258,164 +227,24 @@ object ScreenshotChip {
         }
     }
 
-    /**
-     * Main thread: keeps the query result (the newest is offered). Each screenshot seen for the first
-     * time is decided for the history here, once, also when several came within the debounce time:
-     * it may go in only if a media change reported it soon after it was taken,
-     * no change since it was taken came while the history was not allowed, and the history is
-     * allowed now ([privacyAllowsHistory]). Otherwise it is marked as handled for good, so that it
-     * is not added later, e.g. after unlocking.
-     */
+    /** Main thread: keeps the query result (the newest is offered) and reports a change to [onChange]. */
     private fun deliver(context: Context, found: List<Shot>?, viaChange: Boolean) {
         querying = false
         val newest = found?.first()
         val changed = newest?.id != cached?.id
         cached = newest
-        if (found != null) {
-            val fresh = found.filter { it.id !in seenIds }.sortedWith(compareBy({ it.addedMillis }, { it.id }))
-            seenIds.retainAll(found.mapTo(HashSet()) { it.id }) // older ones are out of the window for good
-            if (fresh.isNotEmpty()) {
-                val historyAllowed = viaChange && privacyAllowsHistory(context, Settings.getValues())
-                val now = clock()
-                for (shot in fresh) {
-                    seenIds += shot.id
-                    val allowed = historyAllowed && now - shot.addedMillis in 0..HISTORY_MAX_AGE && shot.addedMillis > privacyBlockMillis && shot.addedMillis >= watchingSinceMillis
-                    if (allowed) historyCandidates += shot else markDecided(context, shot.id)
-                }
-            }
-        }
         if (changePending) { refresh(context, clock(), fromChange = true); return } // reported after the newer query
         if (viaChange || changed) postIn(notifier, 0L) // not in place: the caller may be building the strip
     }
 
-    /**
-     * Adds a new screenshot to the keyboard's own clipboard history, never to the system clipboard.
-     * Only with the screenshot switch, the permission and the clipboard history on, not while the
-     * device is locked or the keyboard is in incognito mode, and only for a screenshot that [deliver]
-     * let through when it was first seen. [mayStore] applies the history's file settings (files
-     * allowed, size limit) and runs on [background] like the copy and its checksum; the entry is
-     * then made on the main thread. The history keeps its own copy of the file (served by the
-     * clipboard provider) and deletes it with the entry. Returns whether the copy was started.
-     */
-    fun addToHistory(
-        context: Context, settings: SettingsValues?, dao: helium314.keyboard.latin.database.ClipboardDao?,
-        now: Long = clock(), mayStore: (Uri) -> Boolean,
-    ): Boolean {
-        if (dao == null || settings == null || !settings.mClipboardHistoryEnabled) return false
-        // stage 65: the common clipboard rule (locked, always incognito, private field while the keyboard is active)
-        if (!ClipVault.mayKeep(context, settings)) return false
-        if (!isEnabled(context) || !hasPermission(context)) return false
-        newest(context, now) ?: return false
-        // too old to be offered: no longer copied either
-        historyCandidates.removeAll { now - it.addedMillis !in 0..RECENT_MILLIS }
-        val shots = historyCandidates.filter { it.id !in historyPending && !isDecided(context, it.id) } // also when removed from the history since
-        if (shots.isEmpty()) return false
-        val pending = pendingDirectory()
-        val resolver = context.contentResolver
-        for (shot in shots) {
-            historyPending += shot.id
-            copyForHistory(context, dao, resolver, pending, shot, mayStore)
-        }
-        return true
-    }
+    /** Stage 102: the old history copies made from screenshots ("entry id:timestamp"), for the shelf's migration. */
+    fun oldHistoryEntries(context: Context): Set<String> = context.prefs().getStringSet(HISTORY_ENTRIES, null).orEmpty().toSet()
 
-    /** One copy on [background], see [addToHistory]. */
-    private fun copyForHistory(
-        context: Context, dao: helium314.keyboard.latin.database.ClipboardDao, resolver: ContentResolver,
-        pending: File, shot: Shot, mayStore: (Uri) -> Boolean,
-    ) {
-        background.execute {
-            var file: File? = null
-            var checksum: String? = null
-            var failed = false
-            val copy = File(pending, "screenshot-${shot.id}")
-            try {
-                if (mayStore(shot.uri)) {
-                    pending.mkdirs()
-                    resolver.openInputStream(shot.uri)?.use { input -> copy.outputStream().use { input.copyTo(it) } }
-                        ?: throw IllegalStateException("no stream")
-                    checksum = helium314.keyboard.latin.utils.ChecksumCalculator.checksum(copy)
-                        ?: throw IllegalStateException("no checksum")
-                    file = copy
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "could not copy the screenshot for the history: ${e.javaClass.simpleName}")
-                copy.delete()
-                failed = true
-            }
-            val copied = file
-            val name = checksum
-            onMain { finishHistory(context, dao, shot, copied, name, failed) }
-        }
-    }
-
-    private fun pendingDirectory() = File(helium314.keyboard.latin.database.ClipboardDao.clipFilesDir.parentFile, PENDING_DIRECTORY)
-
-    private fun isDecided(context: Context, id: Long): Boolean {
+    /** Stage 102: the migration is done; the old tracking and decisions go. */
+    fun forgetOldHistoryEntries(context: Context) {
         val prefs = context.prefs()
-        return prefs.getLong(HISTORY_LAST, -1L) == id || prefs.getStringSet(HISTORY_DECIDED, null).orEmpty().contains(id.toString())
-    }
-
-    /** Keeps [id] as decided for the history, also over a restart; only the newest ids are kept. */
-    private fun markDecided(context: Context, id: Long) {
-        historyCandidates.removeAll { it.id == id }
-        val prefs = context.prefs()
-        val ids = prefs.getStringSet(HISTORY_DECIDED, null).orEmpty().mapNotNullTo(HashSet()) { it.toLongOrNull() }
-        if (!ids.add(id)) return
-        val kept = ids.sortedDescending().take(HISTORY_DECIDED_KEEP).mapTo(HashSet()) { it.toString() }
-        prefs.edit().putStringSet(HISTORY_DECIDED, kept).apply()
-    }
-
-    /** Main thread: makes the history entry for the copy, see [addToHistory]. */
-    private fun finishHistory(
-        context: Context, dao: helium314.keyboard.latin.database.ClipboardDao,
-        shot: Shot, copy: File?, checksum: String?, failed: Boolean,
-    ) {
-        historyPending -= shot.id
-        val prefs = context.prefs()
-        fun handled() = markDecided(context, shot.id)
-        if (failed) {
-            // tried once more on the next change; then given up
-            val failures = (historyFailures[shot.id] ?: 0) + 1
-            historyFailures[shot.id] = failures
-            if (failures >= 2) handled()
-            return
-        }
-        handled()
-        if (copy == null || checksum == null) return // the history takes no files of this size
-        val settings = Settings.getValues()
-        if (!isEnabled(context) || settings == null || !settings.mClipboardHistoryEnabled) { copy.delete(); return } // switched off meanwhile
-        // like ClipboardDao.addClipUri: named by the checksum of the content
-        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(shot.mimeType)
-        val name = checksum + if (extension == null) "" else ".$extension"
-        if (dao.getAll().any { it.filename == name }) { copy.delete(); return } // the same picture is there already: left as it is
-        val target = File(helium314.keyboard.latin.database.ClipboardDao.clipFilesDir, name)
-        if (!copy.renameTo(target)) { copy.delete(); return }
-        dao.clearOldClips()
-        dao.insertNewEntry(shot.addedMillis, false, context.getString(R.string.agent_screenshot_chip), name, listOf(shot.mimeType), context)
-        val present = dao.getAll().mapTo(HashSet()) { entryKey(it) }
-        val entry = dao.getAll().firstOrNull { it.filename == name } ?: return
-        val tracked = prefs.getStringSet(HISTORY_ENTRIES, null).orEmpty().filterTo(HashSet()) { it in present }
-        tracked += entryKey(entry)
-        prefs.edit().putStringSet(HISTORY_ENTRIES, tracked).apply()
-    }
-
-    /** Id and time: a copy of the same picture by the user moves the entry to a new time, and it is then the user's. */
-    private fun entryKey(entry: helium314.keyboard.latin.ClipboardHistoryEntry) = "${entry.id}:${entry.timeStamp}"
-
-    /** Switch off: removes the history entries made from screenshots, and their files; pinned ones stay. */
-    fun removeFromHistory(context: Context) {
-        val prefs = context.prefs()
-        if (prefs.contains(LEGACY_HISTORY_FILES)) prefs.edit().remove(LEGACY_HISTORY_FILES).apply()
-        val keys = prefs.getStringSet(HISTORY_ENTRIES, null)
-        if (keys.isNullOrEmpty()) return
-        val dao = helium314.keyboard.latin.database.ClipboardDao.getInstance(context) ?: return // locked: later
-        if (dao.listener != null) return // never while the history is shown, see ClipboardDao.clearOldClips
-        for (index in dao.count() - 1 downTo 0) {
-            val entry = dao.getAt(index)
-            if (entryKey(entry) in keys && !entry.isPinned) dao.deleteClipAt(index)
-        }
-        prefs.edit().remove(HISTORY_ENTRIES).apply()
+        if ((OLD_HISTORY_KEYS + HISTORY_ENTRIES).none { prefs.contains(it) }) return
+        prefs.edit().apply { (OLD_HISTORY_KEYS + HISTORY_ENTRIES).forEach { remove(it) } }.apply()
     }
 
     fun dismiss(context: Context, shot: Shot) { context.prefs().edit().putLong(DISMISSED, shot.id).apply() }
@@ -507,6 +336,8 @@ object ScreenshotChip {
         copiesMayExist = files.size > old.size
     }
 
+    private fun pendingDirectory() = File(helium314.keyboard.latin.database.ClipboardDao.clipFilesDir.parentFile, PENDING_DIRECTORY)
+
     private fun pendingFiles(): List<File> =
         try { pendingDirectory().listFiles().orEmpty().toList() } catch (_: UninitializedPropertyAccessException) { emptyList() } // no history yet
 
@@ -527,7 +358,6 @@ object ScreenshotChip {
             context.applicationContext.contentResolver.registerContentObserver(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, newObserver)
             observer = newObserver
-            watchingSinceMillis = clock() / 1000 * 1000
         } catch (e: Exception) {
             Log.w(TAG, "could not watch for screenshots: ${e.javaClass.simpleName}")
             observerFailed = true
@@ -550,7 +380,6 @@ object ScreenshotChip {
     }
 
     private fun stopWatching(context: Context) {
-        removeFromHistory(context)
         val current = observer
         if (current == null && cached == null) return
         copiesMayExist = true
@@ -595,12 +424,6 @@ object ScreenshotChip {
         observerFailed = false
         lastQuery = 0L
         appContext = null
-        seenIds.clear()
-        historyCandidates.clear()
-        historyPending.clear()
-        historyFailures.clear()
-        privacyBlockMillis = 0L
-        watchingSinceMillis = Long.MAX_VALUE
         copiesMayExist = true
         expiringShot = null
         finder = ::recentScreenshots

@@ -15,7 +15,7 @@ Konzept: `docs/NACHKORREKTUR-KONZEPT.md` (mit Kritik vor dem Bau, Abschnitt 10, 
 - 8 (Rücknahme): Robolectric (Rücktaste, Rückgängig ohne Strg+Z an die App, von Hand zurückgeändert, nach Cursorbewegung und
   Leertasten-Wisch keine Rücknahme mehr), Emulator `retro_undo` (RUNS).
 - 9 (Weitertippen): Robolectric „typing on is never touched“, „nothing is replaced when the editor shows another text“, „a shortening
-  correction with late editor reports doubles no letter“ (Wurzel des Emulator-Befunds „eein“/„nnicht“, P508).
+  correction with late editor reports doubles no letter“ (Wurzel des Emulator-Befunds „eein“/„nnicht“, P509).
 - 10 (Cursor mitten im Text): Robolectric. 11 (Passwort, kein Lernen, gesperrt, Schalter aus): Robolectric.
 - 12 (Slang, Namen, Englisch, Spanisch): Kern, Robolectric, Emulator `retro_keeps_correct`.
 - 13–17 (Satzzeichen): Kern `AutoPunctuationTest`, Robolectric „stage 105 …“, Emulator `retro_punctuation`, `retro_send_single_line`.
@@ -36,6 +36,126 @@ dokumentiert; Nachprüfung ohne neue hohe/mittlere Befunde, zwei niedrige behobe
 
 **Nicht geprüft:** kein Telefon (Xiaomi 15), nicht in WhatsApp/Instagram (Strg+Z der App und deren Meldungen), nicht in der Einrichtung des
 Owners mit seinem Tipp-Verlauf und persönlichem Wörterbuch; die Laufzeit auf dem Telefon.
+## Etappe 110 — Bereinigung gelernter Wörter der Regelklassen nach einem Update (Owner, 2026-11-26)
+
+Auftrag: „gibts wird nicht korrigiert … dreht's funktioniert … nach jedem Update das Wörterbuch, die eigenen Wörter etc. nur für solche Fälle automatisch überschreiben. Die anderen Wörter dürfen nicht erwischt werden.“ Befund aus dem Code: Vor Etappe 108 blieb „gibts“ unkorrigiert; nach drei Übernahmen eines Worts, das kein Hauptwörterbuch kennt, wird es ein eigenes Wort (`Memory`, Etappe 46), und eigene Wörter sperren jede Regelkorrektur (`applyShortForm` u. a.). „drehts“ war seltener getippt und nie gelernt. Ob „gibts“ beim Owner wirklich ein eigenes Wort ist, zeigt die Seite „Was ich mir gemerkt habe“; nicht am Telefon gesehen.
+
+Nachweis: `AutocorrectReportTest` „stage 110 the cleanup after an update frees learned short forms and typos and nothing else“ (vorher blockiert, danach „gibt's“/„ich“; bleiben: Name mit Großbuchstaben, Slang, echtes Wort, zurückgenommenes Paar; gleiche Wörter verlassen den Tipp-Verlauf) und „stage 110 the cleanup runs once per update and keyboard language, and never without an update“ (keine Bereinigung ohne Update, Warten auf offene Wörterbücher, einmal je Update, auch nach Neustart). Das persönliche Wörterbuch (Android-Anbieter) ist in Robolectric nicht vorhanden; dieser Pfad ist nur per Codeprüfung belegt. Kein Gerätetest. CI-Lauf 283 (`a620931b`): build, lint, agent grün; upstream rot nur mit dem neuen Test (`expected:<3> but was:<4>`: die Ablehnung von „wirds“ war im Test nicht gespeichert, weil die Regel das Paar vorher nicht angeboten hatte; im echten Ablauf geht das Angebot der Rücknahme immer voraus) → Test bildet jetzt diesen Ablauf nach, Produktcode unverändert.
+## Etappe 100 — Gemalte Symbole ohne Wartezeit (Owner, Runde 5)
+
+Auftrag: „Minimiere realistisch die Latenz ab Zeichnungsabschluss. Keine Fehl-, Früh- oder Doppeleingaben …“ Konzept, Abnahme-Zeilen und
+Kritik: `docs/SYMBOLE-TEMPO-KONZEPT.md`. Gebaut: `C/InkCompletion.kt` (fertig = angenommenes vollständiges Symbol, das kein Teil eines
+Symbols mit mehr Strichen ist, und die Zeichnung selbst ist kein solcher Teil), Prüfung nach jedem Strich auf dem Hilfs-Thread
+(`SymbolDrawing.checkFinished`, `SymbolInk.onFinished` mit `serial`), Pause 2,2 × Median bzw. 1,5 × längste Lücke vor einem Strich,
+300–1500 ms (vorher 2,5 × Median, 600–1500), Nachzügler, Messpunkte `A/SymbolPerf.kt`.
+
+- **Unit (agent-core, lokal mit JDK 21 außerhalb des Projekts gebaut, und CI):** `InkCompletionTest`: Finger-Modell, 150 Zeichnungen je
+  Symbol, Reihenfolge und Richtung zufällig, Größe 1,2–4 Tasten: **0 von 8593** echten Anfängen als fertig genommen; mit 40 persönlichen
+  Symbolen aus Finger-Zeichnungen **0 von 2690**, der Anfang, den nur die Teile-Prüfung hielt und der am weitesten von einem Teil lag:
+  1,57 (Grenze 2,0). Sofort im Modell: ≤ 93 %, ≥ 92 %, ± 97 %, ÷ 100 %, ∞ 95 %, # 100 %, ? 96 %, ¿ 96 %, × 68 %, ♥ 79 %, ★ 76 %, & 72 %,
+  ‰ 56 %, √ 50 %, { 50 %, } 64 %; alle anderen 0 % (sie können weitergehen); gesamt 28 %. → aus „–“ und „>“ in vier Reihenfolgen und
+  Richtungen; % aus „/“ und zwei Punkten in beiden Reihenfolgen; ÷ erst nach dem zweiten Punkt; Verwechslungen („/“, tiefer Strich,
+  Kreis rund und hoch, „>“ allein ergibt nie →); eigenes Symbol „∞̲“ lässt ∞ warten. Zeit (JVM): `finished()` Median 5 µs, 90 % 9 ms;
+  alle Teile und alle erweiterbaren Texte 0,3 s. `InkTimingTest`: neue Pause, Lücken mit einem langsamen Strich, lange Lücke.
+- **Robolectric (CI):** `InputLogicTest.symbolDraw…`: `FinishedSymbolIsWrittenRightAfterItsLastStrokeAndOnlyOnce` (≤), `ArrowWaitsFor…`,
+  `AnAnswerForAnOlderDrawingWritesNothing` (Antwort nach neuem Strich, auch bereits gepostet), `AStrokeJustTooLateLengthensThePause…`,
+  `ALetterTypedBetweenEndsTheWatchForALateStroke`, `AFinishedSymbolRightAfterTypingIsWrittenAtOnceNotTypedAsAKey` (∞).
+  Bewusst geänderte Erwartungen: `TwoTappedDotsMakeADivisionSign` (÷ kommt jetzt nach dem zweiten Punkt sofort statt als Vorschau-Chip
+  und nach der Pause; „einmal geschrieben“ neu geprüft), `TapInThePauseThatIsNoDotMatchesTheDrawingOnce` (2 statt 1 Erkennung: die
+  Prüfung nach dem ersten Strich erkennt den Strich allein; der Pfeil selbst weiter genau einmal), `SymbolInkTest.thePauseFollows…`
+  (300 statt 600 ms), `InkTimingTest` (`oneOddGapDoesNotMoveThePause` ersetzt durch `aLongGapLengthensThePauseUntilNewerGapsPushItOut`:
+  eine knapp zu späte Lücke soll die Pause jetzt verlängern).
+- **Gerätetests (Emulator Android 14, echte Berührungen über `dispatchGesture` der Test-App, `InkProbe.java`):** Szenarien
+  `symbol_draw_latency` (10 Fälle) und `symbol_draw_variants` (8 Fälle). Gemessen „Tastatur“ = Loslassen des letzten Strichs bis Ende
+  des Schreibens (Zeile `symbolPerf:`, Weg i = sofort, p = Pause, k = Taste), „Feld“ = Feldänderung in der Test-App nach dem geplanten
+  letzten Loslassen. Vorher = Stand ohne Verhaltensänderung (nur Messpunkte), Lauf **45793813592** (Commit 3c84b9f2); nachher Lauf
+  **45836325702** (Commit bc0bdc74, alle 36 Szenarien grün).
+
+  | Fall | vorher Tastatur / Feld (ms) | nachher Tastatur / Feld (ms) |
+  | --- | --- | --- |
+  | ÷ („–“, zwei Punkte) | p726 / 842 | **i305 / 247** |
+  | ≤ | p640 / 734 | **i171 / 149** |
+  | ∞ | p669 / 717 | **i357 / 374** |
+  | ? (Haken, Punkt) | p705 / 753 | **i275 / 320** |
+  | → „–“ dann „>“ | p1042 / 1155 | p1013 / 1053 (Pause noch 900: unter drei Lücken) |
+  | → „>“ dann „–“ rückwärts | p975 / 1049 | p317 / 396 |
+  | % „/“ und Punkte (beide Reihenfolgen) | p1124 / 1097, p674 / 699 | p330 / 359, p393 / 461 |
+  | = | p778 / 822 | p328 / 402 |
+  | „–“ allein | p748 / 779 | p408 / 412 |
+  | → schnell (70/80 ms) / langsam (700 ms) | p681 / 654, p666 / 667 | p516 / 553, p372 / 419 |
+  | ≤ klein (1,5 Tasten) / groß (4 Tasten) | p716 / 812, p727 / 846 | i364 / 346, i389 / 409 |
+  | → Lücke 70 % der Pause | p691 / 700 | p529 / 558 |
+  | „/“ allein | p741 / 726 | p547 / 637 |
+  | „–“, dann Taste nach 120 ms | k260 / 158 | k245 / 104 |
+  | „–“, Pause > 2 Pausen, Kopf | p627, p762 (zwei Zeichnungen, kein →) | p539, p522 (zwei Zeichnungen, kein →) |
+
+  Median Tastatur: vorher 721 ms (alle Fälle über die Pause); nachher sofort 331 ms, über die Pause 400 ms. Die Pause lernte im Emulator
+  die Lücken der Test-Gesten (200 ms geplant, gemessen ca. 150 ms) und lag bei 300–471 ms statt 600. Jeder Fall: genau ein Feldwechsel,
+  nicht vor dem letzten Loslassen, und die Tastatur schrieb genau eine Zeichnung.
+- **Prüfung „sofort“ im Emulator:** Der Emulator rendert in Software (Frame-Median 113–129 ms, 99 % „janky“), die Zeiten oben sind darum
+  vor allem Hauptthread-Wartezeit. Die erste Fassung verlangte unter 250 ms und scheiterte (Lauf 45795766638: ≤ 396/412 ms). Statt die
+  Grenze zu lockern, prüft das Szenario jetzt zwei begründete Aussagen: (1) der Weg war „sofort“ und kam vor dem Ende der Pause, die
+  gewartet hätte (die Sofort-Fälle stehen vorn, solange die Pause 900 ms ist; später lernt sie 300 ms, dann kann eine langsame Prüfung
+  im Emulator gegen die Pause verlieren, Lauf 45802675105: ≤ als p372 – gleiches Symbol, gleicher Text); (2) jeder Sofort-Fall liegt
+  unter dem Frame-Budget derselben Zeichnungen: Prüfung (150 ms, gemessen 58–137 ms) plus drei Frames am 90. Perzentil
+  (`dumpsys gfxinfo` über genau diese vier Fälle; Schreiben und Leiste brauchen zwei bis drei Durchläufe des Hauptthreads). Lauf
+  45836325702: p90 150 ms, Budget 600 ms, Fälle 171–357 ms.
+- **Frames beim Malen (`dumpsys gfxinfo` seit Reset, gleiche Methode):** vorher (45793813592) latency: 158 Frames, 99,37 % janky,
+  p50 125 / p90 150 / p95 200 / p99 250 ms, langsamer UI-Thread 72; variants: 142 Frames, 100 %, 125/150/200/250, 47. Nachher
+  (45836325702) latency: 164 Frames, 98,78 %, 113/150/200/250, 49; variants: 137 Frames, 98,54 %, 121/200/200/250, 43. Kein Verlust
+  messbar (Software-Rendering überdeckt alles); die Prüfung läuft nicht im Hauptthread.
+- **Kontrolllauf** (der Strich, von dem die Erwartung abhängt, fällt weg): Läufe 45801093442 (068c011f) und 45841421917 (bc0bdc74),
+  beide Szenarien FAIL wie verlangt (÷ ohne zweiten Punkt: „–“ plus Buchstabe; → ohne Kopf: „–“).
+- **SecondHand Tests:** Lauf 45836326041 (bc0bdc74) alle vier Jobs grün (agent 2441 Tests, 0 Fehler; upstream 2310, nur die fünf
+  bekannten). Infrastruktur: Maven 429 (Lauf 45801080121), XLink 503 (45829492563), jeweils ohne Bezug.
+- **Prüfer:** Konzept vor dem Bau (drei Befunde, eingearbeitet, Konzept Abschnitt 7); Code-Prüfung des ganzen Zweigs (acht Befunde: u. a.
+  Nachzügler nach getippten Buchstaben, `joins` im Hauptthread, Vorwärmen auf dem gemeinsamen Hilfs-Thread; behoben in bc0bdc74);
+  Nachprüfung: alle behoben, vier neue niedrige (Reihenfolge Nachzügler/Prüfung, Thread-Priorität, Wahl in der Leiste, KDoc), behoben im
+  Commit danach.
+- **Nicht geprüft:** Telefon des Owners (Xiaomi 15): Gefühl, eigene Lücken, ob Symbole geteilt werden (Diagnose → Karte „Symbole“:
+  Wege, Median, Pause, Nachzügler). „>“ allein ergibt weiter „Nicht erkannt“ oder „)“ (Vorschlag „<“/„>“ als Symbole, nicht gebaut).
+  % mit dem Punkt zuerst geht nicht (ein Tipp ohne Zeichnung ist ein Buchstabe).
+## Etappe 102 — Screenshots in der Zwischenablage (Owner, 2026-11-26)
+
+Auftrag und Entscheidungen: `docs/SCREENSHOTS-KONZEPT.md` (E1–E13, Abnahme-Zeilen A1–A20, Kritik K1–K4; die Kritik vor dem Bau hat
+der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verfügbar). Code-Landkarte: `docs/ARCHITECTURE.md` →
+„Screenshot-Ablage (102)“, Format: `docs/STORAGE.md` → „Screenshot-Ablage (102)“.
+- Älterer Owner-Wunsch geprüft: die Werkzeugzeile der Zwischenablage ist seit 106 standardmäßig aus (`AgentPreferences.CLIPBOARD_TOOLBAR`)
+  und bleibt so; Smart-Paste-Chips gibt es nur an Textkarten, nie an Bildern/Screenshots (`ClipboardAdapter`); 102 ändert daran nichts.
+- Tests neu: `CT/clip/ScreenshotShelfTest.kt` (23), `CT/clip/ShelfDragTest.kt` (14), lokal grün (eigene Gradle-Hülle um `agent-core`,
+  Kotlin 2.4.0); `AT/shelf/ShelfStoreTest.kt` (6), `AT/shelf/ShelfViewTest.kt` (11) und `ScreenshotChipTest` (9) lokal grün
+  (Android-SDK 37 und JDK 17 im Container nachinstalliert, Robolectric-Jar über den Google-Spiegel von Maven Central, weil
+  `repo.maven.apache.org` mit 429 antwortete). Die volle Kern-Suite lief lokal nicht sinnvoll (39 Tests lesen Dateien über relative
+  Pfade des Projekts, die die Hülle nicht hat); maßgeblich ist der GitHub-Lauf unten.
+- Bewusst geändert: Sieben Tests von `ScreenshotChipTest` zur Kopie neuer Screenshots in den Verlauf (23g, Build 12, 65) sind entfernt,
+  weil das Verhalten entfallen ist (E1); ersetzt durch `aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf` und die Tests der Ablage.
+  Die Regel „bei Sperre/im Inkognito-Feld gemachte Screenshots nie“ gilt weiter (Entscheidung des Leads): `hidden`, Tests
+  `ScreenshotShelfTest.aScreenshotTakenPrivatelyIsHiddenForGoodAndAShownOneStays` und
+  `ShelfStoreTest.aScreenshotTakenInIncognitoOrAPrivateFieldIsNeverShownAlsoAfterARestart` (Inkognito, Neustart, Feld ohne Lernen).
+- Robolectric-Hinweis: Die Berührungstoleranz in Robolectric ist größer als 42 px; die Tests ziehen deshalb weiter. Views, die
+  Robolectric nicht in einem Fenster zeigt, führen `View.post` nie aus: `ShelfUi` und das Einfügen posten auf den Main-Looper.
+- Emulator-Szenarien neu: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` (Kontrolllauf: fehlender
+  dritter Screenshot, Ziehen zurück an den Start, kein Screenshot bei beendeter Tastatur). Probe `screenshot_perf` (nur `--only`).
+- Messung vorher (Code = `main` 9228c5a0 + Messpunkte, Commit cd221dbd, Gerätetest-Lauf 45791319949, Probe `screenshot_perf`, 12 Screenshots
+  per `screencap`, Emulator Android 14 mit SwiftShader): Zwischenablage öffnen 107/106/113 ms (Median 107), dabei nur **4 von 12**
+  Screenshots im Verlauf (die alte Kopie nahm nicht alle); neuer Screenshot bis sichtbar 669 ms; Öffnen 2 Bilder, 2 janky; Scrollen
+  35 Bilder, 34 janky (97 %), p50 113 ms, p90 150 ms (SwiftShader: jedes Bild ist im Emulator janky, nur der Vergleich zählt).
+  Ordner öffnen: vorher nicht vorhanden. Nachher: unten.
+- Prüfer (eigene Sitzung, Modell opus, nur lesend, auf 0278497c): 1 hoch, 2 mittel, 8 niedrig. Alle behoben:
+  (1, hoch) veraltete Clip-Zahl im `ConcatAdapter` → Absturz/fehlender Clip beim zweiten Öffnen: `notifyDataSetChanged` beim Öffnen,
+  Regressionstest `ShelfViewTest.reopeningAfterTheHistoryChangedShowsEveryClipAndDoesNotCrash` (ohne den Fix rot: 2 statt 4 Einträge,
+  lokal geprüft); (2) gewartete Antwort beim Ablegen überschrieben → erst `apply`, dann `endDrag`; (3) Übernahme alter Kopien erst nach
+  der nächsten Medienänderung → `Shelf.refresh` in `ClipboardHistoryManager.onCreate`; (4) Übernahme nur über die Zeit und auch bei
+  leerer Antwort → nur bei nicht leerer Antwort, jede Löschung über die Prüfsumme bestätigt (Test erweitert: Kopie gleicher Zeit mit
+  anderem Inhalt bleibt); (5) Antworten beim Anheben → `hold` ab `Lift`; (6) Vorschaubilder neu dekodiert → Größe aus dem Bildschirm;
+  (7) Tipp, der einen Schwung stoppt, fügte ein → nicht verfolgt; (8) Umbenennen mit Emoji → ganze Zeichen, Länge vor dem Anhängen;
+  (9) Ordnernummer → leere Ordner vor der Nummernwahl entfernt (Test); (10) Thread je Ansicht → ein Daemon-Executor; (11) Testnamen im
+  Konzept. Nachprüfung (dieselbe Prüfer-Sitzung, auf c54557b5): alle elf behoben, keine neuen Befunde ab mittel; drei niedrige
+  Restbeobachtungen ebenfalls behoben: (N1) eine während einer Abfrage angeforderte zweite Abfrage verfällt nur, wenn alle Aufrufe es
+  erlaubten; (N2) die Prüfsummen der Übernahme laufen auf einem eigenen Thread; (N3) die Aktionszeile sucht ihre Kachel, bevor wartende
+  Antworten kommen.
+- Nicht geprüft: kein Telefon (Xiaomi/HyperOS, echtes Design des Owners auf dem Gerät), keine angesehenen Bilder (Emulator-Bilder sind
+  über den Proxy nicht ladbar), TalkBack nicht ausprobiert.
 
 ## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
 

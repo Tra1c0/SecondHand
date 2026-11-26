@@ -44,6 +44,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
 - **Ablage** – Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
+- **Screenshot-Ablage (102)** – Etappe 102: alle Screenshots des Medienspeichers oben in der Zwischenablage, ab drei gebündelt, Ordner zum Umbenennen und Anheften, Ziehen wie auf dem Startbildschirm. Konzept: `docs/SCREENSHOTS-KONZEPT.md`.
 - **Begleit-App (Etappe 80)** – Etappe 80: kleine, getrennte App `companion/` nur für das Gerät des Owners; der Spike lädt Qualcomms fertiges Qwen3-4B und lässt es auf dem KI-Chip einen festen Satz korrigieren. Wird nie veröffentlicht.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
@@ -384,6 +385,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Tests: `CT/sentence/SentenceRepairTest.kt`, `CT/sentence/AutoPunctuationTest.kt`, `CT/sentence/GermanLexiconTest.kt` (alle mit den
   ausgelieferten Dateien und dem deutschen Hauptwörterbuch über `CT/sentence/RealLexicon.kt`), `InputLogicTest` „stage 104 …“/„stage 105 …“,
   Emulator-Szenarien `retro_*` in `tools/devicetest/devicetest.py`.
+- Etappe 110: `A/RuleClassCleanup.kt` entfernt nach einem Update (`markDue` aus `AppUpgrade.onUpgrade`, Zweig `FORK_UPGRADES_ONLY`, nicht bei Neuinstallation; Schlüssel `agent_rule_cleanup_due` in den App-Einstellungen, erledigte Sprachen und Anzahl in `agent_rule_cleanup`) je Tastatursprache einmal die gelernten Wörter, die eine Regelklasse jetzt korrigiert, aus eigenen Wörtern samt gezählten Nutzungen (`Memory`), behaltenen Fremdwörtern (`ForeignWords`), persönlichem Wörterbuch (`UserDictionary`-Anbieter) und Tipp-Verlauf (`DictionaryFacilitatorImpl.removeFromUserHistory`, ohne Sperrliste). Gestartet aus `Suggest.startRuleClassCleanup` (erst wenn ein Hauptwörterbuch geladen und die übrigen aktivierten Sprachen in `OtherLanguageDictionaries` offen sind), eigener Thread. Die Klassenfrage `Suggest.ruleClassTarget`: Kurzform (108), Nachbartaste (101), vertauschte Buchstaben (75), je mit ihrem Schalter und ihren Ausschlüssen, ohne Großanfang, ohne Wort eines Hauptwörterbuchs; Paare mit einer Ablehnung in `RejectedCorrections` bleiben. Diagnose-Zeile `agent_diagnose_corr_rule_cleanup`. Tests: `AutocorrectReportTest` „stage 110 …“.
 - Untersuchung Autokorrektur (2026-11-21, keine Produktänderung): `AutocorrectReportTest.kt` hält mit festen Engine-Ergebnissen fest, was `Suggest`/`CorrectionGuard` heute tun (Ziel „nicbmal“ aus dem Verlauf ohne Wörterbuch-Prüfung, „i“ → „I“ bei „Richtige Wörter nie ändern“ blockiert, englischer Tippfehler im englischen Satz → deutsches Wort); Namen „reported finding N“. `tools/devicetest/devicetest.py`: Szenarien `reported_finding_*` (nur mit `--only` bzw. Workflow-Eingabe `only`) tippen mit echten Berührungen, schreiben Zeilen `PROBE …` ins Log und halten das heutige Verhalten fest (dokumentiert, nicht gutgeheißen).
 - Diagnose „Korrektur & Sprache“ (Etappe 90a): `Diagnose.correction` (Part `CORRECTION`, Karte direkt nach „Letztes Feld“ in `AgentDiagnoseScreen`) liest nur Einstellungen (`TypingAutocorrect.current`, Schalter, Layout und zweite Sprachen je aktivem Subtyp) und Zahlen aus `Diagnose.correctionCounts` (Hintergrund-Thread, `runCatching`, nicht lesbar = null = „unbekannt"): Verlaufswörter je Sprache, `TypoMemory`, `FieldCorrectionMemory`, `RejectedCorrections`. Kein Wort. Test `AT/DiagnoseCorrectionTest.kt`; Texte `agent_diagnose_corr_*` in `agent_diagnose_strings.xml`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
@@ -567,7 +569,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
-  `HapticChain`).
+  `HapticChain`; Etappe 100: `onCodeInput` und `onTextInput` rufen `SymbolInk.onTypedInput`).
 - Etappe 87 (Cursor als Trackpad, P410–P433), jede Änderung von einem Prüfer lesen lassen:
   `PointerTracker.java` (+19 Zeilen in Etappe 87, dazu in Etappe 87c +1 Zeile: `static int getPointerStep()`, der Getter für `sPointerStep`, sonst nichts; alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
@@ -807,6 +809,11 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
 - Etappe 106: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (`clipboardToolbarShown`, Standard aus, Einstellung in `ToolbarScreen`, Texte in `agent_bar_tools_strings.xml`);
   aus: `ClipboardHistoryView` legt keine Tasten an, `hidesStrip()` (Standardstil mit sichtbarem Streifen) lässt `KeyboardSwitcher.setClipboardKeyboard` den Streifen verstecken
   und gibt seine Höhe an `onMeasure` und die Liste (P507). `SuggestionStripView.gridTools` zählt die Tasten der abgeschalteten Zeile als „schon benutzt“.
+- Etappe 102 (Screenshot-Ablage, Abschnitt „Screenshot-Ablage (102)“): `ClipboardHistoryRecyclerView.kt` sucht die Clip-Karten auch
+  in einem `ConcatAdapter` (`clipAdapter`), wischt nur Clip-Karten und rechnet mit `bindingAdapterPosition`; `ClipboardHistoryView.kt`
+  (`ConcatAdapter`, `dispatchTouchEvent`, `insertScreenshot`, `clipOffset`, Messpunkte `clipboard_open`/`shot_visible`),
+  `KeyboardSwitcher.java` (eine Zeile: Messpunkt in `setClipboardKeyboard`), `ClipboardHistoryManager.kt` (`onScreenshotChange` →
+  `Shelf.refresh`, `clearHistory` → `Shelf.clear`).
 - Zwischenablage: `ClipboardHistoryView.kt` (im flachen Stil Kopfzeile, Abschnittstitel, Liste
   bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
@@ -3613,7 +3620,7 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   Pause (36, `C/InkTiming.kt` `InkPace`): 900 ms, ab drei gemessenen Lücken (Loslassen bis
   nächstes Aufsetzen, nur innerhalb eines Symbols, `SystemClock.uptimeMillis`) 2,5 × Median der
   letzten neun, begrenzt auf 600–1500 ms; nur im Speicher. Vorher fest 500 ms (Rückmeldung zu
-  Build 14: der Rest eines Symbols begann ein neues). Ein Tipp (36: Bewegung unter
+  Build 14: der Rest eines Symbols begann ein neues). Seit 100: max(2,2 × Median, 1,5 × längste) der Lücken vor einem Strich, 300–1500 ms (unten „Sofort, wenn fertig“). Ein Tipp (36: Bewegung unter
   `InkTap.SLOP_DP` = 8 dp wie Androids Touch-Slop (Nachprüfer F3; 6 dp nach dem ersten Prüfer) vom
   Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
   von 36 4 dp, Prüfer H1) ist nur dann ein
@@ -3640,8 +3647,9 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   und tippt den Grundbuchstaben, kein Popup. Der Randfall eines Wortvorschlags im Fenster bei
   einbuchstabiger Vorhersage bzw. Satzzeichen-Leiste (P97) bleibt wie er ist.
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
-  (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich geschrieben, weil
-  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
+  (`flush`) gehen die Striche an die Senke. Bis 99 wurde nie sofort nach einem Strich geschrieben, weil
+  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠); seit 100 sofort, wenn nichts mehr folgen kann
+  (unten „Sofort, wenn fertig“).
 - Punkte (43, Rückmeldung zu Build 19: ÷/% verloren oder Symbol plus Buchstabe): Ein Tipp, dem
   `isDot` zustimmt, ist ein möglicher Punkt: `SymbolInk.onInkUp` legt ihn als einen Punkt (seine
   Mitte) in die Gruppe, merkt Index, Zeiger, Aufsetzpunkt und Lücke (`Possible`) und tippt nichts.
@@ -3796,6 +3804,41 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   löschen), `InputLogicTest.symbolDraw*` (echte Weiterleitung, Einfügen, Chips, Sperre; 31: Vorschlag
   im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
+
+- Sofort, wenn fertig (100, Konzept `docs/SYMBOLE-TEMPO-KONZEPT.md`): `SymbolInk.add` meldet nach jedem Strich und jedem
+  möglichen Punkt `Sink.onStrokeEnded(strokes, possibleDots, serial)`; `SymbolDrawing.checkFinished` prüft auf dem Hilfs-Thread
+  (`previewExecutor`, in Tests direkt; übersprungen, wenn `SymbolInk.currentSerial` schon weiter ist), ob mögliche Punkte Punkte
+  blieben (`InkDots.keeps`) und `C/InkCompletion.kt` `finished(cloud, result)` gilt: bestes Symbol vollständig und ≤
+  `ACCEPT_DISTANCE`, nicht `extendable` (eine seiner Vorlagen liegt ≤ `EXTEND_DISTANCE` 2,0 an einem Teil einer Vorlage mit mehr
+  Strichen; ein Teil ist jede echte Teilmenge der Striche, bei mehr als `MAX_SUBSETS` 35 Teilmengen nur die ersten Striche), und die
+  Zeichnung selbst liegt an keinem Teil (≤ `PART_DISTANCE` 2,0). Dann postet es `SymbolInk.onFinished(serial)`, das nur schreibt
+  (`finish(Way.INSTANT)`), wenn `serial` gleich ist (jeder Strichbeginn, jedes Schreiben, Verwerfen, Chip und `onBatchStart` zählt
+  hoch), etwas wartet und kein Strich auf den Tasten ist. Der Timer der Pause bleibt immer gesetzt (Rückweg ohne Antwort). Die
+  Teile rechnet `InkCompletion` faul (`SymbolDrawing.recognizer` baut es mit dem Erkenner aus denselben Vorlagen, eingebaut, eigen,
+  persönlich), ob ein Text erweiterbar ist, je Text gemerkt; vorab rechnet ein eigener Thread niedriger Priorität („symbol-parts“) alle
+  Texte (Code-Prüfung, Befund 3: auf dem gemeinsamen Hilfs-Thread stauten sich danach Vorschau und Prüfung; alle eingebauten zusammen
+  ca. 0,3 s auf dem JVM); eine Prüfung, die vorher kommt, rechnet ihren Text selbst. Teile werden nur gedreht, wenn sie aufrecht unter 1,6-mal der Grenze lagen (wie im Erkenner). Die Prüfung
+  kostet ca. 5 µs (Median, meist ist das Symbol erweiterbar) bis 8 ms (90 %) auf dem JVM; der Erkenner rechnet die Zeichnung dabei einmal, `write` nimmt das Ergebnis aus seinem Merker.
+  Pause (100, `InkPace`): max(2,2 × Median, 1,5 × längste) der letzten neun Lücken vor einem Strich, 300–1500 ms, anfangs 900;
+  Lücken zwischen getippten Punkten zählen nicht mehr (Kritik, Befund 1). Nachzügler (`SymbolInk.noteLateStroke`): beginnt bis
+  `LATE_PAUSES` 2 Pausen nach einer nach der Pause oder sofort geschriebenen Zeichnung (`Written`) eine neue nahe an ihr
+  (`InkTap.nearDrawing`, Tastenbreite aus `KeyboardSwitcher`), ohne getippte Taste oder Text dazwischen
+  (`SymbolInk.onTypedInput` aus `KeyboardActionListenerImpl.onCodeInput`/`onTextInput`; der Druck auf die Taste, auf der der neue Strich
+  beginnt, zählt nicht), nur nach einem Symbol ohne nachfolgende Buchstaben (`resolve` gibt die geschriebenen Striche zurück), und ergeben
+  beide ein anderes angenommenes Symbol (`Sink.joins`, `SymbolDrawing`: zwei Erkennungen auf dem Hilfs-Thread, Antwort im Hauptthread),
+  zählt `SymbolPerf.late`; nach der Pause zählt die Lücke
+  (Beginn der Geste `onBatchStart` bis zum Ende des letzten Strichs) für die Pause. Geschriebenes bleibt.
+  Tests: `CT/InkCompletionTest.kt` (Finger-Modell: keine Früheingabe in 8593 Anfängen, auch mit 40 persönlichen Symbolen; Anteil
+  sofort je Symbol; → aus „–“ und „>“ in jeder Reihenfolge und Richtung; % aus „/“ und zwei Punkten; ÷ erst nach dem zweiten Punkt;
+  Verwechslungen; eigenes Symbol lässt seinen Anfang warten; Zeit), `CT/InkTimingTest.kt` (Pause),
+  `InputLogicTest.symbolDrawTwoTappedDotsMakeADivisionSign` (÷ sofort, einmal).
+- Messpunkte (100): `A/SymbolPerf.kt` zählt je geschriebener Zeichnung den Weg (`Way`: sofort, nach der Pause, per Taste, per
+  Chip; `SymbolInk.finish(way)`, `takeWaiting`) und die Zeit vom Loslassen des letzten Strichs bis zum Ende des Schreibens
+  (`SystemClock.uptimeMillis`), dazu die Dauer der Prüfung „kann weitergehen?“ und Nachzügler; nur Zahlen, nur im Speicher.
+  Ausgabe: Zeile `symbolPerf:` in `LatinIME.dump` (`SymbolInk.perfLine`, `dumpsys input_method`, auf dem Binder-Thread, darum
+  mit `runCatching`) und fünf Zeilen in der Diagnose-Karte „Symbole“ (`Diagnose.symbolSpeed`). `InkPace.size`: Zahl der Lücken.
+  Gerätetests `symbol_draw_latency`, `symbol_draw_variants` (`tools/devicetest/devicetest.py`) malen mit echten Berührungen über
+  `InkProbe.java` der Test-App und schreiben die Zeiten als `INFO symbol …`.
 
 ## Zeichen-Kunst
 
@@ -4082,6 +4125,73 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Doppeltipp, „Verwalten“, „Kopiertes speichern“ mit allen Ablehnungen), dazu `AT/SettingsBarAreaTest.kt`
   (die Zeile im Bereich Leiste & Befehle).
 
+## Screenshot-Ablage (102)
+
+> Etappe 102: alle Screenshots des Medienspeichers oben in der Zwischenablage, ab drei gebündelt, Ordner zum Umbenennen und Anheften, Ziehen wie auf dem Startbildschirm. Konzept: `docs/SCREENSHOTS-KONZEPT.md`.
+
+Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeichert werden nur IDs, Zeiten, Ordnernamen und Pins
+(`docs/STORAGE.md` → Screenshot-Ablage). Kein `InputLogic`, `RichInputConnection`, `PointerTracker`; die Berührungen laufen in
+`ClipboardHistoryView.dispatchTouchEvent` zuerst durch `ShelfUi`.
+
+- Modell (Kern, JVM): `C/clip/ScreenshotShelf.kt`: `ShelfShot`, `ShelfFolder` (`name` null = Standardname, `number`, `pinned`, `auto`,
+  `members` in der Reihenfolge des Owners), `ShelfState` (`folders`, `loose`, `fresh`, `pinnedShots`, `clearedBefore`, `nextFolderId`;
+  `placeOf`, `protectedIds`), `ShelfItem` (`Folder`, `Card`), `ShelfTarget` (`None`, `Card`, `Folder`, `NewFolder`, `Out`, `Order`).
+  `ScreenshotShelf.sync` (vollständige Antwort des Medienspeichers: Gelöschtes vergessen, nie bei leerer Antwort; mit `expire` das
+  nicht mehr Sichtbare vergessen; Neue vorn in den automatischen Ordner oder nach `fresh`; ab `BUNDLE_AT` = 3 der automatische Ordner;
+  leere ungeheftete Ordner weg), `isVisible`, `items` (Reihenfolge der Kacheln), `folderShots`, `togglePinShot`, `togglePinFolder` und
+  `rename` (beide machen den automatischen Ordner zum eigenen), `cleanName` (1–40 UTF-16, eine Zeile), `moveToFolder`, `moveToLoose`,
+  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `takenPrivately` und `hide` (E10, `hidden` im Zustand,
+  `PRIVATE_WINDOW_MILLIS` = 60 s), `drop` (Ziel → Operation; Abbruch, eigener Platz und
+  eigener Ordner geben dieselbe Instanz zurück), `clear`, `keepPinnedOnly`, `adoptPinned`, `planMigration` mit `OldCopy`.
+  Tests `CT/clip/ScreenshotShelfTest.kt` (23).
+- Berührung (Kern): `C/clip/ShelfDrag.kt`: Zustandsmaschine IDLE → PRESSED → LIFTED (350 ms, `tick`) → DRAGGING, Ereignisse `Scroll`,
+  `Tap`, `Lift`, `Menu` (Loslassen ohne Bewegung: nichts geändert), `Start`, `Hover`, `Dwell` (360 ms über `Out`), `Drop`, `Cancel`
+  (`cancel`, `secondFinger`); Ordnerkacheln werden nicht gezogen. Tests `CT/clip/ShelfDragTest.kt` (14, mit Uhr).
+- `A/shelf/Shelf.kt`: das Modell der laufenden Tastatur (Main-Thread), `isAvailable` (Verlauf, „Screenshots anbieten“, Bildberechtigung),
+  `isShown` (dazu nicht `ClipVault.isBlocked`), `isPrivateNow` und `mediaChanged` (E10: Zeit jeder Medienänderung in privatem
+  Zustand, aus `ScreenshotChip.mediaChanged`; `answer` verbirgt mit `ScreenshotShelf.takenPrivately`/`hide`), `retentionMillis` (Aufbewahrung der Zwischenablage, über 120 min unbegrenzt),
+  `prepare` (beim Öffnen: verfallen lassen, neu fragen), `refresh` (Abfrage auf `background`, nie zwei zugleich), `hold` (während des
+  Ziehens warten Antworten), `apply` (neuer Zustand → `persist` auf eigenem Thread, immer der neueste, dann die Hörer), `clear`,
+  `keepPinnedOnly`, `queryScreenshots` (`RELATIVE_PATH LIKE '%screenshot%'`, vor Android 10 `DATA`, ohne `IS_PENDING`, neueste zuerst),
+  Übernahme der alten Kopien (`migrate`, `removeCopies`, `finishMigration`; nur bei nicht leerer Antwort und nie bei offener Ansicht;
+  eine Kopie geht nur, wenn die Prüfsumme ihres Originals gleicher Zeit bzw. eines der neuesten 300 passt, gerechnet im Hintergrund
+  über `ChecksumCalculator`; angestoßen schon in `ClipboardHistoryManager.onCreate`), `resetForTest` (Abfragen und Schreiben am Platz).
+- `A/shelf/ShelfStore.kt`: strenges JSON (`encode`/`decode`, genau die Schlüssel, Version 2 mit `hidden`, Version 1 wird gelesen, jede ID an einem Platz, Pins nur
+  platzierter IDs, höchstens ein automatischer Ordner, Namen wie `cleanName`), `AtomicFile`, Datei „agent_screenshot_shelf.json“ im
+  DE-Speicher; unlesbar → `.bad` daneben, leere Ablage; ein Lesefehler (nicht: Inhalt) schreibt nie.
+- `A/shelf/ShelfAdapter.kt`: `SquareFrame` (quadratische Kachel), `ShelfColors` (Tastenfarben: Karte `KEY_BACKGROUND`, Schrift
+  `KEY_TEXT`, Akzent `ACTION_KEY_BACKGROUND`, Pin `CLIPBOARD_PIN`), `ShelfAdapter` (Ordner mit 2×2-Vorschau und „Name · n“, Karten;
+  `submit` mit `DiffUtil`; `lifted` blass, `hover` Akzentrahmen; `grows` lässt einen neuen Ordner wachsen; Tag = `f<id>`/`s<id>`;
+  Klick nur für TalkBack), `ShelfAnimations.grow`. Ids in `agent_shelf_ids.xml`, Texte in `agent_shelf_strings.xml`.
+- `A/shelf/ShelfThumbnails.kt`: Vorschaubilder im Hintergrund (`loadThumbnail` ab Android 10), im Speicher bis die Zwischenablage
+  schließt; ein inzwischen anders gebundenes Bild bekommt nichts.
+- `A/shelf/ShelfUi.kt`: Kacheln (`mainAdapter`), Ordnerfenster (`agent_shelf_window`: Kopf mit `agent_shelf_back` oben links, Titel
+  `agent_shelf_title` = Tipp zum Umbenennen, Anzahl, `agent_shelf_pin`; Raster `agent_shelf_grid` mit drei Spalten), Umbenennen mit
+  `CharArtKeys` (`agent_shelf_name_edit`, `agent_shelf_name_done`), Aktionszeile nach Langdruck (`agent_shelf_menu`,
+  `…_menu_pin`, `…_menu_rename`), Ziehen mit Kopie (`agent_shelf_shadow`), Ablagebereich unten (`agent_shelf_new_folder`) bzw. im Kopf
+  des Ordners (`agent_shelf_out`, `agent_shelf_new_in_folder`), Rand-Scrollen, Messpunkt `folder_open`. Der Platz im Ordner beim
+  Ziehen kommt aus der Geometrie des Rasters (`slotAt`: Spalte, Zeilenhöhe, Scroll-Versatz), nicht aus der View unter dem Finger. `onTouch` gibt `CONSUME`
+  zurück, solange ein Teil angehoben ist; vor `Tap`, `Menu`, `Drop` und beim `Lift` schickt `Host.cancelChildren` ein `ACTION_CANCEL`
+  an die Liste (die Kachel klickt nie selbst). `ShelfUi.LIFT_MS` = 350. `Shelf.hold` gilt ab dem Anheben (nicht erst ab dem Ziehen);
+  ein Abfang eines Schwungs (Liste scrollt noch) wird nicht verfolgt. Beim Ablegen erst `Shelf.apply`, dann `endDrag` (die gewartete
+  Antwort baut auf dem neuen Stand auf). Umbenennen löscht ganze Zeichen (`offsetByCodePoints`).
+- Einbindung: `ClipboardHistoryView.startClipboardHistory` setzt bei `Shelf.isShown` einen `ConcatAdapter` (Kacheln, dann Clips;
+  `setIsolateViewTypes`; einmal gebaut, darum `clipboardAdapter.notifyDataSetChanged()` bei jedem Öffnen: der Verlauf ändert sich
+  zwischen zwei Besuchen ohne Meldung), Platz am Listenende (`bottomRoom`, `clipToPadding` aus), `ShelfUi.start`; `stopClipboardHistory` →
+  `ShelfUi.stop` (Ziehen ohne Änderung beendet, Fenster zu); `insertScreenshot` wie ein Bild-Clip (`ScreenshotChip.copyForEditor` auf
+  einem gemeinsamen Daemon-Thread `SCREENSHOT_COPIES`, dann `onContent`, nur im selben Feld); `clipOffset` für das Scrollen zu Clips. `ClipboardHistoryRecyclerView`: Wischen
+  nur für Clip-Karten, Positionen über `bindingAdapterPosition`. `ClipboardHistoryManager.onScreenshotChange` ruft `Shelf.refresh`
+  (statt der alten Kopie), `clearHistory` `Shelf.clear`. Ausschalten (`AgentAreaBarScreen`, `AgentScreenshotScreen`): `Shelf.keepPinnedOnly`.
+- `ScreenshotChip.kt` (102): keine Kopie in den Verlauf mehr (`addToHistory` und die Entscheidungen der Etappen 23g/65 entfernt);
+  `oldHistoryEntries`/`forgetOldHistoryEntries` für die Übernahme; die Pille in der Leiste ist unverändert.
+- Tests (Robolectric): `AT/shelf/ShelfStoreTest.kt` (Rundreise, strenges Lesen, Neustart, `.bad`, leere/fehlgeschlagene Abfrage,
+  Warten beim Ziehen, Übernahme alter Kopien, Ausschalten), `AT/shelf/ShelfViewTest.kt` (Karten und Bündeln, Passwortfeld/Inkognito,
+  Tipp öffnet sofort, Zurück oben links, Einfügen über den eigenen FileProvider, Langdruck nur Menü, „Neuer Ordner“, Karte auf
+  Karte, Abbruch/zurück zum Start/zweiter Finger, Sortieren im Ordner mit Neustart, „In die Ablage“ mit Verweilen, Umbenennen mit eigenen
+  Tasten, angehefteter Ordner gegen die Aufbewahrung, im Ordner weg und zurück an den Start mit neu gelegten Views), `AT/ScreenshotChipTest.aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf`.
+  Emulator: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` in `devicetest.py` (Helfer `shelf_tiles`,
+  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`, `restart_keyboard`).
+
 ## Begleit-App (Etappe 80)
 
 > Etappe 80: kleine, getrennte App `companion/` nur für das Gerät des Owners; der Spike lädt Qualcomms fertiges Qwen3-4B und lässt es auf dem KI-Chip einen festen Satz korrigieren. Wird nie veröffentlicht.
@@ -4183,7 +4293,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
   `./gradlew -p tools/devicetest :app:assembleDebug`; das Haupt-`settings.gradle` kennt sie nicht.
   `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
-  Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
+  Inhalt. `InkProbe.java` (100): malt auf Anfrage (`content call … --method ink`, `DumpProvider.call`) Striche und Tipps
+  mit echten Berührungen über `dispatchGesture` des Bedienungshilfe-Dienstes (`canPerformGestures`), notiert Start, geplantes Ende
+  und jede Feldänderung (Uhrzeit des Geräts) und liefert das als JSON (`content read …/ink`). `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
   aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
   `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294). `FakeAutofillService.java`: Autofill-Dienst nur in
   der Test-App für das Szenario `autofill_inline` (73c), bietet seit 79 drei feste erfundene Datensätze mit den Titeln „Test 73c“,
@@ -4193,6 +4305,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Diagnose (Untersuchung clipboard_pill): `foreground_info` in `devicetest.py` schreibt als INFO-Zeilen die fortgesetzte Aktivität
   (`dumpsys activity activities`) und die letzten Aktivitätsstarts (nur Komponentennamen aus `START u0` im Log des ActivityTaskManager),
   wenn eine Wartezeit abläuft oder `field_…`/`copy_…` fehlt, sowie einmal nach dem Home-Druck in `_open_settings_and_switch_on`. Keine Feldinhalte.
+- Messpunkte der Zwischenablage (Etappe 102): `A/UiPerf.kt` merkt den Start (`mark`: Zwischenablage-Taste in
+  `KeyboardSwitcher` (`setClipboardKeyboard` der SwitchActions, beide Wege: Taste und Leiste), Medienänderung in `ScreenshotChip.mediaChanged`, Tipp auf einen Ordner) und schreibt beim
+  nächsten gezeichneten Bild der Ansicht eine Zeile `AgentPerf: <name> ms=<n> <Zähler>` (`reportAtNextDraw`; nur Zeiten und
+  Anzahlen). Die Probe `screenshot_perf` in `devicetest.py` (nur mit `--only`) erzeugt Screenshots, öffnet die Zwischenablage dreimal,
+  macht einen neuen Screenshot, scrollt und schreibt `PERF`-Zeilen mit diesen Zeiten und `dumpsys gfxinfo` (Bilder, Janky, Perzentile).
+  Helfer dort: `make_screenshot` (`screencap` in `Pictures/Screenshots` oder `DCIM/Screenshots`, wartet auf die ID im Medienspeicher,
+  sonst Scan), `delete_screenshot_files`, `shelf_setup` (Bildberechtigung per `pm grant`, „Zwischenablage-Verlauf“ und „Screenshots
+  anbieten“ einmal je Lauf), `open_clipboard`, `perf_lines`, `gfx_reset`/`gfx_stats`, `swipe_list`.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -6806,9 +6926,26 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P505** Kreis neben den Wörtern (99): Der Kreis neben Wörtern und Chips ist ein **zweiter Knopf** (`SuggestionStripView.endCircle`, Id `agent_bar_end_circle`) am Ende von `suggestions_strip_wrapper`, nicht der Platz der Zeile. Er hat keine Id `agent_bar_tool`, zählt nicht als Platz (`FixedBar.slots`, Ziehen, `slotCentres`) und wird vom Gerätetest nicht als Werkzeug gelesen (`bar_slots` schließt `END_CIRCLE_ID` aus). Wer Größe, Rand oder Farben des letzten Platzes ändert, ändert sie in `FixedBar.styleSlot` (gilt für beide); wer die Sichtbarkeit eines Teils der Leiste setzt, setzt sie in `applyBarState` (P380). Nur in Feldern mit `BarState.calm`; neben Chips erst ab `CHIPS_WITH_CIRCLE_MIN_DP` (340).
 - **P506** Pause der Schreibsitzung (99): `writingPause` hängt nur an Tasten (`onTyped`), nie am Inhalt der Mitte; das war die Quelle des „mal so, mal so“ in 89b. Wer einen Weg einbaut, der in der Sitzung Text tippt, ruft `onAgentTyped` (P492), sonst kommen mitten im Schreiben die Werkzeuge. Tests, die länger als 4 s ohne Taste warten (`idleFor`), sehen danach die Werkzeuge.
 - **P507** Zwischenablage ohne Werkzeugzeile (106): Versteckt der Standardstil den Streifen (`ClipboardHistoryView.hidesStrip`), muss die Ansicht genau seine Höhe (`config_suggestions_strip_height`) zusätzlich messen und der Liste geben, sonst springt die Tastaturhöhe beim Öffnen der Zwischenablage. `setMainKeyboardFrame` zeigt den Streifen beim Zurückwechseln wieder. Der flache Stil behält den Streifen (Zurück-Knopf); ohne Streifen insgesamt (Modus versteckt) gilt die alte Rechnung. Die Tasten werden im Konstruktor gelesen: der Schalter ruft `setThemeNeedsReload`.
+- **P508** Gezeichnete Symbole, Antwort des Hilfs-Threads (100): `SymbolInk.onFinished(serial)` schreibt nur, wenn `serial` noch der
+  Stand ist, für den `SymbolDrawing.checkFinished` geprüft hat. Jede Änderung an der Gruppe, an `inkPointer` oder an einem Weg des
+  Schreibens (neuer Strich, `onBatchStart`, `finish`, `takeWaiting`, `cancel`, `add`) muss `serial` erhöhen; sonst schreibt eine
+  späte Antwort eine Zeichnung, die inzwischen weitergeht (Früheingabe), oder ein zweites Mal. Der Timer der Pause bleibt immer
+  gesetzt: ohne Antwort schreibt die Pause wie vor 100. Wer eine neue Eingabe einbaut, die keine Taste ist, ruft
+  `SymbolInk.onTypedInput`, sonst zählt eine Zeichnung danach als Nachzügler.
+- **P508** Screenshot-Ablage (102): Die Liste der Zwischenablage ist ein `ConcatAdapter` (Kacheln vor den Clips). Wer in Upstream-Code
+  mit Positionen der Liste arbeitet (Wischen, Scrollen zu einem Clip), nimmt `bindingAdapterPosition` bzw. `clipOffset`, sonst trifft
+  er die falsche Zeile der Datenbank. Der `ConcatAdapter` merkt sich die Zahl der Clips des letzten Besuchs: ohne
+  `notifyDataSetChanged` beim Öffnen fehlte ein neuer Clip oder ein verfallener ließ `getAt` werfen (Prüfer, Befund 1). Die Kacheln sind für den Finger nie selbst klickbar: `ShelfUi.onTouch` entscheidet und schickt
+  der Liste ein `ACTION_CANCEL`, sonst kämen Tipp und Langdruck doppelt. Eine leere oder fehlgeschlagene Antwort des Medienspeichers
+  darf nie Plätze löschen (`ScreenshotShelf.sync`); während des Ziehens wartet jede Antwort (`Shelf.hold`), sonst springen Kacheln
+  unter dem Finger. `GradientDrawable().apply { colors… }` greift auf `GradientDrawable.getColors` zu: im Kachel-Code heißt die Palette
+  deshalb `palette`. Den Platz beim Sortieren im Ordner nie aus der View unter dem Finger lesen: Während die anderen Platz machen,
+  laufen sie animiert, eine weggleitende View hätte die Reihenfolge beim Zurückziehen an den Start umgedreht (Gerätetest-Lauf
+  45802882053); `ShelfUi.slotAt` rechnet aus der Geometrie. Nach `am force-stop` der Tastatur wählt Android eine andere Eingabemethode:
+  der Gerätetest setzt sie mit `restart_keyboard` wieder.
 - **P499** Langlebige Ansicht, kurzlebige Einstellung (Etappe 95): Was eine View einmal im Konstruktor aus `SettingsValues` liest, bleibt für ihre ganze Lebenszeit. `SettingsValues` enthält Zustände des Augenblicks (Sperre → `mToolbarMode` HIDDEN, also `mFixedBar` falsch). `SuggestionStripView.fixedBar` liest deshalb die Einstellung selbst (`Settings.readToolbarMode`, `AgentPreferences.FIXED_BAR`); im Sperrzustand gebaut kam sonst nach dem Entsperren die alte Leiste zurück.
 
-- **P508** Rückwirkende Änderungen der Tastatur (Etappen 104/105, `RetroCorrections`) laufen im Batch-Edit der Taste, die sie auslöst
+- **P509** Rückwirkende Änderungen der Tastatur (Etappen 104/105, `RetroCorrections`) laufen im Batch-Edit der Taste, die sie auslöst
   (`InputLogic.onCodeInput` vor `endBatchEdit`), nicht in einer eigenen Nachricht danach. Eine eigene Ersetzung, die den Text verkürzt,
   setzt die Schreibmarke zurück; meldet der Editor sie erst nach der nächsten Taste, hält `RichInputConnection.isBelatedExpectedUpdate`
   das für eine Bewegung des Nutzers (es erwartet nur Schritte vorwärts), setzt die Eingabe zurück und der nächste Buchstabe erscheint
@@ -6820,7 +6957,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (808 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (829 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6831,7 +6968,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (107): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (110): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6844,12 +6981,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   LearningData, LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings,
   MyData, MyDesigns, OnDeviceSpeechEngine, OtherLanguageDictionaries, PillColors, PlaceCommand,
   PromptStore, RetroCorrections, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture,
-  RuleCorrections, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
-  SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
-  UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  RuleClassCleanup, RuleCorrections, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
+  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
+  SymbolPerf, ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel,
+  TypedWordFirst, TypingPerf, TypoMemory, UiPerf, UndoOffer, WordBeforeDelete,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6859,6 +6997,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
+- `A/shelf/` (5): Shelf, ShelfAdapter, ShelfStore, ShelfThumbnails, ShelfUi
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
 - `AT/` (135): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
@@ -6896,30 +7035,33 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (63): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `AT/shelf/` (2): ShelfStoreTest, ShelfViewTest
+- `C/` (64): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, CorrectionWeights, CursorTrack, DateFormatting, EditorSession, EmojiKeywords,
   EmojiMix, EmojiNames, EmojiSynonyms, EnglishI, EventParser, ExecutionPolicy, FieldReport,
-  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords, InkDots,
-  InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve, RgbLighting,
-  RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding, SnippetTemplate,
-  SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition, TimerParser,
-  Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  ForcedCorrection, GermanShortForms, GermanVerbAgreement, GermanVerbForms, InformalWords,
+  InkCompletion, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelBudget, ModelProvider, NeighborKeys, OtherLanguageWord, OwnInkSymbols,
+  PendingBatchGate, PersonalInkSymbols, Places, Profiles, RareWordWeights, ReleaseNotes, RgbCurve,
+  RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage, SkillBinding,
+  SnippetTemplate, SpecialCharacters, StyledTranslation, SwappedLetters, SymbolTable, TextCondition,
+  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
+  Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
-- `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
+- `C/clip/` (8): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, ScreenshotShelf, ShelfDrag,
+  SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/sentence/` (7): AutoPunctuation, GermanNouns, GermanVerbs, GermanWords, RetroCheck,
   SentenceRepair, SentenceText
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (62): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (63): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, CorrectionWeightsTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest,
   EmojiKeywordsTest, EmojiMixTest, EnglishITest, EventParserTest, FieldReportTest,
   ForcedCorrectionTest, GermanShortFormsTest, GermanVerbAgreementTest, GermanVerbFormsTest,
-  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
+  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkCompletionTest, InkDotFlowTest, InkDotsTest,
+  InkFingerModel, InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
+  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, NeighborKeysTest,
   OtherLanguageWordTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest,
   PlacesTest, QuestionCaptureTest, RareWordWeightsTest, ReleaseNotesTest, RgbCurveTest,
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
@@ -6928,7 +7070,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
   WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
-- `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
+- `CT/clip/` (5): ClipGuardTest, PrivateRangesTest, ScreenshotShelfTest, ShelfDragTest,
+  SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/sentence/` (4): AutoPunctuationTest, GermanLexiconTest, RealLexicon, SentenceRepairTest
@@ -6937,7 +7080,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
-- `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
+- `K/keyboard/clipboard/` (4): ClipboardAdapter, ClipboardHistoryRecyclerView, ClipboardHistoryView,
+  FlatClipboard
 - `K/keyboard/emoji/` (2): EmojiPalettesView, EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
@@ -7003,18 +7147,19 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (39): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (40): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_bar_tools_strings, agent_barcalm_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
   agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
   agent_rgb_pattern_strings, agent_rgb_strings, agent_selection_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (48): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_settings_system_strings, agent_shelf_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings,
+  strings-talkback-descriptions
+- `app/src/main/res/values/` (50): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_bar_tools_strings, agent_barcalm_strings, agent_charart_ids,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
@@ -7022,11 +7167,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_memory_strings, agent_name_strings, agent_prompt_strings, agent_prompts_ids,
   agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings, agent_selection_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, strings, themes-flat
+  agent_settings_system_strings, agent_shelf_ids, agent_shelf_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
@@ -7050,8 +7195,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
 - `tools/devicetest/app/` (1): build.gradle
 - `tools/devicetest/app/src/main/` (1): AndroidManifest
-- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (4): DumpProvider,
-  FakeAutofillService, MainActivity, ProbeAccessibilityService
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (5): DumpProvider,
+  FakeAutofillService, InkProbe, MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->

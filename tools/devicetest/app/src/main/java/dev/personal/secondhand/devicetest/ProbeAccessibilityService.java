@@ -17,7 +17,8 @@ import java.util.List;
  * The eyes of the device tests, in the test app only. While an accessibility service is enabled the
  * keyboard exposes its keys as accessibility nodes (MainKeyboardView.setKeyboard), and this service
  * lists the nodes of all windows, the keyboard window included, for the host script ({@link DumpProvider}).
- * It does not request touch exploration, so typing behaves as without it, and it never acts on a node.
+ * It does not request touch exploration, so typing behaves as without it, and it never acts on a node. Stage 100: it
+ * can draw strokes with real touches when the host script asks ({@link InkProbe}, drawn-symbol scenarios).
  */
 public class ProbeAccessibilityService extends AccessibilityService {
     private static final int MAX_NODES = 4000;

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Screenshot-Ablage der Zwischenablage (Etappe 102). -->
+<resources>
+    <string name="agent_shelf_auto_name">Screenshots</string>
+    <string name="agent_shelf_folder_name">Ordner %1$d</string>
+    <string name="agent_shelf_card_description">Screenshot, %1$s</string>
+    <string name="agent_shelf_folder_description">Ordner %1$s, %2$d Screenshots</string>
+    <string name="agent_shelf_pinned_suffix">, angeheftet</string>
+    <string name="agent_shelf_tile_label">%1$s · %2$d</string>
+    <string name="agent_shelf_back">Zurück zur Zwischenablage</string>
+    <string name="agent_shelf_rename_hint">Umbenennen: %1$s</string>
+    <string name="agent_shelf_pin">Ordner anheften</string>
+    <string name="agent_shelf_unpin">Ordner lösen</string>
+    <string name="agent_shelf_pin_shot">Anheften</string>
+    <string name="agent_shelf_unpin_shot">Lösen</string>
+    <string name="agent_shelf_rename">Umbenennen</string>
+    <string name="agent_shelf_done">Fertig</string>
+    <string name="agent_shelf_out">In die Ablage</string>
+    <string name="agent_shelf_new_folder">Neuer Ordner</string>
+    <string name="agent_shelf_count">%1$d</string>
+</resources>

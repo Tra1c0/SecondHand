@@ -546,16 +546,42 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 Die Tastatur gibt der App eine Kopie, die nach 10 Minuten gelöscht wird. Wechselst du das Feld,
 bevor die Kopie fertig ist, wird nichts eingefügt.
 
-Zwischenablage: Ist der Zwischenablage-Verlauf (Einstellungen → Leiste & Befehle → Zwischenablage &
-Bilder) an, legt die
-Tastatur jeden neuen Screenshot auch als Bild in ihren eigenen Verlauf (Zwischenablage-Taste).
-Die System-Zwischenablage bleibt unberührt, andere Apps sehen ihn dort nicht. Es gelten die
-Regeln des Verlaufs (Dateien erlaubt, Größengrenze, Aufbewahrungszeit, Anheften). Ein
-Screenshot, den du bei gesperrtem Gerät oder in einem Inkognito-Feld machst, kommt nie in den
-Verlauf, auch nicht nach dem Entsperren; ebenso keiner, solange die Tastatur noch in keinem Feld
-war. Schaltest du die Screenshot-Pille aus, löscht die Tastatur diese Einträge wieder;
-angeheftete bleiben, und ein Bild, das du danach selbst noch einmal kopiert hast, auch. Noch auf
-keinem Gerät ausprobiert.
+### Screenshots in der Zwischenablage (seit Etappe 102)
+
+Voraussetzung: Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Zwischenablage-Verlauf“ und „Screenshots
+anbieten“ an, Zugriff auf Bilder erlaubt. Dann zeigt die Zwischenablage (Zwischenablage-Taste) oben alle Screenshots, die Android
+hat (auch aus `DCIM/Screenshots` und auch die, die entstanden, als die Tastatur nicht lief), vor deinen kopierten Texten. Die
+Tastatur kopiert sie dafür nicht; sie zeigt die Bilder der Galerie. Löschst du einen Screenshot in der Galerie, verschwindet er auch
+hier. Nicht im Passwortfeld, im Inkognito-Modus und bei gesperrtem Gerät. Ein Screenshot, den du bei gesperrtem Gerät, im
+Inkognito-Modus oder in einem privaten Feld (Passwort, privater Chat) machst, während die Tastatur läuft, erscheint nie, auch nicht
+nach dem Entsperren.
+
+1. Bis zu zwei neue Screenshots stehen als Karten in der Liste. Ab dem dritten liegen alle im Ordner „Screenshots“; jeder weitere
+   kommt vorn hinein. Der Ordner zeigt die vier neuesten Bilder und die Anzahl.
+2. Tipp auf einen Screenshot: Das Bild wird eingefügt (wie ein Bild aus dem Verlauf). Tipp auf einen Ordner: Er geht auf. Oben links
+   führt der runde Pfeil zurück; daneben der Name (antippen zum Umbenennen), die Anzahl und die Nadel (Ordner anheften).
+3. Umbenennen: Name antippen, mit den kleinen Tasten darunter schreiben (nichts davon geht in die App), „Fertig“. Zurück bricht ab.
+   Einen umbenannten oder angehefteten Ordner „Screenshots“ behältst du so; neue Screenshots fangen danach wieder einzeln an und
+   bilden ab drei einen neuen Ordner „Screenshots“.
+4. Lange drücken und loslassen (ohne zu ziehen): Eine kleine Zeile erscheint mit „Anheften“/„Lösen“ (bei Ordnern auch
+   „Umbenennen“). Die nächste Berührung schließt sie; ohne Tipp ändert sich nichts.
+5. Ziehen: Screenshot lange drücken, bis er sich hebt (kurze Vibration), dann ziehen.
+   - Im Ordner: Die anderen rücken zur Seite; loslassen speichert die neue Reihenfolge.
+   - Aus dem Ordner heraus: Oben wird der Kopf zu „In die Ablage“ und „Neuer Ordner“. Über „In die Ablage“ kurz halten: Der Ordner
+     geht zu, du ziehst in der Liste weiter. Loslassen auf einem anderen Ordner = hinein, auf einem einzelnen Screenshot = neuer Ordner
+     mit beiden, auf „Neuer Ordner“ (erscheint unten in der Liste) = neuer Ordner nur mit diesem Bild, irgendwo sonst in der Liste =
+     als einzelne Karte in die Zwischenablage (sie wird dann nicht mehr automatisch gebündelt).
+   - Zurück an den Anfang ziehen, außerhalb loslassen, ein zweiter Finger oder das Schließen der Zwischenablage brechen ab: Es ändert
+     sich nichts.
+6. Aufbewahrung: Es gilt die Aufbewahrung der Zwischenablage (Regler „Aufbewahrung“, Standard 10 Minuten, ganz rechts unbegrenzt).
+   Ältere Screenshots verschwinden beim nächsten Öffnen aus der Zwischenablage (nie aus der Galerie), nie während sie offen ist.
+   Angeheftete Screenshots bleiben, auch in einem nicht angehefteten Ordner; ein angehefteter Ordner behält seinen ganzen Inhalt.
+   „Zwischenablage leeren“ nimmt alle nicht geschützten Screenshots bis jetzt heraus. Schaltest du „Screenshots anbieten“ oder den
+   Verlauf aus, bleibt nur Angeheftetes.
+7. Screenshots, die frühere Builds als Bild in den Verlauf kopiert hatten, werden einmal übernommen: Steht das Original noch in der
+   Galerie, verschwindet die Kopie (das Original ist jetzt hier, angeheftete bleiben angeheftet); sonst bleibt die Kopie als Bild.
+
+Noch auf keinem Telefon ausprobiert; im Emulator mit echten Berührungen geprüft (`docs/VALIDATION.md` → Etappe 102).
 
 ## Befehle (z. B. Rechner)
 
@@ -1107,9 +1133,19 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   78 Grad) „|“. Passt ein einfacheres Symbol, gewinnt es: Ein Strich mit nur einem Punkt bleibt „–“
   oder „/“, die Leiste bietet „÷“ oder „%“ höchstens als zweite Wahl an. Passt keines, nimmt die
   Tastatur das nächste Symbol, dem Teile fehlen (z. B. „?“ ohne Punkt oder „+“ in einem Zug).
+- Fertige Symbole kommen sofort (seit Etappe 100): Kann zu einer Zeichnung kein Strich mehr
+  dazukommen, der ein anderes Symbol ergibt, steht sie gleich nach dem Loslassen im Feld, zum
+  Beispiel ≤, ≥, ±, ÷ (nach dem zweiten Punkt), ∞, #, ? und ¿, meist auch ×, √, ♥, ★, &, ‰, { und }.
+  Alles, was noch weitergehen kann, wartet auf den nächsten Strich: „–“ (kann =, →, ÷ werden), „/“
+  (kann % werden), → (kann ↔ werden), % (kann ‰ werden), = (kann ≠ werden), ° (kann % werden). Die
+  Striche dürfen in beliebiger Reihenfolge und Richtung kommen: → aus „–“ und „>“ oder aus „>“ und
+  „–“, % aus „/“ und zwei Punkten in beliebiger Reihenfolge der Punkte (der Strich zuerst: ein Tipp
+  ohne Zeichnung ist ein Buchstabe). Was wartet, steht nicht vorab im Feld.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
-  ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
-  Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
+  ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (seit Etappe 100: etwa 2,2-mal deine
+  übliche Lücke vor einem Strich, mindestens aber 1,5-mal deine längste der letzten neun, mindestens
+  0,3 und höchstens 1,5 Sekunden; vorher 2,5-mal, mindestens 0,6). Setzt du den Rest eines Symbols
+  knapp zu spät an, merkt sich die Tastatur das, und die Pause wird länger. Kurze Striche zählen
   dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen, aber nur in der Nähe
   der Zeichnung (etwa ihre halbe Größe drumherum, mindestens drei Tasten breit). Tippst du weiter
   weg, kommt das Symbol und dann die Taste, so geht beim Weitertippen nichts verloren. Auf
