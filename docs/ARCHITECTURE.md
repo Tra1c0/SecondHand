@@ -377,7 +377,9 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   am Ende von `InputLogic.onCodeInput` im Batch der Taste, Prüfung dort synchron (Lexikon einmal auf dem Vorschlags-Thread geladen, bis
   dahin keine Prüfung), Anwenden nur, wenn der Editor die alte Stelle noch zeigt, über `InputLogic.applyRetroEdit`,
   `revert` für Rücktaste und Undo, Feldgedächtnis der Ablehnungen und der gesetzten Paare, Zähler `applied`/`undone`/`stale`/`checked`,
-  Lexikon einmal geladen in `lexicon`). Schalter `AgentPreferences.AUTOCORRECT_RETRO_REPAIR`/`AUTO_PUNCTUATION` →
+  Lexikon einmal geladen in `lexicon`, dabei die gefragten Speicher vorgewärmt; Häufigkeiten des Hauptwörterbuchs im Speicher
+  `frequencies`, 512 Wörter, je Facilitator, unbekannte nicht; `cursorMoved` aus `onUpdateSelection` und
+  `checkpointFieldCorrectionsBeforeOwnCursorMove` schließt das Rücknahmefenster). Schalter `AgentPreferences.AUTOCORRECT_RETRO_REPAIR`/`AUTO_PUNCTUATION` →
   `SettingsValues.mRetroRepair`/`mAutoPunctuation`, Seite `AgentAreaTypingScreen` (Regeln), Diagnose-Zeilen in `Diagnose.correction`.
   Tests: `CT/sentence/SentenceRepairTest.kt`, `CT/sentence/AutoPunctuationTest.kt`, `CT/sentence/GermanLexiconTest.kt` (alle mit den
   ausgelieferten Dateien und dem deutschen Hauptwörterbuch über `CT/sentence/RealLexicon.kt`), `InputLogicTest` „stage 104 …“/„stage 105 …“,
