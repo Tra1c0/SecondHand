@@ -17,7 +17,6 @@ import helium314.keyboard.latin.inputlogic.InputLogic
 import helium314.keyboard.latin.settings.SettingsValues
 import helium314.keyboard.latin.utils.InputTypeUtils
 import java.util.Locale
-import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -38,35 +37,18 @@ import java.util.concurrent.atomic.AtomicInteger
 class RetroCorrections(private val logic: InputLogic) {
     private class Undo(val cursorAfter: Int, val original: String, val replacement: String, val pairs: List<Pair<String, String>>)
 
-    /** Bumped by every key and every new field: a result computed before it is stale. Main thread only. */
-    private var generation = 0L
     private var undo: Undo? = null
     /** Pairs rejected in this field (lower case "old\u0000new"); main thread writes, the check reads a copy. */
     private val rejectedHere = HashSet<String>()
     /** Pairs the keyboard set in this field: field position of the changed word -> "old\u0000new". */
     private val appliedHere = HashMap<Int, String>()
-    /** The cursor move of the last own edit (from, to) that the editor still has to report (main thread). */
-    private var ownMove: Pair<Int, Int>? = null
+    private var preloading = false
 
     /** A new field (or the same one restarted): forget everything of the old one. */
     fun fieldStarted() {
-        generation++
         undo = null
         rejectedHere.clear()
         appliedHere.clear()
-        ownMove = null
-    }
-
-    /**
-     * Whether the editor's selection update (from [oldStart] to the cursor [newStart]/[newEnd]) is the late report of the
-     * keyboard's own last edit; consumed once. An edit that shortened the text moved the cursor back, which looks like a move
-     * of the user when the next key came before the report (InputLogic.onUpdateSelection).
-     */
-    fun consumeOwnUpdate(oldStart: Int, newStart: Int, newEnd: Int): Boolean {
-        val move = ownMove ?: return false
-        if (newStart != newEnd || move.first != oldStart || move.second != newStart) return false
-        ownMove = null
-        return true
     }
 
     /** Whether an edit could be taken back now (for tests and the diagnosis). */
@@ -82,8 +64,6 @@ class RetroCorrections(private val logic: InputLogic) {
         if (logic.mConnection.expectedSelectionStart != u.cursorAfter || logic.mConnection.hasSelection()) return false
         val outcome = logic.applyRetroEdit(u.replacement, u.original, u.cursorAfter)
         if (outcome != ApplyOutcome.SUBMITTED) return false
-        val back = u.cursorAfter - u.replacement.length + u.original.length
-        ownMove = if (back != u.cursorAfter) u.cursorAfter to back else null
         for ((old, new) in u.pairs) {
             rejectedHere.add(key(old, new))
             RejectedCorrections.remember(ime, old, new, settings)
@@ -92,9 +72,14 @@ class RetroCorrections(private val logic: InputLogic) {
         return true
     }
 
-    /** After every key that [LatinIME.onEvent] handled (main thread). */
+    /**
+     * At the end of every key's handling in [InputLogic.onCodeInput], inside its batch edit (main thread): after a key that
+     * ends a word the check runs at once and its change goes into the same batch as the key. The editor then reports one
+     * selection change for both, so its report never reaches the keyboard after the next key (emulator run 45794233933:
+     * a late report of a shorter text made "eein"). The check costs well under a millisecond; the lexicon is read on the
+     * suggestion thread the first time, until then nothing is checked.
+     */
     fun afterKey(ime: LatinIME, codePoint: Int, keyCode: Int, settings: SettingsValues) {
-        generation++
         // a key other than the ones that take an edit back ends the chance to take it back
         if (keyCode != KEY_DELETE && keyCode != KEY_UNDO) undo = null
         if (!endsWord(codePoint)) return
@@ -105,39 +90,30 @@ class RetroCorrections(private val logic: InputLogic) {
         // Enter that sends or goes on (an editor action) put no line break into this text: nothing to check
         if (codePoint == Constants.CODE_ENTER && InputTypeUtils.getImeOptionsActionIdFromEditorInfo(
                 ime.currentInputEditorInfo ?: return) != EditorInfo.IME_ACTION_NONE) return
+        val language = ForeignWords.languageOf(settings)
+        val german = language == "de"
+        if (!german && codePoint != Constants.CODE_ENTER) return // other languages: only the mark at the end of a line
+        val context = ime.applicationContext ?: ime
+        val lexicon = loaded ?: run { preload(context); return }
         val text = try { logic.mConnection.getTextBeforeCursor(MAX_TEXT, 0)?.toString() } catch (_: RuntimeException) { null } ?: return
         if (text.isEmpty()) return
         val cursor = logic.mConnection.expectedSelectionStart
         if (cursor < text.length) return
-        val language = ForeignWords.languageOf(settings)
         val lineBreak = codePoint == Constants.CODE_ENTER && text.endsWith("\n") &&
             settings.mInputAttributes.mInputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
-        val options = RetroCheck.Options(repair = repair && language == "de", punctuate = punctuate,
-            german = language == "de", lineBreak = lineBreak)
+        val options = RetroCheck.Options(repair = repair && german, punctuate = punctuate, german = german, lineBreak = lineBreak)
         if (!options.repair && !options.punctuate) return
-        if (!options.german && !lineBreak) return // other languages: only the mark at the end of a line
-        val asked = generation
-        val rejected = HashSet(rejectedHere)
-        val facilitator = logic.mDictionaryFacilitator
-        val context = ime.applicationContext ?: ime
-        worker().execute {
-            val lexicon = lexicon(context) ?: return@execute
-            val started = System.nanoTime()
-            val edit = try {
-                RetroCheck.check(text, lexicon, Checked(context, settings, language, facilitator, rejected), options)
-            } catch (_: Throwable) { null }
-            val nanos = System.nanoTime() - started
-            checked.incrementAndGet()
-            if (edit == null) { KeyLatency.retro(nanos, "none"); return@execute }
-            main(ime).execute { apply(ime, settings, edit, text, cursor, asked, nanos) }
-        }
+        val started = System.nanoTime()
+        val edit = try {
+            RetroCheck.check(text, lexicon, Checked(context, settings, language, logic.mDictionaryFacilitator, rejectedHere), options)
+        } catch (_: Throwable) { null }
+        val nanos = System.nanoTime() - started
+        checked.incrementAndGet()
+        if (edit == null) { KeyLatency.retro(nanos, "none"); return }
+        apply(ime, settings, edit, text, cursor, nanos)
     }
 
-    private fun apply(ime: LatinIME, settings: SettingsValues, edit: RetroCheck.Edit, text: String, cursor: Int, asked: Long, nanos: Long) {
-        // typed on, moved, composing, selected: the result is about a text that is no longer there
-        if (asked != generation || logic.mConnection.expectedSelectionStart != cursor || !logic.mayCheckRetro()) {
-            stale.incrementAndGet(); KeyLatency.retro(nanos, "stale"); return
-        }
+    private fun apply(ime: LatinIME, settings: SettingsValues, edit: RetroCheck.Edit, text: String, cursor: Int, nanos: Long) {
         val fieldStart = cursor - text.length
         val from = fieldStart + edit.start
         if (logic.retroTouchesPrivateText(from, cursor)) { KeyLatency.retro(nanos, "private"); return }
@@ -151,11 +127,11 @@ class RetroCorrections(private val logic: InputLogic) {
             undone.incrementAndGet(); KeyLatency.retro(nanos, "reverted")
             return
         }
+        // the editor itself must still show the old text there (an app that changed it meanwhile: nothing is replaced)
         val outcome = logic.applyRetroEdit(edit.old, edit.replacement, cursor)
         if (outcome != ApplyOutcome.SUBMITTED) { stale.incrementAndGet(); KeyLatency.retro(nanos, "refused"); return }
         val cursorAfter = from + edit.replacement.length
         undo = Undo(cursorAfter, edit.old, edit.replacement, edit.pairs)
-        ownMove = if (cursorAfter != cursor) cursor to cursorAfter else null
         edit.pairs.forEachIndexed { i, (old, new) ->
             appliedHere[fieldStart + edit.pairStarts[i]] = key(old, new)
             RuleCorrections.offered(old, new) // a rejection is learning data like that of the other rule corrections
@@ -164,15 +140,19 @@ class RetroCorrections(private val logic: InputLogic) {
         KeyLatency.retro(nanos, "applied")
     }
 
+    /** The first word end reads the lexicon on the suggestion thread; the check starts at the next one. */
+    private fun preload(context: Context) {
+        if (preloading) return
+        preloading = true
+        logic.postToSuggestionThread { lexicon(context) }
+    }
+
     private fun eligible(ime: LatinIME, settings: SettingsValues): Boolean {
         val attributes = settings.mInputAttributes
         if (!settings.mAutoCorrectEnabled || attributes.mIsPasswordField || attributes.mNoLearning) return false
         if (settings.mIncognitoModeEnabled || settings.mIsLocked || LockState.isLocked(ime)) return false
         return !InputTypeUtils.isUriOrEmailType(attributes.mInputType)
     }
-
-    private fun worker(): Executor = workerForTest ?: Executor { logic.postToSuggestionThread(it) }
-    private fun main(ime: LatinIME): Executor = mainForTest ?: Executor { ime.mHandler.post(it) }
 
     /** What the check asks of the keyboard, on the suggestion thread. */
     private class Checked(
@@ -198,10 +178,6 @@ class RetroCorrections(private val logic: InputLogic) {
         @JvmField val undone = AtomicInteger()
         @JvmField val stale = AtomicInteger()
         @JvmField val checked = AtomicInteger()
-
-        /** Tests run the check and the apply step on their own executors. */
-        @Volatile internal var workerForTest: Executor? = null
-        @Volatile internal var mainForTest: Executor? = null
 
         private fun key(old: String, new: String) = old.lowercase(Locale.ROOT) + '\u0000' + new.lowercase(Locale.ROOT)
 
