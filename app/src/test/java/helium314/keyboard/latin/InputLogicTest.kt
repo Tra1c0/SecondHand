@@ -9321,28 +9321,37 @@ class InputLogicTest {
         "dass:179", "kommt:150", "weiß:150", "kommst:120", "du:180", "morgen:150", "komme:140", "sie:190", "Digga:0", "was:190",
         "ab:150", "vorbei:120", "wir:180", "dann:180", "die:200", "anderen:150", "Ende:140", "gehen:141",
     ))
-    private val retroPending = ArrayList<Runnable>()
-
     /**
-     * The real facilitator with [retroWords], German, autocorrection in a text field; the check runs at once (on the test
-     * thread) and its result is applied at once, or, with [delayed], only when the test calls [retroApply].
+     * The real facilitator with [retroWords], German, autocorrection in a text field. The lexicon is read before (on the
+     * device the first word end reads it on the suggestion thread); the check runs inside each key, as on the device.
      */
-    private fun withRetro(delayed: Boolean = false, body: () -> Unit) {
-        retroPending.clear()
-        helium314.keyboard.agent.RetroCorrections.workerForTest = java.util.concurrent.Executor { it.run() }
-        helium314.keyboard.agent.RetroCorrections.mainForTest = java.util.concurrent.Executor { if (delayed) retroPending.add(it) else it.run() }
+    private fun withRetro(body: () -> Unit) {
+        assertNotNull(helium314.keyboard.agent.RetroCorrections.lexicon(latinIME), "the bundled lexicon can be read")
         RejectedCorrections.clear(latinIME)
         try {
             withLanguages(retroWords, germanSubtype) { body() }
         } finally {
-            helium314.keyboard.agent.RetroCorrections.workerForTest = null
-            helium314.keyboard.agent.RetroCorrections.mainForTest = null
             RejectedCorrections.clear(latinIME)
-            retroPending.clear()
         }
     }
 
-    private fun retroApply() { val work = ArrayList(retroPending); retroPending.clear(); work.forEach { it.run() }; handleMessages() }
+    /**
+     * Like [retroType], but the editor reports every selection change late, as a busy app does: the report of a key
+     * (from the cursor it reported before to the cursor after the key, with its composing span) reaches the keyboard only
+     * after the next key (emulator runs 45794233933 and 45799645646: "eein", "nnicht" after a correction that shortened the text).
+     */
+    private fun retroTypeWithLateReports(keys: String) {
+        var reported = cursor
+        var pending: IntArray? = null
+        for (c in keys) {
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(c.code))
+            handleMessages()
+            pending?.let { latinIME.onUpdateSelection(it[0], it[0], it[1], it[1], it[2], it[3]); handleMessages() }
+            pending = intArrayOf(reported, cursor, ShadowInputMethodService.composingStart, ShadowInputMethodService.composingEnd)
+            reported = cursor
+        }
+        pending?.let { latinIME.onUpdateSelection(it[0], it[0], it[1], it[1], it[2], it[3]); handleMessages() }
+    }
 
     /** Key by key through LatinIME.onEvent, as a finger types; "⌫" is Backspace. */
     private fun retroType(keys: String) {
@@ -9403,30 +9412,41 @@ class InputLogicTest {
     }
 
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
-    fun `stage 104 typing on before the result arrives drops it, the next word end checks again`() = withRetro(delayed = true) {
+    fun `stage 104 typing on is never touched, the next word end checks again`() = withRetro {
         setText("")
-        retroType("Ich haben das ")
-        retroType("n")
-        retroApply()
-        assertEquals("Ich haben das n", text, "no replacement while the next word is typed")
-        retroType("icht ")
-        retroApply()
-        assertEquals("Ich habe das nicht ", text)
+        // "Ich haben" alone is not yet evidence; the word typed after it is never changed while it is typed
+        retroType("Ich haben d")
+        assertEquals("Ich haben d", text)
+        retroType("as ")
+        assertEquals("Ich habe das ", text)
         assertEquals(text.length, cursor)
     }
 
-    // emulator run 45794233933: "er habe mir ein" became "er hat mir eein": the editor reported the shorter text late
+    // emulator runs 45794233933/45799645646: "er habe mir ein" became "er hat mir eein", "ich haben das nicht" "… nnicht"
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
-    fun `stage 104 the editor's late report of the correction is no cursor move of the user`() = withRetro {
-        assertEquals("Er hat mir ", retroTyped("Er habe mir "))
-        retroType("e")
-        // only now the editor reports the correction (the cursor went from 12 to 11)
-        latinIME.onUpdateSelection(12, 12, 11, 11, -1, -1)
-        handleMessages()
-        retroType("in ")
-        assertEquals("Er hat mir ein ", text)
-        // a real move of the user afterwards is one again
-        assertTrue(!inputLogic.mRetroCorrections.consumeOwnUpdate(12, 11, 11))
+    fun `stage 104 a shortening correction with late editor reports doubles no letter`() = withRetro {
+        setText("")
+        retroTypeWithLateReports("Er habe mir ein Gefallen getan ")
+        assertEquals("Er hat mir ein Gefallen getan ", text)
+        setText("")
+        retroTypeWithLateReports("Ich haben das nicht gewusst ")
+        assertEquals("Ich habe das nicht gewusst ", text)
+        assertEquals(text.length, cursor)
+        // and the correction can still be taken back right after it
+        setText("")
+        retroTypeWithLateReports("Ich haben das ")
+        retroType("⌫")
+        assertEquals("Ich haben das ", text)
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 104 nothing is replaced when the editor shows another text than the keyboard knows`() = withRetro {
+        setText("")
+        retroType("Ich haben ")
+        // the app changes the text behind the keyboard's back (same length, no report yet)
+        ShadowInputMethodService.text = "Ich habxn "
+        retroType("das ")
+        assertEquals("Ich habxn das ", text, "the check saw \"Ich haben das\" in its cache, the editor refused the old text")
     }
 
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
@@ -9502,6 +9522,9 @@ class InputLogicTest {
         startField(null, imeOptions = EditorInfo.IME_ACTION_SEND)
         retroType("Ich komme morgen vorbei\n")
         assertEquals("Ich komme morgen vorbei", text)
+        // the shadow editor keeps the composing span of a field after its action: a new field starts without one
+        ShadowInputMethodService.composingStart = -1
+        ShadowInputMethodService.composingEnd = -1
         currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
         startField(null, imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION)
         retroType("Ich komme morgen vorbei.\n")

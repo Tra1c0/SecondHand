@@ -374,7 +374,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `AutoPunctuation.kt` (105, P1–P3), `RetroCheck.kt` (104 dann 105 auf demselben Text, eine `Edit` mit Wortpaaren und deren
   Stellen). Die beiden Dateien macht `tools/build_german_lexicon.py` aus festgeschriebenen Quellen (UniMorph Deutsch wie die Verbliste
   von 72, german-nouns aus dem deutschen Wiktionary; `docs/BUILD.md`). App: `A/RetroCorrections.kt` (eine je `InputLogic`: `afterKey`
-  aus `LatinIME.onEvent`, Prüfung auf dem Vorschlags-Thread, Anwenden nur bei unverändertem Stand über `InputLogic.applyRetroEdit`,
+  am Ende von `InputLogic.onCodeInput` im Batch der Taste, Prüfung dort synchron (Lexikon einmal auf dem Vorschlags-Thread geladen, bis
+  dahin keine Prüfung), Anwenden nur, wenn der Editor die alte Stelle noch zeigt, über `InputLogic.applyRetroEdit`,
   `revert` für Rücktaste und Undo, Feldgedächtnis der Ablehnungen und der gesetzten Paare, Zähler `applied`/`undone`/`stale`/`checked`,
   Lexikon einmal geladen in `lexicon`). Schalter `AgentPreferences.AUTOCORRECT_RETRO_REPAIR`/`AUTO_PUNCTUATION` →
   `SettingsValues.mRetroRepair`/`mAutoPunctuation`, Seite `AgentAreaTypingScreen` (Regeln), Diagnose-Zeilen in `Diagnose.correction`.
@@ -1218,8 +1219,9 @@ eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgra
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
 - `LatinIME.java` und `MainKeyboardView.java` (104/105): `KeyLatency.eventStarted`/`eventEnded` am Anfang und Ende von `onEvent`,
   `KeyLatency.touch` am Anfang von `onTouchEvent` (Messpunkte, aus ohne Log-Eigenschaft).
-- `LatinIME.java` (104/105): `onEvent` ruft nach `updateStateAfterInputTransaction` `mInputLogic.mRetroCorrections.afterKey`.
-- `InputLogic.java` (104/105): Feld `mRetroCorrections`; `startInput` → `fieldStarted`; `handleBackspaceEvent` ruft im Zweig ohne
+- `InputLogic.java` (104/105): Feld `mRetroCorrections`; `onCodeInput` ruft direkt vor `mConnection.endBatchEdit()`
+  `mRetroCorrections.afterKey` (die Prüfung läuft im Batch der Taste, ihre Änderung meldet der Editor zusammen mit der Taste, P-Fallstrick
+  unten); `startInput` → `fieldStarted`; `handleBackspaceEvent` ruft im Zweig ohne
   Kompositionswort vor der Rücknahme der Autokorrektur `mRetroCorrections.revert` (nur mit „Rücktaste macht Autokorrektur rückgängig“);
   `KeyCode.UNDO` ruft zuerst `revert` (dann kein Strg+Z an die App); neue Methoden `mayCheckRetro` (nichts komponiert/markiert, keine
   Geste, Autokorrektur des letzten Worts nicht mehr rücknehmbar), `applyRetroEdit` (`RichInputConnection.replaceTextBeforeCursorIfUnchanged`,
@@ -6803,6 +6805,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P506** Pause der Schreibsitzung (99): `writingPause` hängt nur an Tasten (`onTyped`), nie am Inhalt der Mitte; das war die Quelle des „mal so, mal so“ in 89b. Wer einen Weg einbaut, der in der Sitzung Text tippt, ruft `onAgentTyped` (P492), sonst kommen mitten im Schreiben die Werkzeuge. Tests, die länger als 4 s ohne Taste warten (`idleFor`), sehen danach die Werkzeuge.
 - **P507** Zwischenablage ohne Werkzeugzeile (106): Versteckt der Standardstil den Streifen (`ClipboardHistoryView.hidesStrip`), muss die Ansicht genau seine Höhe (`config_suggestions_strip_height`) zusätzlich messen und der Liste geben, sonst springt die Tastaturhöhe beim Öffnen der Zwischenablage. `setMainKeyboardFrame` zeigt den Streifen beim Zurückwechseln wieder. Der flache Stil behält den Streifen (Zurück-Knopf); ohne Streifen insgesamt (Modus versteckt) gilt die alte Rechnung. Die Tasten werden im Konstruktor gelesen: der Schalter ruft `setThemeNeedsReload`.
 - **P499** Langlebige Ansicht, kurzlebige Einstellung (Etappe 95): Was eine View einmal im Konstruktor aus `SettingsValues` liest, bleibt für ihre ganze Lebenszeit. `SettingsValues` enthält Zustände des Augenblicks (Sperre → `mToolbarMode` HIDDEN, also `mFixedBar` falsch). `SuggestionStripView.fixedBar` liest deshalb die Einstellung selbst (`Settings.readToolbarMode`, `AgentPreferences.FIXED_BAR`); im Sperrzustand gebaut kam sonst nach dem Entsperren die alte Leiste zurück.
+
+- **P508** Rückwirkende Änderungen der Tastatur (Etappen 104/105, `RetroCorrections`) laufen im Batch-Edit der Taste, die sie auslöst
+  (`InputLogic.onCodeInput` vor `endBatchEdit`), nicht in einer eigenen Nachricht danach. Eine eigene Ersetzung, die den Text verkürzt,
+  setzt die Schreibmarke zurück; meldet der Editor sie erst nach der nächsten Taste, hält `RichInputConnection.isBelatedExpectedUpdate`
+  das für eine Bewegung des Nutzers (es erwartet nur Schritte vorwärts), setzt die Eingabe zurück und der nächste Buchstabe erscheint
+  doppelt (Emulator-Läufe 45794233933 „eein“, 45799645646 „nnicht“). Im Batch der Taste meldet der Editor Taste und Ersetzung als eine
+  Änderung. Test: `InputLogicTest` „stage 104 a shortening correction with late editor reports doubles no letter“.
 
 ## Datei-Inventar
 

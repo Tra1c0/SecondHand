@@ -1694,7 +1694,6 @@ public class LatinIME extends InputMethodService implements
                         mKeyboardSwitcher.getKeyboardCapsMode(),
                         mKeyboardSwitcher.getCurrentKeyboardScript(), mHandler);
         updateStateAfterInputTransaction(completeInputTransaction);
-        mInputLogic.mRetroCorrections.afterKey(this, event.getCodePoint(), event.getKeyCode(), mSettings.getCurrent()); // fork, stages 104/105
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
         helium314.keyboard.agent.SelectionChips.afterKey(this, event.getKeyCode()); // stage 82
         helium314.keyboard.agent.KeyLatency.eventEnded(event.getCodePoint(), event.getKeyCode()); // fork, stages 104/105

@@ -700,10 +700,7 @@ public final class InputLogic {
     public boolean onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart,
              int newSelEnd, int composingSpanStart, int composingSpanEnd, SettingsValues settingsValues) {
         boolean expectCursorMove = mightBeExpectedCursorMove(); // reset the timer
-        // fork, stages 104/105: the editor reports the keyboard's own correction of the sentence late (after the next key);
-        // a shorter text moved the cursor back, which the check below would take for a move of the user
-        if (mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd)
-                || mRetroCorrections.consumeOwnUpdate(oldSelStart, newSelStart, newSelEnd)) {
+        if (mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd)) {
             // return whether we expect a user-initiated explicit cursor move (i.e. not as result of other input, but e.g. space swipe)
             // note that arrow keys are not considered, because for them isBelatedExpectedUpdate returns false
             return expectCursorMove;
@@ -876,6 +873,8 @@ public final class InputLogic {
         if (KeyCode.DELETE != processedEvent.getKeyCode()) {
             mEnteredText = null;
         }
+        // fork, stages 104/105: the sentence check after a word end, its change in the same batch edit as the key
+        mRetroCorrections.afterKey(mLatinIME, processedEvent.getCodePoint(), processedEvent.getKeyCode(), settingsValues);
         mConnection.endBatchEdit();
         // fork, stage 84: what the app shows waits for endBatchEdit, so everything that only the keyboard needs comes after it
         mCodeInputBatchOpen = false;

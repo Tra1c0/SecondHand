@@ -165,7 +165,7 @@ class SettingsSystemAreaTest {
             "Welche Emojis angeboten werden", "URL-Erkennung", "Adressen als ein Wort", "Hardware-Tastatur",
             "Unterstützung für externe Tastaturen", "Gesten-Bibliothek laden", "Für Gestenschreiben", "Debug-Einstellungen",
             "Freigeschaltet", "Alle erweiterten Einstellungen", "Über", app.getString(R.string.english_ime_name) /* "SecondHand" */,
-            "Version ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}", "Lizenz", "GNU GPL v3.0 · basiert auf HeliBoard",
+            "Version ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}", "Lizenz", "GNU GPL v3.0 · basiert auf HeliBoard · Sprachdaten CC BY-SA (UniMorph, Wiktionary)",
             "Versteckte Funktionen", "Was man leicht übersieht", "Protokoll speichern", "Für Fehlermeldungen", "Alle Infos und Links")
             .forEach { assertTrue(exists(it), "missing text: $it") }
         assertFalse(exists("Dieser Bereich wird Schritt für Schritt neu gestaltet")) // text of the removed transition page (stage 69)

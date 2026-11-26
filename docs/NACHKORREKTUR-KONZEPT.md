@@ -40,15 +40,19 @@ schnellen Tippen weglässt (Komma vor „dass“, Punkt vor dem Absatz), stehen 
 `RichInputConnection` (bis 300 Zeichen, nur der aktuelle Absatz zählt). Das ist eine Kopie im Speicher, kein Aufruf an die
 App, solange der Zwischenspeicher reicht. Nichts wird geloggt.
 
-**Prüfung im Hintergrund:** Die Satzprüfung (rein, `agent-core`) läuft auf dem Vorschlags-Thread (`InputLogicHandler`,
-derselbe Thread wie die Wortvorschläge, also kein gleichzeitiger Zugriff auf Wörterbücher). Ergebnis: höchstens eine
+**Prüfung im Batch der Taste (nach dem Bau geändert):** Die Satzprüfung (rein, `agent-core`) läuft am Ende der Taste, die das Wort
+abschließt, noch in deren Batch-Edit, und ihre Änderung geht in denselben Batch. Zuerst lief sie auf dem Vorschlags-Thread und die
+Änderung kam als eigene Nachricht danach; im Emulator kam die Meldung des Editors über die verkürzte Stelle dann nach der nächsten
+Taste an, die Tastatur hielt sie für eine Cursorbewegung, und ein Buchstabe erschien doppelt („eein“, „nnicht“). Die Prüfung kostet im
+Emulator im Median unter einer Millisekunde (Messung `docs/VALIDATION.md`); nur das Lexikon wird beim ersten Wortende auf dem
+Vorschlags-Thread geladen, bis dahin wird nicht geprüft. Ergebnis: höchstens eine
 Änderung, beschrieben als „ab Position s steht heute A bis zur Schreibmarke, danach soll dort B stehen“ (A und B enden beide
 an der Schreibmarke). 104 und 105 laufen nacheinander auf demselben Text: 105 sieht den von 104 schon korrigierten Satz,
 beide Änderungen werden zu **einer** Ersetzung zusammengefasst (eine Rücknahme nimmt beide zurück).
 
-**Anwenden nur bei unverändertem Stand:** Das Ergebnis geht zurück auf den Haupt-Thread. Angewendet wird nur, wenn seit dem
-Auslöser keine Taste gedrückt wurde (Zähler je Taste), kein Wort zusammengesetzt wird, nichts markiert ist, die Schreibmarke
-dort steht, wo sie stand, und die App an der Stelle noch genau A zeigt. Ersetzt wird mit
+**Anwenden nur bei unverändertem Stand:** Angewendet wird nur, wenn kein Wort zusammengesetzt wird, nichts markiert ist, keine Geste
+läuft, die Autokorrektur des letzten Worts nicht mehr zurückgenommen werden kann und die App an der Stelle noch genau A zeigt (ein Text,
+den die App inzwischen geändert hat, wird nie ersetzt). Ersetzt wird mit
 `RichInputConnection.replaceTextBeforeCursorIfUnchanged` (bestehend, Etappe 24f/42: liest den Text in der App selbst noch
 einmal, ersetzt mit einer Region und einem Commit, prüft danach). Sonst wird verworfen; beim nächsten Wortende wird der
 Satz neu geprüft. Die Schreibmarke steht danach am Ende von B, also an derselben logischen Stelle; Text nach der
@@ -240,3 +244,18 @@ gebaut). Durchschnitt einer Prüfung auf dem Rechner etwa 20 µs.
 ## 11. Stand der Abnahme-Zeilen
 
 Siehe `docs/VALIDATION.md` → „Etappen 104 und 105“.
+
+## 12. Die drei offenen Beispiele, noch einmal geprüft (2026-11-26)
+
+- **„ein → einen Gefallen“** über „Akkusativobjekt eines transitiven Verbs, maskulines Nomen“: Das deutsche Wiktionary führt
+  „Gefallen“ als maskulin (Gefälligkeit) **und** neutral (Freude, „Gefallen finden“). „Er hat mir ein Gefallen getan“ ist mit dem
+  neutralen Lesen ein grammatischer Akkusativ; welches Lesen gemeint ist, entscheidet nur die Wendung „jemandem einen Gefallen
+  tun“, also Wortwissen über das Verb, das die Daten nicht enthalten. Bleibt offen.
+- **„kein → keinen Sinn“** über dieselbe Regel: „Sinn“ ist nur maskulin, aber im Satz „Das macht kein Sinn“ kann „kein Sinn“ das Subjekt
+  sein („Das“ vorangestelltes Objekt). Dieselbe Struktur ist richtig in „Das sagt kein Arzt“, „Das glaubt kein Lehrer“, „Das schafft kein
+  Hund“ (maskulin, Nominativ, Objekt vorn). Ohne Wissen, dass „Sinn“ nicht handelt, ist die Regel nicht eindeutig. Bleibt offen.
+- **„Zeit → seit gestern“** über Tastatur-Nachbarschaft: „z“ und „s“ liegen auf QWERTZ nicht nebeneinander (obere Reihe Mitte, mittlere
+  Reihe links), ein Tippfehler erklärt die Änderung also nicht; Wortpaar-Häufigkeiten („seit gestern“) gibt es in den mitgelieferten
+  Wörterbüchern nicht (`main_de.dict` ohne Bigramme). Bleibt offen.
+
+Lösbar wären alle drei mit Wortpaar-Häufigkeiten (Abschnitt 3), Entscheidung des Owners.
