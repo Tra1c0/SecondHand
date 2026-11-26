@@ -25,6 +25,9 @@ Wortlaut des Owners gekürzt; Reihenfolge = Reihenfolge des Baus. Erledigtes wan
   (`docs/FEATURES.md`).
 - **102 Screenshots in der Zwischenablage**: „Die Zwischenablage speichert alle Screenshots und bündelt ab 3 in einem Ordner, übersichtlich.“
   Konzept vor dem Bau (Berechtigung, Speicherplatz, Ablauf/Löschen, private Inhalte: Screenshots bleiben opt-in).
+- **102 Screenshots in der Zwischenablage**: gebaut (`docs/FEATURES.md`, Konzept `docs/SCREENSHOTS-KONZEPT.md`). Offen für den
+  Owner (Konzept Abschnitt 8): eigene Kopie für angeheftete Screenshots (überlebt das Löschen in der Galerie)? Wischen zum Ausblenden einzelner
+  Screenshots?
 - **105 Satzzeichen automatisch** (Owner, 2026-11-25: „Es wäre schön, wenn zukünftig noch Satzzeichen automatisch ersetzt werden.“).
   Umfang offen, vor dem Bau klären: fehlende Satzzeichen setzen (Punkt am Satzende, Komma vor „dass/weil/aber“, Fragezeichen nach Fragewort)
   oder falsch getroffene ersetzen. Regel wie bei 104: nur Eindeutiges, jede Änderung mit einem Tipp rücknehmbar. Dazu als Fehlfall 10 von 101:

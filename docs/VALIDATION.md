@@ -79,6 +79,47 @@ Symbols mit mehr Strichen ist, und die Zeichnung selbst ist kein solcher Teil), 
 - **Nicht geprüft:** Telefon des Owners (Xiaomi 15): Gefühl, eigene Lücken, ob Symbole geteilt werden (Diagnose → Karte „Symbole“:
   Wege, Median, Pause, Nachzügler). „>“ allein ergibt weiter „Nicht erkannt“ oder „)“ (Vorschlag „<“/„>“ als Symbole, nicht gebaut).
   % mit dem Punkt zuerst geht nicht (ein Tipp ohne Zeichnung ist ein Buchstabe).
+## Etappe 102 — Screenshots in der Zwischenablage (Owner, 2026-11-26)
+
+Auftrag und Entscheidungen: `docs/SCREENSHOTS-KONZEPT.md` (E1–E13, Abnahme-Zeilen A1–A20, Kritik K1–K4; die Kritik vor dem Bau hat
+der Bauende selbst gemacht, ein Prüfer-Agent war in der Bau-Sitzung nicht verfügbar). Code-Landkarte: `docs/ARCHITECTURE.md` →
+„Screenshot-Ablage (102)“, Format: `docs/STORAGE.md` → „Screenshot-Ablage (102)“.
+- Älterer Owner-Wunsch geprüft: die Werkzeugzeile der Zwischenablage ist seit 106 standardmäßig aus (`AgentPreferences.CLIPBOARD_TOOLBAR`)
+  und bleibt so; Smart-Paste-Chips gibt es nur an Textkarten, nie an Bildern/Screenshots (`ClipboardAdapter`); 102 ändert daran nichts.
+- Tests neu: `CT/clip/ScreenshotShelfTest.kt` (23), `CT/clip/ShelfDragTest.kt` (14), lokal grün (eigene Gradle-Hülle um `agent-core`,
+  Kotlin 2.4.0); `AT/shelf/ShelfStoreTest.kt` (6), `AT/shelf/ShelfViewTest.kt` (11) und `ScreenshotChipTest` (9) lokal grün
+  (Android-SDK 37 und JDK 17 im Container nachinstalliert, Robolectric-Jar über den Google-Spiegel von Maven Central, weil
+  `repo.maven.apache.org` mit 429 antwortete). Die volle Kern-Suite lief lokal nicht sinnvoll (39 Tests lesen Dateien über relative
+  Pfade des Projekts, die die Hülle nicht hat); maßgeblich ist der GitHub-Lauf unten.
+- Bewusst geändert: Sieben Tests von `ScreenshotChipTest` zur Kopie neuer Screenshots in den Verlauf (23g, Build 12, 65) sind entfernt,
+  weil das Verhalten entfallen ist (E1); ersetzt durch `aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf` und die Tests der Ablage.
+  Die Regel „bei Sperre/im Inkognito-Feld gemachte Screenshots nie“ gilt weiter (Entscheidung des Leads): `hidden`, Tests
+  `ScreenshotShelfTest.aScreenshotTakenPrivatelyIsHiddenForGoodAndAShownOneStays` und
+  `ShelfStoreTest.aScreenshotTakenInIncognitoOrAPrivateFieldIsNeverShownAlsoAfterARestart` (Inkognito, Neustart, Feld ohne Lernen).
+- Robolectric-Hinweis: Die Berührungstoleranz in Robolectric ist größer als 42 px; die Tests ziehen deshalb weiter. Views, die
+  Robolectric nicht in einem Fenster zeigt, führen `View.post` nie aus: `ShelfUi` und das Einfügen posten auf den Main-Looper.
+- Emulator-Szenarien neu: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` (Kontrolllauf: fehlender
+  dritter Screenshot, Ziehen zurück an den Start, kein Screenshot bei beendeter Tastatur). Probe `screenshot_perf` (nur `--only`).
+- Messung vorher (Code = `main` 9228c5a0 + Messpunkte, Commit cd221dbd, Gerätetest-Lauf 45791319949, Probe `screenshot_perf`, 12 Screenshots
+  per `screencap`, Emulator Android 14 mit SwiftShader): Zwischenablage öffnen 107/106/113 ms (Median 107), dabei nur **4 von 12**
+  Screenshots im Verlauf (die alte Kopie nahm nicht alle); neuer Screenshot bis sichtbar 669 ms; Öffnen 2 Bilder, 2 janky; Scrollen
+  35 Bilder, 34 janky (97 %), p50 113 ms, p90 150 ms (SwiftShader: jedes Bild ist im Emulator janky, nur der Vergleich zählt).
+  Ordner öffnen: vorher nicht vorhanden. Nachher: unten.
+- Prüfer (eigene Sitzung, Modell opus, nur lesend, auf 0278497c): 1 hoch, 2 mittel, 8 niedrig. Alle behoben:
+  (1, hoch) veraltete Clip-Zahl im `ConcatAdapter` → Absturz/fehlender Clip beim zweiten Öffnen: `notifyDataSetChanged` beim Öffnen,
+  Regressionstest `ShelfViewTest.reopeningAfterTheHistoryChangedShowsEveryClipAndDoesNotCrash` (ohne den Fix rot: 2 statt 4 Einträge,
+  lokal geprüft); (2) gewartete Antwort beim Ablegen überschrieben → erst `apply`, dann `endDrag`; (3) Übernahme alter Kopien erst nach
+  der nächsten Medienänderung → `Shelf.refresh` in `ClipboardHistoryManager.onCreate`; (4) Übernahme nur über die Zeit und auch bei
+  leerer Antwort → nur bei nicht leerer Antwort, jede Löschung über die Prüfsumme bestätigt (Test erweitert: Kopie gleicher Zeit mit
+  anderem Inhalt bleibt); (5) Antworten beim Anheben → `hold` ab `Lift`; (6) Vorschaubilder neu dekodiert → Größe aus dem Bildschirm;
+  (7) Tipp, der einen Schwung stoppt, fügte ein → nicht verfolgt; (8) Umbenennen mit Emoji → ganze Zeichen, Länge vor dem Anhängen;
+  (9) Ordnernummer → leere Ordner vor der Nummernwahl entfernt (Test); (10) Thread je Ansicht → ein Daemon-Executor; (11) Testnamen im
+  Konzept. Nachprüfung (dieselbe Prüfer-Sitzung, auf c54557b5): alle elf behoben, keine neuen Befunde ab mittel; drei niedrige
+  Restbeobachtungen ebenfalls behoben: (N1) eine während einer Abfrage angeforderte zweite Abfrage verfällt nur, wenn alle Aufrufe es
+  erlaubten; (N2) die Prüfsummen der Übernahme laufen auf einem eigenen Thread; (N3) die Aktionszeile sucht ihre Kachel, bevor wartende
+  Antworten kommen.
+- Nicht geprüft: kein Telefon (Xiaomi/HyperOS, echtes Design des Owners auf dem Gerät), keine angesehenen Bilder (Emulator-Bilder sind
+  über den Proxy nicht ladbar), TalkBack nicht ausprobiert.
 
 ## Etappe 106 — Werkzeugzeile der Zwischenablage standardmäßig aus (Owner, 2026-11-25)
 

@@ -258,12 +258,32 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   einem Entwurf), findet es nicht mehr. Kein Backup, kein Protokoll.
 - Einstellungen: `agent_screenshot_chip` (Schalter) und `agent_screenshot_dismissed` (ID des
   zuletzt benutzten oder geschlossenen Screenshots).
-- Verlauf (23g, Build 12): Kopie zuerst nach `files/agent_screenshot_pending/screenshot-<ID>`,
-  dann umbenannt nach `files/clipboard/`. Reste dort (Tastatur mitten im Kopieren beendet) löscht
-  dieselbe Prüfung, sobald sie älter als 10 Minuten sind, beim Ausschalten alle. Einstellung
-  `agent_screenshot_history_ids`: IDs der schon für den Verlauf entschiedenen Screenshots
-  (höchstens die neuesten 32); die frühere Einzel-ID `agent_screenshot_history_id` wird noch
-  gelesen.
+- Verlauf (23g bis 101, seit 102 entfallen): Früher kopierte die Tastatur neue Screenshots als Bild-Clip nach `files/clipboard/`
+  (über `files/agent_screenshot_pending/`). Seit 102 nicht mehr; Reste in `files/agent_screenshot_pending/` löscht die Prüfung weiter.
+  Die alten Einstellungen `agent_screenshot_history_entries`, `agent_screenshot_history_ids`, `agent_screenshot_history_id` und
+  `agent_screenshot_history_files` liest nur noch die Übernahme (unten) und löscht sie danach.
+
+## Screenshot-Ablage (102)
+
+- Ort: Datei `files/agent_screenshot_shelf.json` im gerätegeschützten Speicher (DE) der Tastatur, neben der
+  Zwischenablage-Datenbank; geschrieben ganz mit `AtomicFile` nach jeder Änderung (eigener Thread, immer der neueste Stand).
+  Kein Bild, kein Pfad, kein Dateiname: nur Medienspeicher-IDs (`_ID`), Ordnernamen (vom Owner, 1–40 Zeichen), Pins und Zeiten.
+  Nicht in der Sicherung (ZIP), wie die Zwischenablage-Datenbank. Nie geloggt.
+- Format (Version 2, streng gelesen: genau diese Schlüssel, jede ID an höchstens einem Platz, Pins nur platzierter IDs, verborgene IDs
+  nie platziert, höchstens ein automatischer Ordner, `nextFolderId` größer als jede Ordner-ID; Version 1 ohne `hidden` wird weiter gelesen):
+  `{"version":1,"clearedBefore":<ms>,"nextFolderId":<n>,"fresh":[ids],"loose":[ids],"pinned":[ids],
+  "folders":[{"id":<n>,"name":<Text oder null>,"number":<n>,"pinned":<bool>,"auto":<bool>,"members":[ids]}],"migrated":<bool>,
+  "hidden":[ids]}`; `hidden` = Screenshots, die bei Sperre, im Inkognito-Modus oder in einem privaten Feld entstanden (nie gezeigt).
+  `fresh` = neu und noch nicht gebündelt, `loose` = vom Owner in die Zwischenablage gezogen, `clearedBefore` = „Zwischenablage
+  leeren“ (ganze Sekunden), `migrated` = Übernahme der alten Kopien erledigt.
+- Unlesbarer Inhalt: Die Datei wird zu `agent_screenshot_shelf.json.bad` (eine ältere `.bad` wird ersetzt), die Ablage beginnt leer.
+  Kann die Datei gar nicht gelesen werden (Ein-/Ausgabefehler), schreibt die Tastatur in diesem Prozess nie (nichts wird überschrieben).
+- Vergessen wird eine ID, wenn der Medienspeicher sie in einer erfolgreichen, nicht leeren Antwort nicht mehr hat (gelöscht), oder
+  beim Öffnen der Zwischenablage, wenn sie nicht mehr sichtbar ist (Aufbewahrung, „leeren“; nie angeheftete und nie Inhalte
+  angehefteter Ordner). Ausschalten von „Screenshots anbieten“ oder des Verlaufs lässt nur Angeheftetes.
+- Übernahme (einmal): Alte Screenshot-Kopien im Verlauf, unverändert, nicht angeheftet und mit Original gleicher Zeit im
+  Medienspeicher, werden gelöscht; angeheftete werden über die Prüfsumme (Dateiname = SHA-256) unter den neuesten 300 Screenshots
+  gesucht, gefunden → in der Ablage angeheftet und Kopie gelöscht; alle übrigen bleiben als normale Bilder. Danach `migrated = true`.
 
 ## Entpacken mitgelieferter Wörterbücher (Build 12)
 

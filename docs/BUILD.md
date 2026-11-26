@@ -229,7 +229,7 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 - Job „Emulator <n>“: KVM freischalten (udev-Regel), `reactivecircus/android-emulator-runner` v2.38.0
   (per Commit festgelegt) mit API 34, `google_apis`, `x86_64`, Profil `pixel_6`, 4 Kernen, 4096 MB,
   dann `python3 -I tools/devicetest/devicetest.py --keyboard-apk … --test-apk … --out device-test-out`.
-  Der Emulator-Schritt hat 25 Minuten Zeit. Der letzte Schritt „Results“ schreibt die Tabelle in die Job-Zusammenfassung und ins Log und scheitert,
+  Der Emulator-Schritt hat 35 Minuten Zeit (seit 102; mit den drei Szenarien der Screenshot-Ablage dauert ein voller Lauf etwa 27 Minuten), der Emulator-Job 55. Der letzte Schritt „Results“ schreibt die Tabelle in die Job-Zusammenfassung und ins Log und scheitert,
   wenn `results.json` fehlt oder nicht `ok` ist.
 - Ergebnis lesen: im Job-Log die Zeilen `INFO …`, `RESULT PASS|FAIL|ERROR <szenario> …`, `PROBLEM …`,
   `CONTROL …`, `SUMMARY OK|FAILED passed= failed= total= expected= videos=`. `FAIL` ist eine nicht erfüllte

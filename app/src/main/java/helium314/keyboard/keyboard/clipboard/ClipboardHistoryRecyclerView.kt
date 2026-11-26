@@ -18,18 +18,23 @@ class ClipboardHistoryRecyclerView @JvmOverloads constructor(
 ) : RecyclerView(context, attrs, defStyleAttr) {
 
     var placeholderView: View? = null
-    val historyManager: ClipboardHistoryManager? get() = (adapter as? ClipboardAdapter?)?.clipboardHistoryManager
+    // fork, stage 102: the clip adapter may come after the screenshot tiles (a ConcatAdapter); positions are its own
+    private val clipAdapter: ClipboardAdapter? get() = (adapter as? ClipboardAdapter)
+        ?: (adapter as? androidx.recyclerview.widget.ConcatAdapter)?.adapters?.firstNotNullOfOrNull { it as? ClipboardAdapter }
+    val historyManager: ClipboardHistoryManager? get() = clipAdapter?.clipboardHistoryManager
     @Suppress("unused")
     private val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
         override fun onMove(recyclerView: RecyclerView, viewHolder: ViewHolder, target: ViewHolder) = false
         override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: ViewHolder): Int {
-            if (historyManager?.canRemove(viewHolder.absoluteAdapterPosition) == false)
+            if (viewHolder.bindingAdapter !is ClipboardAdapter) return 0 // stage 102: screenshot tiles are not swiped away
+            if (historyManager?.canRemove(viewHolder.bindingAdapterPosition) == false)
                 return 0 // block swipe for pinned items
             return super.getSwipeDirs(recyclerView, viewHolder)
         }
         override fun onSwiped(viewHolder: ViewHolder, dir: Int) {
-            historyManager?.removeEntry(viewHolder.absoluteAdapterPosition)
-            adapter?.notifyItemRemoved(viewHolder.absoluteAdapterPosition)
+            val position = viewHolder.bindingAdapterPosition
+            historyManager?.removeEntry(position)
+            clipAdapter?.notifyItemRemoved(position)
         }
     }).attachToRecyclerView(this)
 

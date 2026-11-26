@@ -73,6 +73,10 @@ class ClipboardHistoryManager(
         if (removed) clipboardDao?.compactInBackground()
         helium314.keyboard.agent.ScreenshotChip.onChange = { onScreenshotChange() }
         helium314.keyboard.agent.ScreenshotChip.start(latinIME)
+        // stage 102 (review, finding 3): the shelf asks the media store once at the start, so that the old screenshot copies of
+        // the history are taken over before the clipboard is first shown (never while it is shown)
+        if (helium314.keyboard.agent.shelf.Shelf.isAvailable(latinIME, latinIME.mSettings.current))
+            helium314.keyboard.agent.shelf.Shelf.refresh(latinIME, latinIME.mSettings.current, expire = true)
     }
 
     fun onDestroy() {
@@ -93,11 +97,11 @@ class ClipboardHistoryManager(
      * boundary shows it (see [getScreenshotSuggestionView]).
      */
     internal fun onScreenshotChange() {
-        // the copy and its checksum are made in the background, the entry on the main thread like
-        // fetchPrimaryClip, so the history view is only changed from here
-        helium314.keyboard.agent.ScreenshotChip.addToHistory(latinIME, latinIME.mSettings.current, clipboardDao) {
-            maySaveFromUri(it, latinIME)
-        }
+        // stage 102: the clipboard shows the screenshots of the media store (no copy); ask it again, expiring only
+        // while the history view is not shown (as ClipboardDao.clearOldClips)
+        val settings = latinIME.mSettings.current
+        if (helium314.keyboard.agent.shelf.Shelf.isAvailable(latinIME, settings))
+            helium314.keyboard.agent.shelf.Shelf.refresh(latinIME, settings, expire = clipboardDao?.listener == null)
         if (!latinIME.isInputViewShown) return
         val shown = screenshotView?.takeIf { it.parent != null && !it.isGone }
         val shot = helium314.keyboard.agent.ScreenshotChip.current(latinIME, latinIME.currentInputEditorInfo)
@@ -273,6 +277,7 @@ class ClipboardHistoryManager(
 
     fun clearHistory() {
         clipboardDao?.clearNonPinned()
+        helium314.keyboard.agent.shelf.Shelf.clear(latinIME, latinIME.mSettings.current) // stage 102: unpinned screenshots too
         helium314.keyboard.agent.ClipVault.clear()
         ClipboardManagerCompat.clearPrimaryClip(clipboardManager)
         removeClipboardSuggestion()

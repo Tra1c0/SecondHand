@@ -44,6 +44,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
 - **Ablage** – Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
+- **Screenshot-Ablage (102)** – Etappe 102: alle Screenshots des Medienspeichers oben in der Zwischenablage, ab drei gebündelt, Ordner zum Umbenennen und Anheften, Ziehen wie auf dem Startbildschirm. Konzept: `docs/SCREENSHOTS-KONZEPT.md`.
 - **Begleit-App (Etappe 80)** – Etappe 80: kleine, getrennte App `companion/` nur für das Gerät des Owners; der Spike lädt Qualcomms fertiges Qwen3-4B und lässt es auf dem KI-Chip einen festen Satz korrigieren. Wird nie veröffentlicht.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
@@ -787,6 +788,11 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
 - Etappe 106: Schalter `AgentPreferences.CLIPBOARD_TOOLBAR` (`clipboardToolbarShown`, Standard aus, Einstellung in `ToolbarScreen`, Texte in `agent_bar_tools_strings.xml`);
   aus: `ClipboardHistoryView` legt keine Tasten an, `hidesStrip()` (Standardstil mit sichtbarem Streifen) lässt `KeyboardSwitcher.setClipboardKeyboard` den Streifen verstecken
   und gibt seine Höhe an `onMeasure` und die Liste (P507). `SuggestionStripView.gridTools` zählt die Tasten der abgeschalteten Zeile als „schon benutzt“.
+- Etappe 102 (Screenshot-Ablage, Abschnitt „Screenshot-Ablage (102)“): `ClipboardHistoryRecyclerView.kt` sucht die Clip-Karten auch
+  in einem `ConcatAdapter` (`clipAdapter`), wischt nur Clip-Karten und rechnet mit `bindingAdapterPosition`; `ClipboardHistoryView.kt`
+  (`ConcatAdapter`, `dispatchTouchEvent`, `insertScreenshot`, `clipOffset`, Messpunkte `clipboard_open`/`shot_visible`),
+  `KeyboardSwitcher.java` (eine Zeile: Messpunkt in `setClipboardKeyboard`), `ClipboardHistoryManager.kt` (`onScreenshotChange` →
+  `Shelf.refresh`, `clearHistory` → `Shelf.clear`).
 - Zwischenablage: `ClipboardHistoryView.kt` (im flachen Stil Kopfzeile, Abschnittstitel, Liste
   bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
@@ -4081,6 +4087,73 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Doppeltipp, „Verwalten“, „Kopiertes speichern“ mit allen Ablehnungen), dazu `AT/SettingsBarAreaTest.kt`
   (die Zeile im Bereich Leiste & Befehle).
 
+## Screenshot-Ablage (102)
+
+> Etappe 102: alle Screenshots des Medienspeichers oben in der Zwischenablage, ab drei gebündelt, Ordner zum Umbenennen und Anheften, Ziehen wie auf dem Startbildschirm. Konzept: `docs/SCREENSHOTS-KONZEPT.md`.
+
+Keine Kopien: Die Ablage zeigt Verweise auf `MediaStore` (ID = `_ID`), gespeichert werden nur IDs, Zeiten, Ordnernamen und Pins
+(`docs/STORAGE.md` → Screenshot-Ablage). Kein `InputLogic`, `RichInputConnection`, `PointerTracker`; die Berührungen laufen in
+`ClipboardHistoryView.dispatchTouchEvent` zuerst durch `ShelfUi`.
+
+- Modell (Kern, JVM): `C/clip/ScreenshotShelf.kt`: `ShelfShot`, `ShelfFolder` (`name` null = Standardname, `number`, `pinned`, `auto`,
+  `members` in der Reihenfolge des Owners), `ShelfState` (`folders`, `loose`, `fresh`, `pinnedShots`, `clearedBefore`, `nextFolderId`;
+  `placeOf`, `protectedIds`), `ShelfItem` (`Folder`, `Card`), `ShelfTarget` (`None`, `Card`, `Folder`, `NewFolder`, `Out`, `Order`).
+  `ScreenshotShelf.sync` (vollständige Antwort des Medienspeichers: Gelöschtes vergessen, nie bei leerer Antwort; mit `expire` das
+  nicht mehr Sichtbare vergessen; Neue vorn in den automatischen Ordner oder nach `fresh`; ab `BUNDLE_AT` = 3 der automatische Ordner;
+  leere ungeheftete Ordner weg), `isVisible`, `items` (Reihenfolge der Kacheln), `folderShots`, `togglePinShot`, `togglePinFolder` und
+  `rename` (beide machen den automatischen Ordner zum eigenen), `cleanName` (1–40 UTF-16, eine Zeile), `moveToFolder`, `moveToLoose`,
+  `newFolder` (kleinste freie Nummer), `reorder` (nur genau die Mitglieder), `takenPrivately` und `hide` (E10, `hidden` im Zustand,
+  `PRIVATE_WINDOW_MILLIS` = 60 s), `drop` (Ziel → Operation; Abbruch, eigener Platz und
+  eigener Ordner geben dieselbe Instanz zurück), `clear`, `keepPinnedOnly`, `adoptPinned`, `planMigration` mit `OldCopy`.
+  Tests `CT/clip/ScreenshotShelfTest.kt` (23).
+- Berührung (Kern): `C/clip/ShelfDrag.kt`: Zustandsmaschine IDLE → PRESSED → LIFTED (350 ms, `tick`) → DRAGGING, Ereignisse `Scroll`,
+  `Tap`, `Lift`, `Menu` (Loslassen ohne Bewegung: nichts geändert), `Start`, `Hover`, `Dwell` (360 ms über `Out`), `Drop`, `Cancel`
+  (`cancel`, `secondFinger`); Ordnerkacheln werden nicht gezogen. Tests `CT/clip/ShelfDragTest.kt` (14, mit Uhr).
+- `A/shelf/Shelf.kt`: das Modell der laufenden Tastatur (Main-Thread), `isAvailable` (Verlauf, „Screenshots anbieten“, Bildberechtigung),
+  `isShown` (dazu nicht `ClipVault.isBlocked`), `isPrivateNow` und `mediaChanged` (E10: Zeit jeder Medienänderung in privatem
+  Zustand, aus `ScreenshotChip.mediaChanged`; `answer` verbirgt mit `ScreenshotShelf.takenPrivately`/`hide`), `retentionMillis` (Aufbewahrung der Zwischenablage, über 120 min unbegrenzt),
+  `prepare` (beim Öffnen: verfallen lassen, neu fragen), `refresh` (Abfrage auf `background`, nie zwei zugleich), `hold` (während des
+  Ziehens warten Antworten), `apply` (neuer Zustand → `persist` auf eigenem Thread, immer der neueste, dann die Hörer), `clear`,
+  `keepPinnedOnly`, `queryScreenshots` (`RELATIVE_PATH LIKE '%screenshot%'`, vor Android 10 `DATA`, ohne `IS_PENDING`, neueste zuerst),
+  Übernahme der alten Kopien (`migrate`, `removeCopies`, `finishMigration`; nur bei nicht leerer Antwort und nie bei offener Ansicht;
+  eine Kopie geht nur, wenn die Prüfsumme ihres Originals gleicher Zeit bzw. eines der neuesten 300 passt, gerechnet im Hintergrund
+  über `ChecksumCalculator`; angestoßen schon in `ClipboardHistoryManager.onCreate`), `resetForTest` (Abfragen und Schreiben am Platz).
+- `A/shelf/ShelfStore.kt`: strenges JSON (`encode`/`decode`, genau die Schlüssel, Version 2 mit `hidden`, Version 1 wird gelesen, jede ID an einem Platz, Pins nur
+  platzierter IDs, höchstens ein automatischer Ordner, Namen wie `cleanName`), `AtomicFile`, Datei „agent_screenshot_shelf.json“ im
+  DE-Speicher; unlesbar → `.bad` daneben, leere Ablage; ein Lesefehler (nicht: Inhalt) schreibt nie.
+- `A/shelf/ShelfAdapter.kt`: `SquareFrame` (quadratische Kachel), `ShelfColors` (Tastenfarben: Karte `KEY_BACKGROUND`, Schrift
+  `KEY_TEXT`, Akzent `ACTION_KEY_BACKGROUND`, Pin `CLIPBOARD_PIN`), `ShelfAdapter` (Ordner mit 2×2-Vorschau und „Name · n“, Karten;
+  `submit` mit `DiffUtil`; `lifted` blass, `hover` Akzentrahmen; `grows` lässt einen neuen Ordner wachsen; Tag = `f<id>`/`s<id>`;
+  Klick nur für TalkBack), `ShelfAnimations.grow`. Ids in `agent_shelf_ids.xml`, Texte in `agent_shelf_strings.xml`.
+- `A/shelf/ShelfThumbnails.kt`: Vorschaubilder im Hintergrund (`loadThumbnail` ab Android 10), im Speicher bis die Zwischenablage
+  schließt; ein inzwischen anders gebundenes Bild bekommt nichts.
+- `A/shelf/ShelfUi.kt`: Kacheln (`mainAdapter`), Ordnerfenster (`agent_shelf_window`: Kopf mit `agent_shelf_back` oben links, Titel
+  `agent_shelf_title` = Tipp zum Umbenennen, Anzahl, `agent_shelf_pin`; Raster `agent_shelf_grid` mit drei Spalten), Umbenennen mit
+  `CharArtKeys` (`agent_shelf_name_edit`, `agent_shelf_name_done`), Aktionszeile nach Langdruck (`agent_shelf_menu`,
+  `…_menu_pin`, `…_menu_rename`), Ziehen mit Kopie (`agent_shelf_shadow`), Ablagebereich unten (`agent_shelf_new_folder`) bzw. im Kopf
+  des Ordners (`agent_shelf_out`, `agent_shelf_new_in_folder`), Rand-Scrollen, Messpunkt `folder_open`. Der Platz im Ordner beim
+  Ziehen kommt aus der Geometrie des Rasters (`slotAt`: Spalte, Zeilenhöhe, Scroll-Versatz), nicht aus der View unter dem Finger. `onTouch` gibt `CONSUME`
+  zurück, solange ein Teil angehoben ist; vor `Tap`, `Menu`, `Drop` und beim `Lift` schickt `Host.cancelChildren` ein `ACTION_CANCEL`
+  an die Liste (die Kachel klickt nie selbst). `ShelfUi.LIFT_MS` = 350. `Shelf.hold` gilt ab dem Anheben (nicht erst ab dem Ziehen);
+  ein Abfang eines Schwungs (Liste scrollt noch) wird nicht verfolgt. Beim Ablegen erst `Shelf.apply`, dann `endDrag` (die gewartete
+  Antwort baut auf dem neuen Stand auf). Umbenennen löscht ganze Zeichen (`offsetByCodePoints`).
+- Einbindung: `ClipboardHistoryView.startClipboardHistory` setzt bei `Shelf.isShown` einen `ConcatAdapter` (Kacheln, dann Clips;
+  `setIsolateViewTypes`; einmal gebaut, darum `clipboardAdapter.notifyDataSetChanged()` bei jedem Öffnen: der Verlauf ändert sich
+  zwischen zwei Besuchen ohne Meldung), Platz am Listenende (`bottomRoom`, `clipToPadding` aus), `ShelfUi.start`; `stopClipboardHistory` →
+  `ShelfUi.stop` (Ziehen ohne Änderung beendet, Fenster zu); `insertScreenshot` wie ein Bild-Clip (`ScreenshotChip.copyForEditor` auf
+  einem gemeinsamen Daemon-Thread `SCREENSHOT_COPIES`, dann `onContent`, nur im selben Feld); `clipOffset` für das Scrollen zu Clips. `ClipboardHistoryRecyclerView`: Wischen
+  nur für Clip-Karten, Positionen über `bindingAdapterPosition`. `ClipboardHistoryManager.onScreenshotChange` ruft `Shelf.refresh`
+  (statt der alten Kopie), `clearHistory` `Shelf.clear`. Ausschalten (`AgentAreaBarScreen`, `AgentScreenshotScreen`): `Shelf.keepPinnedOnly`.
+- `ScreenshotChip.kt` (102): keine Kopie in den Verlauf mehr (`addToHistory` und die Entscheidungen der Etappen 23g/65 entfernt);
+  `oldHistoryEntries`/`forgetOldHistoryEntries` für die Übernahme; die Pille in der Leiste ist unverändert.
+- Tests (Robolectric): `AT/shelf/ShelfStoreTest.kt` (Rundreise, strenges Lesen, Neustart, `.bad`, leere/fehlgeschlagene Abfrage,
+  Warten beim Ziehen, Übernahme alter Kopien, Ausschalten), `AT/shelf/ShelfViewTest.kt` (Karten und Bündeln, Passwortfeld/Inkognito,
+  Tipp öffnet sofort, Zurück oben links, Einfügen über den eigenen FileProvider, Langdruck nur Menü, „Neuer Ordner“, Karte auf
+  Karte, Abbruch/zurück zum Start/zweiter Finger, Sortieren im Ordner mit Neustart, „In die Ablage“ mit Verweilen, Umbenennen mit eigenen
+  Tasten, angehefteter Ordner gegen die Aufbewahrung, im Ordner weg und zurück an den Start mit neu gelegten Views), `AT/ScreenshotChipTest.aNewScreenshotMakesNoCopyInTheHistoryAndAsksTheShelf`.
+  Emulator: `screenshot_shelf_bundles`, `screenshot_shelf_drag`, `screenshot_shelf_while_off` in `devicetest.py` (Helfer `shelf_tiles`,
+  `folder_cells`, `folders_of`, `shelf_report`, `lift_drag`, `restart_keyboard`).
+
 ## Begleit-App (Etappe 80)
 
 > Etappe 80: kleine, getrennte App `companion/` nur für das Gerät des Owners; der Spike lädt Qualcomms fertiges Qwen3-4B und lässt es auf dem KI-Chip einen festen Satz korrigieren. Wird nie veröffentlicht.
@@ -4194,6 +4267,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Diagnose (Untersuchung clipboard_pill): `foreground_info` in `devicetest.py` schreibt als INFO-Zeilen die fortgesetzte Aktivität
   (`dumpsys activity activities`) und die letzten Aktivitätsstarts (nur Komponentennamen aus `START u0` im Log des ActivityTaskManager),
   wenn eine Wartezeit abläuft oder `field_…`/`copy_…` fehlt, sowie einmal nach dem Home-Druck in `_open_settings_and_switch_on`. Keine Feldinhalte.
+- Messpunkte der Zwischenablage (Etappe 102): `A/UiPerf.kt` merkt den Start (`mark`: Zwischenablage-Taste in
+  `KeyboardSwitcher` (`setClipboardKeyboard` der SwitchActions, beide Wege: Taste und Leiste), Medienänderung in `ScreenshotChip.mediaChanged`, Tipp auf einen Ordner) und schreibt beim
+  nächsten gezeichneten Bild der Ansicht eine Zeile `AgentPerf: <name> ms=<n> <Zähler>` (`reportAtNextDraw`; nur Zeiten und
+  Anzahlen). Die Probe `screenshot_perf` in `devicetest.py` (nur mit `--only`) erzeugt Screenshots, öffnet die Zwischenablage dreimal,
+  macht einen neuen Screenshot, scrollt und schreibt `PERF`-Zeilen mit diesen Zeiten und `dumpsys gfxinfo` (Bilder, Janky, Perzentile).
+  Helfer dort: `make_screenshot` (`screencap` in `Pictures/Screenshots` oder `DCIM/Screenshots`, wartet auf die ID im Medienspeicher,
+  sonst Scan), `delete_screenshot_files`, `shelf_setup` (Bildberechtigung per `pm grant`, „Zwischenablage-Verlauf“ und „Screenshots
+  anbieten“ einmal je Lauf), `open_clipboard`, `perf_lines`, `gfx_reset`/`gfx_stats`, `swipe_list`.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -6813,6 +6894,17 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   späte Antwort eine Zeichnung, die inzwischen weitergeht (Früheingabe), oder ein zweites Mal. Der Timer der Pause bleibt immer
   gesetzt: ohne Antwort schreibt die Pause wie vor 100. Wer eine neue Eingabe einbaut, die keine Taste ist, ruft
   `SymbolInk.onTypedInput`, sonst zählt eine Zeichnung danach als Nachzügler.
+- **P508** Screenshot-Ablage (102): Die Liste der Zwischenablage ist ein `ConcatAdapter` (Kacheln vor den Clips). Wer in Upstream-Code
+  mit Positionen der Liste arbeitet (Wischen, Scrollen zu einem Clip), nimmt `bindingAdapterPosition` bzw. `clipOffset`, sonst trifft
+  er die falsche Zeile der Datenbank. Der `ConcatAdapter` merkt sich die Zahl der Clips des letzten Besuchs: ohne
+  `notifyDataSetChanged` beim Öffnen fehlte ein neuer Clip oder ein verfallener ließ `getAt` werfen (Prüfer, Befund 1). Die Kacheln sind für den Finger nie selbst klickbar: `ShelfUi.onTouch` entscheidet und schickt
+  der Liste ein `ACTION_CANCEL`, sonst kämen Tipp und Langdruck doppelt. Eine leere oder fehlgeschlagene Antwort des Medienspeichers
+  darf nie Plätze löschen (`ScreenshotShelf.sync`); während des Ziehens wartet jede Antwort (`Shelf.hold`), sonst springen Kacheln
+  unter dem Finger. `GradientDrawable().apply { colors… }` greift auf `GradientDrawable.getColors` zu: im Kachel-Code heißt die Palette
+  deshalb `palette`. Den Platz beim Sortieren im Ordner nie aus der View unter dem Finger lesen: Während die anderen Platz machen,
+  laufen sie animiert, eine weggleitende View hätte die Reihenfolge beim Zurückziehen an den Start umgedreht (Gerätetest-Lauf
+  45802882053); `ShelfUi.slotAt` rechnet aus der Geometrie. Nach `am force-stop` der Tastatur wählt Android eine andere Eingabemethode:
+  der Gerätetest setzt sie mit `restart_keyboard` wieder.
 - **P499** Langlebige Ansicht, kurzlebige Einstellung (Etappe 95): Was eine View einmal im Konstruktor aus `SettingsValues` liest, bleibt für ihre ganze Lebenszeit. `SettingsValues` enthält Zustände des Augenblicks (Sperre → `mToolbarMode` HIDDEN, also `mFixedBar` falsch). `SuggestionStripView.fixedBar` liest deshalb die Einstellung selbst (`Settings.readToolbarMode`, `AgentPreferences.FIXED_BAR`); im Sperrzustand gebaut kam sonst nach dem Entsperren die alte Leiste zurück.
 
 ## Datei-Inventar
@@ -6820,8 +6912,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (796 files; generated, do not edit)</summary>
-<details><summary>Alle kartierten Dateien nach Ordner (799 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (816 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6832,7 +6923,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (106): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (108): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, BarCalmCounters, CalculatorView,
   CharacterCommand, ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand,
@@ -6847,14 +6938,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleClassCleanup,
   RuleCorrections, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips,
   SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RuleCorrections,
-  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SelectionChips, SettingsLauncher,
-  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
-  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, SymbolPerf, ToolApprovalSummary,
-  ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
-  UndoOffer, WordBeforeDelete, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, SymbolPerf,
+  ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
+  TypingPerf, TypoMemory, UiPerf, UndoOffer, WordBeforeDelete, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6864,6 +6952,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
+- `A/shelf/` (5): Shelf, ShelfAdapter, ShelfStore, ShelfThumbnails, ShelfUi
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
 - `AT/` (135): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
@@ -6901,6 +6990,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
+- `AT/shelf/` (2): ShelfStoreTest, ShelfViewTest
 - `C/` (64): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, CorrectionWeights, CursorTrack, DateFormatting, EditorSession, EmojiKeywords,
   EmojiMix, EmojiNames, EmojiSynonyms, EnglishI, EventParser, ExecutionPolicy, FieldReport,
@@ -6913,7 +7003,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
   Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
-- `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
+- `C/clip/` (8): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, ScreenshotShelf, ShelfDrag,
+  SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
@@ -6932,7 +7023,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
   WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
-- `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
+- `CT/clip/` (5): ClipGuardTest, PrivateRangesTest, ScreenshotShelfTest, ShelfDragTest,
+  SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest
@@ -6940,7 +7032,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
-- `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
+- `K/keyboard/clipboard/` (4): ClipboardAdapter, ClipboardHistoryRecyclerView, ClipboardHistoryView,
+  FlatClipboard
 - `K/keyboard/emoji/` (2): EmojiPalettesView, EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
@@ -7006,18 +7099,19 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (39): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (40): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_bar_tools_strings, agent_barcalm_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
   agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
   agent_rgb_pattern_strings, agent_rgb_strings, agent_selection_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (48): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_settings_system_strings, agent_shelf_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings,
+  strings-talkback-descriptions
+- `app/src/main/res/values/` (50): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_bar_tools_strings, agent_barcalm_strings, agent_charart_ids,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
@@ -7025,11 +7119,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_memory_strings, agent_name_strings, agent_prompt_strings, agent_prompts_ids,
   agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings, agent_selection_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, strings, themes-flat
+  agent_settings_system_strings, agent_shelf_ids, agent_shelf_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

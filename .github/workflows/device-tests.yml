@@ -116,7 +116,7 @@ jobs:
     name: Emulator ${{ matrix.attempt }}
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
@@ -140,7 +140,7 @@ jobs:
           ls -l /dev/kvm
 
       - name: Run the scenarios in the emulator
-        timeout-minutes: 35
+        timeout-minutes: 35  # stage 102: the 37 scenarios need about 27 minutes
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           DEVICETEST_FLAGS: ${{ inputs.control && '--control' || '' }}

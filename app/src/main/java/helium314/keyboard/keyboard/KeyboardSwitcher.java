@@ -667,6 +667,7 @@ public final class KeyboardSwitcher {
             if (DEBUG_ACTION) {
                 Log.d(TAG, "setClipboardKeyboard");
             }
+            helium314.keyboard.agent.UiPerf.mark(helium314.keyboard.agent.UiPerf.CLIPBOARD_OPEN); // fork, stage 102: measuring point
             mMainKeyboardFrame.setVisibility(View.VISIBLE);
             // The visibility of {@link #mKeyboardView} must be aligned with {@link #MainKeyboardFrame}.
             // @see #getVisibleKeyboardView() and
