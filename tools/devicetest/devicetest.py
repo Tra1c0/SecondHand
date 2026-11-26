@@ -2441,11 +2441,20 @@ def shelf_setup(d):
     if SHELF_STATE["ready"]:
         return
     shell("pm grant %s android.permission.READ_MEDIA_IMAGES" % KEYBOARD_PACKAGE, check=False)
-    _open_settings_and_switch_on(d, ("Leiste & Befehle",), "Zwischenablage-Verlauf")
-    # the second switch is on the same page: the settings come back there (reopened, so the page is drawn when it is read)
-    shell("am start -W -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    # a fresh settings task: it starts on its home page, wherever an earlier scenario left it (prompt_folders leaves "Ablage")
+    shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
     time.sleep(2.5)
+    for _ in range(2):  # "Build N ist da" or "Neu in Build N" over the page (see _open_settings_and_switch_on)
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
+    d.tap_text("Leiste & Befehle")
+    time.sleep(1.0)
+    d.tap_text("Zwischenablage-Verlauf")
+    time.sleep(0.8)
     d.tap_text("Screenshots anbieten")
+    time.sleep(0.8)
     shell("input keyevent KEYCODE_HOME", check=False)
     time.sleep(1.0)
     SHELF_STATE["ready"] = True
