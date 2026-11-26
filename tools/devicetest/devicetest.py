@@ -2766,7 +2766,9 @@ def open_clipboard(d):
         if pill is None:
             raise CheckFailed("the grid offers no clipboard tool: " + bar_report(dump()))
         tap(*pill.center)
-    return wait_report(d, lambda s: s.keyboard_node("clipboard_list") is not None, "the clipboard list")
+    # an empty clipboard shows its placeholder instead of the list (the list is invisible then)
+    return wait_report(d, lambda s: s.keyboard_node("clipboard_list") is not None or s.keyboard_node("clipboard_empty_view") is not None,
+                       "the clipboard list")
 
 
 def perf_lines(name):
